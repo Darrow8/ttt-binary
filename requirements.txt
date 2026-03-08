@@ -1,0 +1,9 @@
+tinker
+tinker-cookbook
+datasets
+torch
+tqdm
+pandas
+matplotlib
+wandb
+python-dotenv

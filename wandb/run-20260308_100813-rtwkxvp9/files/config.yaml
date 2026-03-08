@@ -1,0 +1,55 @@
+_wandb:
+    value:
+        cli_version: 0.25.0
+        e:
+            fav8amlbviwt9gbqr3ztww8a1j1q3wbc:
+                codePath: grpo_subproblems.py
+                codePathLocal: grpo_subproblems.py
+                cpu_count: 16
+                cpu_count_logical: 32
+                disk:
+                    /:
+                        total: "206900281344"
+                        used: "120236244992"
+                email: darrowrh@stanford.edu
+                executable: /home/ubuntu/miniconda3/bin/python
+                host: ip-172-31-73-107
+                memory:
+                    total: "66324918272"
+                os: Linux-6.14.0-1018-aws-x86_64-with-glibc2.39
+                program: /home/ubuntu/grpo-project/grpo_subproblems.py
+                python: CPython 3.13.11
+                root: /home/ubuntu/grpo-project
+                startedAt: "2026-03-08T10:08:13.501533Z"
+                writerId: fav8amlbviwt9gbqr3ztww8a1j1q3wbc
+        m: []
+        python_version: 3.13.11
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+                - 11
+                - 49
+            "3":
+                - 16
+            "4": 3.13.11
+            "5": 0.25.0
+            "10":
+                - 20
+            "12": 0.25.0
+            "13": linux-x86_64
+batch_size:
+    value: 21
+group_size:
+    value: 16
+learning_rate:
+    value: 4e-05
+lora_rank:
+    value: 32
+max_tokens:
+    value: 2048
+model_name:
+    value: openai/gpt-oss-120b
+reward_fn:
+    value: combined(1.0*boxed_match, 0.1*boxed_format_bonus)

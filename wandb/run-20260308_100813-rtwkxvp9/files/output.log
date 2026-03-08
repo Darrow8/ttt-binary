@@ -1,0 +1,22 @@
+2026-03-08 10:08:14,875 INFO W&B logging → darrowrh-stanford-university/grpo-tinker-subproblems
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+2026-03-08 10:08:15,044 WARNING Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+config.json: 2.09kB [00:00, 3.85MB/s]
+2026-03-08 10:08:21,773 INFO ServiceClient initialized for session d3a2f6dc-8c31-58b6-bece-6fc5a395ab21
+2026-03-08 10:08:34,733 INFO TrainingClient initialized for model d3a2f6dc-8c31-58b6-bece-6fc5a395ab21:train:0
+2026-03-08 10:08:34,734 INFO GRPO training  model=openai/gpt-oss-120b  problems=21  batches=1  epochs=10
+Traceback (most recent call last):
+  File "/home/ubuntu/grpo-project/grpo_subproblems.py", line 86, in <module>
+    trainer.train(problems, epochs=EPOCHS)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/grpo-project/pipeline/trainer.py", line 171, in train
+    self._train_step(batch, global_step, n_batches * epochs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/grpo-project/pipeline/trainer.py", line 200, in _train_step
+    prompt = self.renderer.build_prompt(msgs)
+  File "/home/ubuntu/grpo-project/pipeline/trainer.py", line 40, in build_prompt
+    return types.ModelInput.from_token_ids(ids)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/miniconda3/lib/python3.13/site-packages/pydantic/_internal/_model_construction.py", line 289, in __getattr__
+    raise AttributeError(item)
+AttributeError: from_token_ids

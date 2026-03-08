@@ -1,0 +1,8 @@
+{"time":"2026-03-08T10:37:53.821546341Z","level":"INFO","msg":"stream: starting","core version":"0.25.0"}
+{"time":"2026-03-08T10:37:54.076845555Z","level":"INFO","msg":"stream: created new stream","id":"ni8f5gor"}
+{"time":"2026-03-08T10:37:54.076892031Z","level":"INFO","msg":"handler: started","stream_id":"ni8f5gor"}
+{"time":"2026-03-08T10:37:54.07695564Z","level":"INFO","msg":"stream: started","id":"ni8f5gor"}
+{"time":"2026-03-08T10:37:54.076975405Z","level":"INFO","msg":"writer: started","stream_id":"ni8f5gor"}
+{"time":"2026-03-08T10:37:54.07698109Z","level":"INFO","msg":"sender: started","stream_id":"ni8f5gor"}
+{"time":"2026-03-08T11:08:54.448501471Z","level":"ERROR","msg":"api: HTTP error","status":404,"method":"POST","url":"https://api.wandb.ai/files/darrowrh-stanford-university/grpo-tinker-subproblems/ni8f5gor/file_stream"}
+{"time":"2026-03-08T11:08:54.448541345Z","level":"ERROR+4","msg":"filestream: fatal error: filestream: failed to upload: 404 Not Found url=https://api.wandb.ai/files/darrowrh-stanford-university/grpo-tinker-subproblems/ni8f5gor/file_stream: {\"error\":\"run grpo-tinker-subproblems/ni8f5gor not found while streaming file\"}"}
