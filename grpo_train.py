@@ -44,25 +44,25 @@ config = GRPOConfig(
     wandb_project="grpo-tinker",
 
     # Optional system prompt injected before every problem
-    system_prompt="You are a helpful assistant. Show your reasoning step by step.",
+    # system_prompt="You are a helpful assistant. Show your reasoning step by step.",
 
-    # Suffix appended to every problem prompt
-    prompt_suffix=" Put your final answer inside \\boxed{}.",
+    # # Suffix appended to every problem prompt
+    # prompt_suffix=" Put your final answer inside \\boxed{}.",
 
-    # Optional few-shot examples
-    few_shot=[
-        {
-            "role": "user",
-            "content": "How many r's are in strawberry? Put your final answer inside \\boxed{}.",
-        },
-        {
-            "role": "assistant",
-            "content": (
-                "Let me spell it out: s-t-r-a-w-b-e-r-r-y. "
-                "Counting the r's: positions 3, 8, 9. That's 3. \\boxed{3}"
-            ),
-        },
-    ],
+    # # Optional few-shot examples
+    # few_shot=[
+    #     {
+    #         "role": "user",
+    #         "content": "How many r's are in strawberry? Put your final answer inside \\boxed{}.",
+    #     },
+    #     {
+    #         "role": "assistant",
+    #         "content": (
+    #             "Let me spell it out: s-t-r-a-w-b-e-r-r-y. "
+    #             "Counting the r's: positions 3, 8, 9. That's 3. \\boxed{3}"
+    #         ),
+    #     },
+    # ],
 )
 
 

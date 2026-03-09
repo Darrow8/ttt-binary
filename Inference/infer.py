@@ -29,18 +29,16 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 DEFAULT_PROBLEM = r"""
-There are unique constants \(C, \alpha, \beta\) such that the number of solutions to the equation
+Let \(U \subset PH^0_{\mathbb{Z}}(\mathbb{P}^2,\mathcal{O}(2))\) be the space of smooth conics in \(\mathbb{P}^2\), and let \(Z \subset U^6\) be the closed subscheme parametrizing \(6\)-tuples \((C_1,\dots,C_6)\) with \(C_1\) tangent to \(C_2,\dots,C_6\). Let
 \[
-ab + 1 = cde
+\pi : Z \to U^5
 \]
-with \(a, b, c, d, e \in \mathbb{N}\) and \(ab \le x\) is asymptotic to
+be the map induced by the projection onto the last \(5\) coordinates, and let \(V \subset U^5\) be the dense open subscheme over which \(\pi\) is finite étale. Let
 \[
-C x^{\alpha} \log^{\beta} x
+L=\lim_{p\to\infty}\frac{1}{\#V(\mathbb{F}_p)}\sum_{x\in V(\mathbb{F}_p)} \#\pi^{-1}(x),
 \]
-as \(x \to \infty\). Compute
-\[
-\left\lfloor 1000C \right\rfloor .
-\]"""
+that is, the limit of the average number of components of the space of conics tangent to \(5\) smooth conics over \(\mathbb{F}_p\), as \(p\) tends to infinity. Find \(\lfloor 100L \rfloor\).
+"""
 
 SOLVE_PROMPT = """\
 ## Problem
@@ -53,6 +51,8 @@ Solve this problem step by step. You MUST show all of your reasoning, \
 calculations, and intermediate steps IN YOUR RESPONSE — do not skip ahead \
 to the answer. Think carefully and work through the math explicitly. \
 Write out every key derivation.
+
+Round your answer to 4 decimal places if necessary. \
 
 After you have fully worked through the solution, write your final \
 numerical answer on the very last line in exactly this format \
@@ -424,7 +424,7 @@ def main():
     problem = " ".join(args.problem) if args.problem else DEFAULT_PROBLEM
 
     if args.local:
-        run_local(problem, args.n_samples or 50)
+        run_local(problem, args.n_samples or 100)
     else:
         run_remote(problem, args.n_samples or 100)
 

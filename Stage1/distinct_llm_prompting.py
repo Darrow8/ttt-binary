@@ -1,19 +1,13 @@
 """
-TTT-Discover: Dataset generation via LLM self-consistency.
+TTT-Discover (distinct variant): Dataset generation via LLM self-consistency.
 
-Given a hard problem, generates similar problems at a calibrated difficulty
-where the LLM's answers agree ~50-80% of the time across repeated samples.
-The majority-vote answer is treated as pseudo ground truth, producing a
-training dataset of ~100 (problem, answer) pairs with binary reward.
-
-Usage:
-    gcloud auth application-default login
-    export GOOGLE_CLOUD_PROJECT="your-project-id"
-
-    python llm_prompting.py --problem_statement PROBLEM_STATEMENT --n_problems 100
+Like llm_prompting.py, but prioritises quality over quantity in generation:
+each round launches N_GENERATORS independent LLM calls that each produce only
+PROBLEMS_PER_GENERATOR problems (default 5 × 2 = 10 per round). Because each
+call only asks for 2 problems, the LLM can spend more effort on each one, and
+because the calls are independent (high temperature), we get natural diversity.
 """
 
-import argparse
 import concurrent.futures
 import json
 import os
@@ -26,7 +20,7 @@ from dataclasses import dataclass, field, asdict
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
-# .env loader (same as eval.py)
+# .env loader
 # ---------------------------------------------------------------------------
 _env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 if os.path.exists(_env_path):
@@ -39,7 +33,7 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(key.strip(), val)
 
 # ---------------------------------------------------------------------------
-# Vertex AI client (mirrors eval.py)
+# Vertex AI client
 # ---------------------------------------------------------------------------
 DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
 
@@ -55,22 +49,8 @@ L=\lim_{p\to\infty}\frac{1}{\#V(\mathbb{F}_p)}\sum_{x\in V(\mathbb{F}_p)} \#\pi^
 that is, the limit of the average number of components of the space of conics tangent to \(5\) smooth conics over \(\mathbb{F}_p\), as \(p\) tends to infinity. Find \(\lfloor 100L \rfloor\).
 """
 
-
 print(PROBLEM_STATEMENT)
 
-# Let $\mathbb{N}$ denote the set of positive integers. A function
-# $f : \mathbb{N} \to \mathbb{N}$ is said to be \emph{bonza} if
-# \[
-# f(a) \mid b^a - f(b)^{f(a)}
-# \]
-# for all positive integers $a$ and $b$.
-
-# Determine the smallest real constant $c$ such that
-# \[
-# f(n) \le cn
-# \]
-# for all bonza functions $f$ and all positive integers $n$.
-# """
 
 def _get_vertex_access_token() -> str:
     from google.auth import default
@@ -241,13 +221,10 @@ def generate_similar_problems(
     client: OpenAI,
     model: str,
     hard_problem: str,
-    batch_size: int = 10,
+    batch_size: int = 2,
     failed_solutions: list[str] | None = None,
 ) -> list[dict]:
-    """Prompt the LLM to generate a batch of similar problems.
-
-    Returns a list of dicts with a `problem` key.
-    """
+    """Prompt the LLM to generate a small batch of similar problems."""
     if failed_solutions:
         solutions_block = "\n\n---\n\n".join(
             f"### Attempt {i+1}\n\n{sol}"
@@ -263,7 +240,6 @@ def generate_similar_problems(
     )
     raw = call_llm(client, model, prompt, temperature=0.8)
 
-    # Extract JSON from response (handle markdown fences)
     json_str = raw
     if "```" in json_str:
         parts = json_str.split("```")
@@ -275,10 +251,6 @@ def generate_similar_problems(
                 json_str = cleaned
                 break
 
-    # Fix invalid JSON escapes from LaTeX (e.g. \alpha, \infty, \le).
-    # The alternation first matches \\\\ (an already-escaped backslash pair)
-    # and leaves it alone, then matches a lone \\ not followed by a valid
-    # JSON escape char and doubles it.
     json_str = re.sub(
         r'\\\\|\\(?!["\\/bfnrtu])',
         lambda m: m.group() if m.group() == '\\\\' else '\\\\',
@@ -307,6 +279,45 @@ def generate_similar_problems(
         return []
 
 
+def generate_problems_parallel(
+    client: OpenAI,
+    model: str,
+    hard_problem: str,
+    n_generators: int = 5,
+    problems_per_generator: int = 2,
+    failed_solutions: list[str] | None = None,
+    pool: concurrent.futures.ThreadPoolExecutor | None = None,
+) -> list[dict]:
+    """Launch n_generators independent LLM calls, each producing problems_per_generator problems.
+
+    Returns the merged, deduplicated list of candidate dicts.
+    """
+    futures = [
+        pool.submit(
+            generate_similar_problems,
+            client, model, hard_problem,
+            batch_size=problems_per_generator,
+            failed_solutions=failed_solutions,
+        )
+        for _ in range(n_generators)
+    ]
+
+    all_candidates: list[dict] = []
+    seen: set[str] = set()
+    for i, fut in enumerate(concurrent.futures.as_completed(futures)):
+        try:
+            batch = fut.result()
+            for cand in batch:
+                text = cand.get("problem", "")
+                if text and text not in seen:
+                    seen.add(text)
+                    all_candidates.append(cand)
+            print(f"    generator {i+1}/{n_generators}: {len(batch)} problems")
+        except Exception as e:
+            print(f"    generator {i+1}/{n_generators}: ERROR {e}")
+
+    return all_candidates
+
 
 EXTRACT_ANSWER_PROMPT = """\
 Below is a student's solution to a math problem. What is the student's \
@@ -330,16 +341,13 @@ _NUMERIC_ANSWER_RE = re.compile(
 
 
 def _is_numeric_answer(answer: str) -> bool:
-    """Return True if the normalized answer is a number."""
     return bool(_NUMERIC_ANSWER_RE.match(answer))
 
 
 def _regex_extract(solution: str) -> str:
-    """Try to extract the answer from structured patterns. Returns "" on failure."""
     if not solution:
         return ""
 
-    # 1. **ANSWER: <value>** — take the last occurrence
     matches = re.findall(
         r"\*\*ANSWER:\s*(.+?)\*\*",
         solution,
@@ -348,12 +356,10 @@ def _regex_extract(solution: str) -> str:
     if matches:
         return matches[-1].strip()
 
-    # 2. \boxed{...} — take the last occurrence
     boxed = re.findall(r"\\boxed\{([^}]+)\}", solution)
     if boxed:
         return boxed[-1].strip()
 
-    # 3. "the answer is …" / "final answer is …"
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
         solution, re.IGNORECASE,
@@ -369,7 +375,6 @@ def extract_answer(
     model: str,
     solution: str,
 ) -> str:
-    """Extract the answer: regex first, LLM fallback if regex finds nothing."""
     answer = _regex_extract(solution)
     if answer:
         return answer
@@ -386,17 +391,11 @@ def extract_answer(
 
 
 def normalize_answer(answer: str) -> str:
-    """Normalize an answer string for comparison.
-
-    Strips LaTeX markup, whitespace, and converts fractions / decimals to a
-    canonical decimal form so that e.g. "1/2" and "0.5" compare equal.
-    """
     a = answer.strip().lower()
     a = re.sub(r"[\\${}]", "", a)
     a = re.sub(r"\s+", "", a)
     a = a.replace(",", ".")
 
-    # Try to evaluate as a number (handles fractions like "1/2", "6/pi^2", etc.)
     try:
         from fractions import Fraction
         if "/" in a and a.replace("/", "").replace("-", "").replace(".", "").isdigit():
@@ -420,10 +419,6 @@ def _solve_one(
     problem: str,
     _use_llm_extract: bool,
 ) -> tuple[str, str]:
-    """Solve a problem once and return (normalized_answer, full_solution).
-
-    Retries if the solution is empty or truncated (no answer pattern found).
-    """
     prompt = SOLVE_PROMPT.format(problem=problem)
     for attempt in range(_SOLVE_MAX_RETRIES):
         solution = call_llm(client, model, prompt, temperature=0.7)
@@ -432,10 +427,8 @@ def _solve_one(
         answer = extract_answer(client, model, solution)
         if normalize_answer(answer):
             return normalize_answer(answer), solution
-        # Solution exists but no answer extracted — likely truncated, retry
         if attempt < _SOLVE_MAX_RETRIES - 1:
             print("r", end="", flush=True)
-    # Return whatever we got on the last attempt
     answer = extract_answer(client, model, solution) if solution else ""
     return normalize_answer(answer), solution
 
@@ -448,11 +441,6 @@ def solve_and_check_agreement(
     use_llm_extract: bool = False,
     pool: concurrent.futures.ThreadPoolExecutor | None = None,
 ) -> tuple[float, str, list[str], list[str]]:
-    """Solve a problem n_samples times in parallel and compute agreement rate.
-
-    Returns:
-        (agreement_rate, majority_answer, all_answers, all_solutions)
-    """
     futures = [
         pool.submit(_solve_one, client, model, problem, use_llm_extract)
         for _ in range(n_samples)
@@ -472,12 +460,10 @@ def solve_and_check_agreement(
 
 
 def _save_atomic(path: str, data: dict | list) -> None:
-    """Atomically write JSON data to disk via a temp file."""
     tmp_path = path + ".tmp"
     with open(tmp_path, "w") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp_path, path)
-
 
 
 def build_dataset(
@@ -488,7 +474,8 @@ def build_dataset(
     n_samples_per_problem: int = 10,
     target_agreement_low: float = 0.60,
     target_agreement_high: float = 0.80,
-    generation_batch_size: int = 15,
+    n_generators: int = 5,
+    problems_per_generator: int = 2,
     max_generation_rounds: int = 20,
     use_llm_extract: bool = False,
     output_path: str | None = None,
@@ -497,17 +484,10 @@ def build_dataset(
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
-    Generates similar problems in batches, filters for those where the LLM's
-    self-consistency falls within [target_agreement_low, target_agreement_high],
-    and uses the majority-vote answer as ground truth.
-
-    API calls are parallelised with a shared thread pool (max_workers controls
-    the total number of concurrent LLM requests across all candidates).
-
-    When output_path is provided, two JSON files are maintained incrementally:
-      - <output_path>          — kept problems (in-band agreement)
-      - <stem>_skips<ext>      — skipped problems (out-of-band agreement)
-    Both files are updated atomically after every candidate is evaluated.
+    Each round launches n_generators independent LLM calls, each producing
+    problems_per_generator problems (default 5 × 2 = 10 per round). This
+    gives the LLM more room to focus on quality per problem while still
+    maintaining diversity across generators.
     """
     dataset = Dataset(
         source_problem=hard_problem,
@@ -547,7 +527,6 @@ def build_dataset(
         problem_text: str,
         pool: concurrent.futures.ThreadPoolExecutor,
     ) -> tuple[str, float, str, list[str], list[str], float]:
-        """Evaluate one candidate (runs in a worker thread)."""
         t1 = time.time()
         agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
             client, model, problem_text,
@@ -558,9 +537,12 @@ def build_dataset(
         elapsed = time.time() - t1
         return problem_text, agreement, majority_ans, all_answers, all_solutions, elapsed
 
+    total_per_round = n_generators * problems_per_generator
+
     print(f"\n{'='*70}")
-    print(f"  TTT-Discover: Building dataset from hard problem")
+    print(f"  TTT-Discover (distinct): Building dataset from hard problem")
     print(f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement")
+    print(f"  Generation: {n_generators} generators × {problems_per_generator} problems = {total_per_round}/round")
     print(f"  Samples per problem: {n_samples_per_problem}")
     print(f"  Failed solution attempts for context: {len(failed_solutions or [])}")
     print(f"  Model: {model}")
@@ -573,21 +555,21 @@ def build_dataset(
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         while len(dataset.problems) < n_target and round_num < max_generation_rounds:
             round_num += 1
-            batch_size = generation_batch_size
 
-            print(f"--- Round {round_num}: generating {batch_size} candidate problems "
+            print(f"--- Round {round_num}: {n_generators} generators × {problems_per_generator} problems "
                   f"({len(dataset.problems)}/{n_target} collected) ---")
 
             t0 = time.time()
-            candidates = generate_similar_problems(
+            candidates = generate_problems_parallel(
                 client, model, hard_problem,
-                batch_size=batch_size,
+                n_generators=n_generators,
+                problems_per_generator=problems_per_generator,
                 failed_solutions=failed_solutions,
+                pool=pool,
             )
             gen_time = time.time() - t0
-            print(f"  Generated {len(candidates)} candidates ({gen_time:.1f}s)")
+            print(f"  Generated {len(candidates)} unique candidates across {n_generators} generators ({gen_time:.1f}s)")
 
-            # Deduplicate and collect valid candidates
             to_evaluate: list[tuple[int, str]] = []
             for j, cand in enumerate(candidates):
                 problem_text = cand.get("problem", "")
@@ -600,7 +582,6 @@ def build_dataset(
                 print("  No new unique candidates, retrying...")
                 continue
 
-            # Submit all candidates for parallel evaluation
             future_to_idx: dict[concurrent.futures.Future, tuple[int, str]] = {}
             for j, problem_text in to_evaluate:
                 fut = pool.submit(_evaluate_candidate, problem_text, pool)
@@ -666,7 +647,6 @@ def build_dataset(
 
 
 def save_dataset(dataset: Dataset, path: str) -> None:
-    """Save the dataset to a JSON file."""
     data = {
         "source_problem": dataset.source_problem,
         "target_agreement_low": dataset.target_agreement_low,
@@ -680,7 +660,6 @@ def save_dataset(dataset: Dataset, path: str) -> None:
 
 
 def load_dataset(path: str) -> Dataset:
-    """Load a dataset from a JSON file."""
     with open(path) as f:
         data = json.load(f)
     ds = Dataset(
@@ -700,17 +679,14 @@ def run(
     n_samples: int = 10,
     agree_low: float = 0.60,
     agree_high: float = 0.80,
-    batch_size: int = 10,
+    n_generators: int = 5,
+    problems_per_generator: int = 2,
     output: str | None = None,
     model: str | None = None,
     llm_extract: bool = False,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
 ) -> Dataset:
-    """Run the full pipeline programmatically.
-
-    Returns the generated Dataset.
-    """
     client, default_model = get_client()
     model = model or default_model
 
@@ -731,7 +707,8 @@ def run(
         n_samples_per_problem=n_samples,
         target_agreement_low=agree_low,
         target_agreement_high=agree_high,
-        generation_batch_size=batch_size,
+        n_generators=n_generators,
+        problems_per_generator=problems_per_generator,
         use_llm_extract=llm_extract,
         output_path=out_path,
         max_workers=max_workers,
@@ -768,6 +745,8 @@ def main():
         problem=PROBLEM_STATEMENT,
         n_problems=20,
         n_samples=10,
+        n_generators=5,
+        problems_per_generator=2,
         model="openai/gpt-oss-120b-maas",
         llm_extract=True,
         failed_solutions=failed_solutions,
