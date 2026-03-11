@@ -44,7 +44,15 @@ def extract_boxed(text: str) -> str:
 
 
 def _normalize(s: str) -> str:
-    return s.replace(",", "").replace(" ", "").strip().rstrip(".")
+    s = s.replace(",", "").replace(" ", "").strip().rstrip(".")
+    # Normalize numeric strings so "3264.0000" == "3264"
+    try:
+        num = float(s)
+        if num == int(num):
+            return str(int(num))
+    except (ValueError, OverflowError):
+        pass
+    return s
 
 
 # ---------------------------------------------------------------------------
@@ -143,11 +151,20 @@ def length_penalty(max_tokens: int = 512, *, penalty_per_token: float = 0.001) -
 # Chemistry / SMILES reward functions
 # ---------------------------------------------------------------------------
 
+def _strip_latex(smiles: str) -> str:
+    """Remove LaTeX wrappers like \\text{}, \\texttt{}, \\mathrm{} from SMILES."""
+    s = smiles.strip()
+    s = re.sub(r"\\(?:text|texttt|textbf|mathrm|mathtt)\{([^}]*)\}", r"\1", s)
+    s = re.sub(r"\\,", "", s)
+    return s.strip()
+
+
 def _canonicalize_smiles(smiles: str) -> str | None:
     """Canonicalize a SMILES and sort multi-component reactants."""
     try:
         from rdkit import Chem
-        parts = smiles.strip().split(".")
+        s = _strip_latex(smiles)
+        parts = s.split(".")
         canonical = []
         for part in parts:
             mol = Chem.MolFromSmiles(part.strip())
@@ -165,11 +182,12 @@ def smiles_match(response: str, problem: "Problem") -> float:
         predicted_raw = extract_boxed(response)
     except ValueError:
         return 0.0
+    predicted_clean = _strip_latex(predicted_raw)
     ref_canon = _canonicalize_smiles(problem.reference)
-    pred_canon = _canonicalize_smiles(predicted_raw)
+    pred_canon = _canonicalize_smiles(predicted_clean)
     if ref_canon is None or pred_canon is None:
         # Fallback: stripped exact match
-        return 1.0 if predicted_raw.strip() == problem.reference.strip() else 0.0
+        return 1.0 if predicted_clean.strip() == problem.reference.strip() else 0.0
     return 1.0 if pred_canon == ref_canon else 0.0
 
 

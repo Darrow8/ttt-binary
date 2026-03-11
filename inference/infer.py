@@ -201,7 +201,13 @@ def _solve_once_remote(client, problem: str, sample_idx: int, max_retries: int =
                 temperature=TEMPERATURE,
             )
             elapsed = time.time() - t0
-            solution = resp.choices[0].message.content or ""
+            msg = resp.choices[0].message
+            content = msg.content or ""
+            reasoning_content = getattr(msg, "reasoning_content", None) or ""
+            if reasoning_content:
+                solution = reasoning_content + "\n\n" + content
+            else:
+                solution = content
             if not solution:
                 print(f"  [sample {sample_idx+1}] empty response "
                       f"(attempt {attempt+1}/{max_retries})")
@@ -209,12 +215,16 @@ def _solve_once_remote(client, problem: str, sample_idx: int, max_retries: int =
                     time.sleep(2 ** attempt)
                 continue
             answer = extract_answer(solution, client=client, model=REMOTE_MODEL)
-            return {
+            result = {
                 "sample_idx": sample_idx,
                 "answer": answer,
                 "reasoning": solution,
                 "elapsed_s": round(elapsed, 2),
             }
+            if reasoning_content:
+                result["has_hidden_reasoning"] = True
+                result["reasoning_content_length"] = len(reasoning_content)
+            return result
         except Exception as e:
             print(f"  [sample {sample_idx+1}] error "
                   f"(attempt {attempt+1}/{max_retries}): {e}")
@@ -334,11 +344,11 @@ def _build_local_clients(service, tinker_path: str):
     return sampling_client, tokenizer
 
 
-def run_local(problem: str, n_samples: int) -> None:
+def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> None:
     from tinker import types
 
     service = _get_tinker_service()
-    tinker_path = _find_latest_checkpoint(service)
+    tinker_path = checkpoint or _find_latest_checkpoint(service)
     sampling_client, tokenizer = _build_local_clients(service, tinker_path)
 
     print(f"Mode:       local")
@@ -416,17 +426,17 @@ def main():
         help="Number of samples (default: 50 for local, 100 for remote)",
     )
     parser.add_argument(
-        "problem", nargs="*",
-        help="Problem text (defaults to built-in problem)",
+        "--checkpoint", type=str, default=None,
+        help="Tinker checkpoint path (default: auto-detect latest)",
     )
     args = parser.parse_args()
 
-    problem = " ".join(args.problem) if args.problem else DEFAULT_PROBLEM
+    # problem = " ".join(args.problem) if args.problem else DEFAULT_PROBLEM
 
     if args.local:
-        run_local(problem, args.n_samples or 100)
+        run_local(DEFAULT_PROBLEM, args.n_samples or 100, checkpoint=args.checkpoint)
     else:
-        run_remote(problem, args.n_samples or 100)
+        run_remote(DEFAULT_PROBLEM, args.n_samples or 100)
 
 
 if __name__ == "__main__":

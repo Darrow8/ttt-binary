@@ -25,6 +25,8 @@ from dataclasses import dataclass, field, asdict
 
 from openai import OpenAI
 
+from domains import DomainConfig, MATH, RETROSYNTHESIS, DOMAINS
+
 # ---------------------------------------------------------------------------
 # .env loader (same as eval.py)
 # ---------------------------------------------------------------------------
@@ -243,11 +245,14 @@ def generate_similar_problems(
     hard_problem: str,
     batch_size: int = 10,
     failed_solutions: list[str] | None = None,
+    domain: DomainConfig | None = None,
 ) -> list[dict]:
     """Prompt the LLM to generate a batch of similar problems.
 
     Returns a list of dicts with a `problem` key.
     """
+    domain = domain or MATH
+
     if failed_solutions:
         solutions_block = "\n\n---\n\n".join(
             f"### Attempt {i+1}\n\n{sol}"
@@ -256,7 +261,7 @@ def generate_similar_problems(
     else:
         solutions_block = "(No attempted solutions available.)"
 
-    prompt = GENERATE_PROBLEMS_PROMPT.format(
+    prompt = domain.generate_prompt.format(
         problem=hard_problem,
         batch_size=batch_size,
         failed_solutions=solutions_block,
@@ -368,6 +373,7 @@ def extract_answer(
     client: OpenAI,
     model: str,
     solution: str,
+    domain: DomainConfig | None = None,
 ) -> str:
     """Extract the answer: regex first, LLM fallback if regex finds nothing."""
     answer = _regex_extract(solution)
@@ -377,7 +383,8 @@ def extract_answer(
     if not solution:
         return ""
 
-    prompt = EXTRACT_ANSWER_PROMPT.format(solution=solution)
+    domain = domain or MATH
+    prompt = domain.extract_answer_prompt.format(solution=solution)
     raw = call_llm(client, model, prompt, temperature=0.0)
     answer = raw.strip()
     if answer.upper() == "NONE":
@@ -419,25 +426,27 @@ def _solve_one(
     model: str,
     problem: str,
     _use_llm_extract: bool,
+    domain: DomainConfig | None = None,
 ) -> tuple[str, str]:
     """Solve a problem once and return (normalized_answer, full_solution).
 
     Retries if the solution is empty or truncated (no answer pattern found).
     """
-    prompt = SOLVE_PROMPT.format(problem=problem)
+    domain = domain or MATH
+    prompt = domain.solve_prompt.format(problem=problem)
     for attempt in range(_SOLVE_MAX_RETRIES):
         solution = call_llm(client, model, prompt, temperature=0.7)
         if not solution:
             continue
-        answer = extract_answer(client, model, solution)
-        if normalize_answer(answer):
-            return normalize_answer(answer), solution
+        answer = extract_answer(client, model, solution, domain=domain)
+        if domain.normalize_answer(answer):
+            return domain.normalize_answer(answer), solution
         # Solution exists but no answer extracted — likely truncated, retry
         if attempt < _SOLVE_MAX_RETRIES - 1:
             print("r", end="", flush=True)
     # Return whatever we got on the last attempt
-    answer = extract_answer(client, model, solution) if solution else ""
-    return normalize_answer(answer), solution
+    answer = extract_answer(client, model, solution, domain=domain) if solution else ""
+    return domain.normalize_answer(answer), solution
 
 
 def solve_and_check_agreement(
@@ -447,14 +456,16 @@ def solve_and_check_agreement(
     n_samples: int = 10,
     use_llm_extract: bool = False,
     pool: concurrent.futures.ThreadPoolExecutor | None = None,
+    domain: DomainConfig | None = None,
 ) -> tuple[float, str, list[str], list[str]]:
     """Solve a problem n_samples times in parallel and compute agreement rate.
 
     Returns:
         (agreement_rate, majority_answer, all_answers, all_solutions)
     """
+    domain = domain or MATH
     futures = [
-        pool.submit(_solve_one, client, model, problem, use_llm_extract)
+        pool.submit(_solve_one, client, model, problem, use_llm_extract, domain)
         for _ in range(n_samples)
     ]
     results = [f.result() for f in futures]
@@ -494,6 +505,7 @@ def build_dataset(
     output_path: str | None = None,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
+    domain: DomainConfig | None = None,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
@@ -509,6 +521,8 @@ def build_dataset(
       - <stem>_skips<ext>      — skipped problems (out-of-band agreement)
     Both files are updated atomically after every candidate is evaluated.
     """
+    domain = domain or MATH
+
     dataset = Dataset(
         source_problem=hard_problem,
         target_agreement_low=target_agreement_low,
@@ -554,6 +568,7 @@ def build_dataset(
             n_samples=n_samples_per_problem,
             use_llm_extract=use_llm_extract,
             pool=pool,
+            domain=domain,
         )
         elapsed = time.time() - t1
         return problem_text, agreement, majority_ans, all_answers, all_solutions, elapsed
@@ -583,6 +598,7 @@ def build_dataset(
                 client, model, hard_problem,
                 batch_size=batch_size,
                 failed_solutions=failed_solutions,
+                domain=domain,
             )
             gen_time = time.time() - t0
             print(f"  Generated {len(candidates)} candidates ({gen_time:.1f}s)")
@@ -617,12 +633,12 @@ def build_dataset(
                     continue
 
                 in_range = target_agreement_low <= agreement <= target_agreement_high
-                numeric = _is_numeric_answer(normalize_answer(majority_ans))
-                kept = in_range and bool(majority_ans) and numeric
+                valid = domain.is_valid_answer(domain.normalize_answer(majority_ans)) if majority_ans else False
+                kept = in_range and bool(majority_ans) and valid
                 if not bool(majority_ans):
                     status = "skip (empty answer)"
-                elif not numeric:
-                    status = f"skip (non-numeric: {majority_ans[:40]})"
+                elif not valid:
+                    status = f"skip (invalid answer: {majority_ans[:40]})"
                 elif in_range:
                     status = "KEEP"
                 else:
@@ -706,11 +722,13 @@ def run(
     llm_extract: bool = False,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
+    domain: DomainConfig | None = None,
 ) -> Dataset:
     """Run the full pipeline programmatically.
 
     Returns the generated Dataset.
     """
+    domain = domain or MATH
     client, default_model = get_client()
     model = model or default_model
 
@@ -736,6 +754,7 @@ def run(
         output_path=out_path,
         max_workers=max_workers,
         failed_solutions=failed_solutions,
+        domain=domain,
     )
 
     save_dataset(dataset, out_path)
@@ -745,32 +764,65 @@ def run(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def _load_failed_solutions() -> list[str]:
-    path = os.path.join(os.path.dirname(__file__), "failed_solutions.json")
-    if not os.path.exists(path):
-        print(f"No failed solutions found. Create {path} with up to 3 solution strings.")
-        return []
-    with open(path) as f:
-        data = json.load(f)
-    if isinstance(data, list):
-        return [s for s in data if isinstance(s, str)]
+def _load_failed_solutions(domain_name: str = "math") -> list[str]:
+    base = os.path.dirname(__file__) or "."
+    candidates = [
+        f"{domain_name}_failed_solutions.json",
+        f"retro_failed_solutions.json" if domain_name == "retrosynthesis" else None,
+        "failed_solutions.json",
+    ]
+    for name in candidates:
+        if name is None:
+            continue
+        path = os.path.join(base, name)
+        if os.path.exists(path):
+            with open(path) as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                print(f"  Loaded {len(data)} failed solutions from {path}")
+                return [s for s in data if isinstance(s, str)]
     return []
 
 
+RETRO_PROBLEM_STATEMENT = (
+    "You are an expert organic chemist performing retrosynthetic analysis.\n\n"
+    "Given the target product molecule (SMILES): "
+    "Cc1ccc2cc(-c3ccc4ccc5cccc6ccc3c4c56)ccc2n1\n\n"
+    "Predict the set of reactants that can be combined to synthesize this product. "
+    "Provide reactant SMILES separated by '.' for multiple reactants.\n\n"
+    "Think step by step about which bonds were formed, what functional group "
+    "transformations occurred, and what the starting materials must have been.\n\n"
+    "Put your final reactant SMILES inside \\boxed{}."
+)
+
+
 def main():
-    failed_solutions = _load_failed_solutions()
-    if failed_solutions:
-        print(f"Loaded {len(failed_solutions)} failed solutions from Stage1/failed_solutions.json")
+    parser = argparse.ArgumentParser(description="TTT-Discover: generate subproblems")
+    parser.add_argument("--domain", choices=list(DOMAINS.keys()), default="math",
+                        help="Problem domain (default: math)")
+    parser.add_argument("--n_problems", type=int, default=20)
+    parser.add_argument("--n_samples", type=int, default=10)
+    parser.add_argument("--output", type=str, default=None)
+    args = parser.parse_args()
+
+    domain = DOMAINS[args.domain]
+
+    if args.domain == "retrosynthesis":
+        problem = RETRO_PROBLEM_STATEMENT
     else:
-        print("No failed solutions found. Create Stage1/failed_solutions.json with up to 3 solution strings.")
+        problem = PROBLEM_STATEMENT
+
+    failed_solutions = _load_failed_solutions(args.domain)
 
     run(
-        problem=PROBLEM_STATEMENT,
-        n_problems=20,
-        n_samples=10,
+        problem=problem,
+        n_problems=args.n_problems,
+        n_samples=args.n_samples,
         model="openai/gpt-oss-120b-maas",
         llm_extract=True,
         failed_solutions=failed_solutions,
+        domain=domain,
+        output=args.output,
     )
 
 

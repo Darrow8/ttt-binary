@@ -329,6 +329,8 @@ class GRPOTrainer:
     # ------------------------------------------------------------------
 
     def _save_checkpoint(self, name: str):
-        path = str(self.log_path / name)
-        response = self.training_client.save_state(path, ttl_seconds=self.cfg.ttl_seconds).result()
-        logger.info("Checkpoint → %s  (tinker_path: %s)", path, response.path)
+        # Tinker labels allow only alphanumeric, hyphens, underscores, dots.
+        # Use the log_dir basename + name as a flat label.
+        label = f"{self.log_path.name}.{name}"
+        response = self.training_client.save_state(label, ttl_seconds=self.cfg.ttl_seconds).result()
+        logger.info("Checkpoint → %s  (tinker_path: %s)", label, response.path)

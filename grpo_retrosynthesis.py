@@ -1,17 +1,18 @@
 """
-GRPO training on subproblems derived from a hard source problem.
+GRPO training on retrosynthesis subproblems derived from a hard source problem.
 
 Workflow:
-    1. keeps.json contains a hard problem the model can't solve (0/100)
-       and 21 easier subproblems with majority-vote ground truth.
-    2. This script runs GRPO on those 21 subproblems for several epochs
-       so the model learns the component reasoning skills.
+    1. retro_suzuki_subproblems.jsonl contains 20 easier retrosynthesis
+       problems with verified ground-truth reactant SMILES.
+    2. This script runs GRPO on those 20 subproblems for several epochs
+       so the model learns the component retrosynthetic skills (Suzuki
+       coupling disconnection, boronic acid/halide assignment, etc.).
     3. After training, evaluate the hard problem again to see if the
-       model can now produce correct answers (target: >0/100).
+       model can now produce correct answers (target: >0/10).
 
 Usage::
 
-    python grpo_subproblems.py
+    python grpo_retrosynthesis.py
 """
 
 import logging
@@ -23,7 +24,7 @@ from pipeline import (
     GRPOConfig,
     GRPOTrainer,
     load_problems,
-    boxed_match,
+    smiles_match,
     boxed_format_bonus,
     combined,
 )
@@ -33,51 +34,43 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
-# 21 subproblems → batch_size=21 means 1 step per epoch.
+# 20 subproblems → batch_size=20 means 1 step per epoch.
 # Run enough epochs for the model to learn all subproblems.
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir="./subproblems-run",
+    log_dir="/tmp/tinker-grpo/retrosynthesis-run",
 
-    batch_size=25,
+    batch_size=20,
     group_size=16,
-    learning_rate=1e-4,
+    learning_rate=4e-5,
     lora_rank=32,
     max_tokens=16384,
 
     save_every=5,
 
-    wandb_project="grpo-conics-subproblems2",
+    wandb_project="grpo-tinker-retrosynthesis",
 
     temperature=0.7,
-    system_prompt="""
-You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
-
-Show all important intermediate reasoning, derivations, and calculations. Explain why each step is valid and reference any relevant theorems or identities when appropriate. Avoid skipping logical steps or making large jumps in reasoning.
-
-If the problem involves multiple cases or approaches, consider them systematically. Use clear mathematical notation and keep the solution organized.
-
-After completing the reasoning, clearly state the final answer.
-    """,
+    system_prompt="You are a helpful assistant. Show your reasoning step by step.",
 
     prompt_suffix=" Put your final answer inside \\boxed{}.",
 
     few_shot=[],
 )
 
-EPOCHS = 50
+EPOCHS = 10
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems("problems/conics.jsonl")
+problems = load_problems("problems/retro_suzuki_subproblems.jsonl")
 
 
 # ── Reward function ────────────────────────────────────────────────────────
 
 reward_fn = combined(
-    (1.0, boxed_match),
+    (1.0, smiles_match),
     (0.1, boxed_format_bonus),
 )
 
