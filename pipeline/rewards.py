@@ -50,6 +50,7 @@ def _normalize(s: str) -> str:
         num = float(s)
         if num == int(num):
             return str(int(num))
+        return str(num)
     except (ValueError, OverflowError):
         pass
     return s

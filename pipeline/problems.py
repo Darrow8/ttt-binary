@@ -63,6 +63,8 @@ def load_problems(
         path = Path(source)
         if path.suffix == ".jsonl":
             rows = _load_jsonl(path)
+        elif path.suffix == ".json":
+            rows = _load_json(path)
         elif path.suffix == ".csv":
             rows = _load_csv(path)
         elif path.exists():
@@ -90,6 +92,14 @@ def load_problems(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+def _load_json(path: Path) -> list[dict]:
+    with open(path) as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        raise ValueError(f"Expected a JSON array in {path}, got {type(data).__name__}")
+    return data
+
 
 def _load_jsonl(path: Path) -> list[dict]:
     rows = []

@@ -61,6 +61,10 @@ class GRPOConfig:
     model_name: str = "openai/gpt-oss-120b"
     log_dir: str = "/tmp/tinker-grpo/run"
 
+    # If set, initialise the training client from this tinker checkpoint
+    # path instead of creating a fresh LoRA from the base model.
+    resume_from: str | None = None
+
     batch_size: int = 128
     group_size: int = 16
     learning_rate: float = 4e-5
@@ -147,10 +151,18 @@ class GRPOTrainer:
                 "Get one at https://tinker-console.thinkingmachines.ai/"
             )
         self.service = tinker.ServiceClient()
-        self.training_client = self.service.create_lora_training_client(
-            base_model=self.cfg.model_name,
-            rank=self.cfg.lora_rank,
-        )
+
+        if self.cfg.resume_from:
+            logger.info("Resuming from checkpoint: %s", self.cfg.resume_from)
+            self.training_client = self.service.create_training_client_from_state(
+                path=self.cfg.resume_from,
+            )
+        else:
+            self.training_client = self.service.create_lora_training_client(
+                base_model=self.cfg.model_name,
+                rank=self.cfg.lora_rank,
+            )
+
         self.sampling_params = tinker.types.SamplingParams(
             max_tokens=self.cfg.max_tokens,
             temperature=self.cfg.temperature,

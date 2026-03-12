@@ -1,17 +1,12 @@
 """
-GRPO training on subproblems derived from a hard source problem.
+GRPO training from checkpoint-50 on curated hard problems.
 
-Workflow:
-    1. keeps.json contains a hard problem the model can't solve (0/100)
-       and 21 easier subproblems with majority-vote ground truth.
-    2. This script runs GRPO on those 21 subproblems for several epochs
-       so the model learns the component reasoning skills.
-    3. After training, evaluate the hard problem again to see if the
-       model can now produce correct answers (target: >0/100).
+Continues GRPO from the subproblems-run checkpoint-50 model on a fresh
+set of 50 problems derived from frontier-model agreement filtering.
 
 Usage::
 
-    python grpo_subproblems.py
+    python grpo_ckpt50.py
 """
 
 import logging
@@ -33,12 +28,16 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
-# 21 subproblems → batch_size=21 means 1 step per epoch.
-# Run enough epochs for the model to learn all subproblems.
+
+CHECKPOINT = (
+    "tinker://e6b448b4-7e70-5e39-b0f7-06e0ef5b8e0d:train:0"
+    "/weights/subproblems-run.ckpt-000050"
+)
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir="./subproblems-run",
+    log_dir="./ckpt50-run",
+    resume_from=CHECKPOINT,
 
     batch_size=25,
     group_size=16,
@@ -48,7 +47,7 @@ config = GRPOConfig(
 
     save_every=5,
 
-    wandb_project="grpo-conics-subproblems2",
+    wandb_project="grpo-ckpt50-2",
 
     temperature=0.7,
     system_prompt="""
@@ -66,12 +65,29 @@ After completing the reasoning, clearly state the final answer.
     few_shot=[],
 )
 
-EPOCHS = 50
+EPOCHS = 25
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems("problems/conics-50.jsonl")
+def _normalize_fields(rows: list[dict]) -> list[dict]:
+    """Map alternate field names (problem/ground_truth_answer) to prompt/reference."""
+    out = []
+    for row in rows:
+        r = dict(row)
+        if "prompt" not in r and "problem" in r:
+            r["prompt"] = r.pop("problem")
+        if "reference" not in r and "ground_truth_answer" in r:
+            r["reference"] = r.pop("ground_truth_answer")
+        out.append(r)
+    return out
+
+
+import json
+from pathlib import Path
+
+_raw = json.loads(Path("problems/ckpt-50-problems.json").read_text())
+problems = load_problems(_normalize_fields(_raw))
 
 
 # ── Reward function ────────────────────────────────────────────────────────
