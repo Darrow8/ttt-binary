@@ -37,6 +37,89 @@ if os.path.exists(_env_path):
 # ---------------------------------------------------------------------------
 DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
 
+# ---------------------------------------------------------------------------
+# Tinker checkpoint client (adapter over tinker sampling API)
+# ---------------------------------------------------------------------------
+TINKER_BASE_MODEL = "openai/gpt-oss-120b"
+TINKER_CKPT_50 = "tinker://e6b448b4-7e70-5e39-b0f7-06e0ef5b8e0d:train:0/weights/subproblems-run.ckpt-000050"
+
+
+class _FakeMessage:
+    def __init__(self, content: str):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content: str):
+        self.message = _FakeMessage(content)
+
+
+class _FakeResponse:
+    def __init__(self, content: str):
+        self.choices = [_FakeChoice(content)]
+
+
+class _TinkerCompletions:
+    """Mimics client.chat.completions so call_llm() works unchanged."""
+
+    def __init__(self, sampling_client, tokenizer):
+        self._sampling_client = sampling_client
+        self._tokenizer = tokenizer
+
+    def create(self, *, model: str = "", messages: list | None = None,
+               temperature: float = 0.7, **_kwargs) -> _FakeResponse:
+        from tinker import types
+
+        text = self._tokenizer.apply_chat_template(
+            messages or [], tokenize=False, add_generation_prompt=True,
+        )
+        ids = self._tokenizer.encode(text, add_special_tokens=False)
+        prompt = types.ModelInput.from_ints(ids)
+        params = types.SamplingParams(temperature=temperature)
+        result = self._sampling_client.sample(
+            prompt=prompt, num_samples=1, sampling_params=params,
+        ).result()
+        content = self._tokenizer.decode(
+            result.sequences[0].tokens, skip_special_tokens=True,
+        )
+        return _FakeResponse(content)
+
+
+class _TinkerChat:
+    def __init__(self, sampling_client, tokenizer):
+        self.completions = _TinkerCompletions(sampling_client, tokenizer)
+
+
+class TinkerClient:
+    """Drop-in replacement for OpenAI() backed by a tinker checkpoint."""
+
+    def __init__(self, tinker_path: str):
+        import tinker
+        if not os.environ.get("TINKER_API_KEY"):
+            raise RuntimeError(
+                "TINKER_API_KEY not set. Add it to .env or export it."
+            )
+        service = tinker.ServiceClient()
+        print(f"Loading tinker checkpoint: {tinker_path}")
+        sampling_client = service.create_sampling_client(model_path=tinker_path)
+
+        from transformers import AutoTokenizer
+        hf_token = os.environ.get("HF_TOKEN")
+        if hf_token:
+            from huggingface_hub import login as hf_login
+            hf_login(token=hf_token)
+        tokenizer = AutoTokenizer.from_pretrained(TINKER_BASE_MODEL)
+
+        self.chat = _TinkerChat(sampling_client, tokenizer)
+        self._tinker_path = tinker_path
+        print(f"Tinker checkpoint ready: {tinker_path}\n")
+
+
+def get_tinker_client(checkpoint: str | None = None) -> tuple["TinkerClient", str]:
+    path = checkpoint or TINKER_CKPT_50
+    client = TinkerClient(path)
+    return client, TINKER_BASE_MODEL
+
 PROBLEM_STATEMENT = r"""
 Let \(U \subset PH^0_{\mathbb{Z}}(\mathbb{P}^2,\mathcal{O}(2))\) be the space of smooth conics in \(\mathbb{P}^2\), and let \(Z \subset U^6\) be the closed subscheme parametrizing \(6\)-tuples \((C_1,\dots,C_6)\) with \(C_1\) tangent to \(C_2,\dots,C_6\). Let
 \[
@@ -481,14 +564,18 @@ def build_dataset(
     output_path: str | None = None,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
+    solve_client: OpenAI | None = None,
+    solve_model: str | None = None,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
-    Each round launches n_generators independent LLM calls, each producing
-    problems_per_generator problems (default 5 × 2 = 10 per round). This
-    gives the LLM more room to focus on quality per problem while still
-    maintaining diversity across generators.
+    Uses `client`/`model` for problem generation (needs instruction-following)
+    and `solve_client`/`solve_model` for solving/evaluation (needs math
+    reasoning). When solve_client is None, falls back to client/model for both.
     """
+    s_client = solve_client or client
+    s_model = solve_model or model
+
     dataset = Dataset(
         source_problem=hard_problem,
         target_agreement_low=target_agreement_low,
@@ -529,7 +616,7 @@ def build_dataset(
     ) -> tuple[str, float, str, list[str], list[str], float]:
         t1 = time.time()
         agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
-            client, model, problem_text,
+            s_client, s_model, problem_text,
             n_samples=n_samples_per_problem,
             use_llm_extract=use_llm_extract,
             pool=pool,
@@ -539,13 +626,17 @@ def build_dataset(
 
     total_per_round = n_generators * problems_per_generator
 
+    gen_label = model
+    solve_label = s_model if solve_client else "(same)"
+
     print(f"\n{'='*70}")
     print(f"  TTT-Discover (distinct): Building dataset from hard problem")
     print(f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement")
     print(f"  Generation: {n_generators} generators × {problems_per_generator} problems = {total_per_round}/round")
     print(f"  Samples per problem: {n_samples_per_problem}")
     print(f"  Failed solution attempts for context: {len(failed_solutions or [])}")
-    print(f"  Model: {model}")
+    print(f"  Generate model: {gen_label}")
+    print(f"  Solve model:    {solve_label}")
     print(f"  Max parallel API calls: {max_workers}")
     if output_path:
         print(f"  Keeps file:  {output_path}")
@@ -686,9 +777,18 @@ def run(
     llm_extract: bool = False,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
+    use_tinker: bool = False,
+    tinker_checkpoint: str | None = None,
 ) -> Dataset:
-    client, default_model = get_client()
-    model = model or default_model
+    # Generation always uses Vertex AI (needs instruction-following for JSON).
+    gen_client, gen_default_model = get_client()
+    gen_model = model or gen_default_model
+
+    # Solving uses tinker checkpoint when requested (calibrates difficulty
+    # against the fine-tuned model), otherwise falls back to the same client.
+    solve_client, solve_model = None, None
+    if use_tinker:
+        solve_client, solve_model = get_tinker_client(tinker_checkpoint)
 
     from datetime import datetime
     run_dir = output or os.path.join(
@@ -700,8 +800,8 @@ def run(
     out_path = os.path.join(run_dir, "keeps.json")
 
     dataset = build_dataset(
-        client=client,
-        model=model,
+        client=gen_client,
+        model=gen_model,
         hard_problem=problem,
         n_target=n_problems,
         n_samples_per_problem=n_samples,
@@ -713,6 +813,8 @@ def run(
         output_path=out_path,
         max_workers=max_workers,
         failed_solutions=failed_solutions,
+        solve_client=solve_client,
+        solve_model=solve_model,
     )
 
     save_dataset(dataset, out_path)
@@ -722,34 +824,71 @@ def run(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+_FAILED_SOLUTIONS_FILES = [
+    "hard_attempts_ckpt50.json",
+]
+
+
 def _load_failed_solutions() -> list[str]:
-    path = os.path.join(os.path.dirname(__file__), "failed_solutions.json")
-    if not os.path.exists(path):
-        print(f"No failed solutions found. Create {path} with up to 3 solution strings.")
-        return []
-    with open(path) as f:
-        data = json.load(f)
-    if isinstance(data, list):
-        return [s for s in data if isinstance(s, str)]
+    base = os.path.dirname(__file__)
+    for name in _FAILED_SOLUTIONS_FILES:
+        path = os.path.join(base, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            continue
+        solutions: list[str] = []
+        for item in data:
+            if isinstance(item, str):
+                solutions.append(item)
+            elif isinstance(item, dict) and "reasoning" in item:
+                solutions.append(item["reasoning"])
+        if solutions:
+            print(f"Loaded {len(solutions)} failed solutions from {name}")
+            return solutions
     return []
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="TTT-Discover (distinct): generate training subproblems"
+    )
+    parser.add_argument(
+        "--tinker", action="store_true",
+        help="Use a tinker checkpoint instead of the Vertex AI API",
+    )
+    parser.add_argument(
+        "--checkpoint", type=str, default=None,
+        help=f"Tinker checkpoint path (default: ckpt-50 = {TINKER_CKPT_50})",
+    )
+    parser.add_argument("--n-problems", type=int, default=20)
+    parser.add_argument("--n-samples", type=int, default=10)
+    parser.add_argument("--n-generators", type=int, default=5)
+    parser.add_argument("--problems-per-generator", type=int, default=2)
+    parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--output", type=str, default=None)
+    args = parser.parse_args()
+
     failed_solutions = _load_failed_solutions()
-    if failed_solutions:
-        print(f"Loaded {len(failed_solutions)} failed solutions from Stage1/failed_solutions.json")
-    else:
-        print("No failed solutions found. Create Stage1/failed_solutions.json with up to 3 solution strings.")
+    if not failed_solutions:
+        print("No failed solutions found. Place hard_attempts_ckpt50.json or failed_solutions.json in Stage1/.")
 
     run(
         problem=PROBLEM_STATEMENT,
-        n_problems=20,
-        n_samples=10,
-        n_generators=5,
-        problems_per_generator=2,
-        model="openai/gpt-oss-120b-maas",
+        n_problems=args.n_problems,
+        n_samples=args.n_samples,
+        n_generators=args.n_generators,
+        problems_per_generator=args.problems_per_generator,
+        model=args.model or "openai/gpt-oss-120b-maas",
         llm_extract=True,
         failed_solutions=failed_solutions,
+        use_tinker=args.tinker,
+        tinker_checkpoint=args.checkpoint,
+        output=args.output,
     )
 
 
