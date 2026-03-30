@@ -1,17 +1,13 @@
 """
-GRPO training on subproblems derived from a hard source problem.
+Resume GRPO training on subproblems from checkpoint at epoch 20.
 
-Workflow:
-    1. keeps.json contains a hard problem the model can't solve (0/100)
-       and 21 easier subproblems with majority-vote ground truth.
-    2. This script runs GRPO on those 21 subproblems for several epochs
-       so the model learns the component reasoning skills.
-    3. After training, evaluate the hard problem again to see if the
-       model can now produce correct answers (target: >0/100).
+The original run (grpo_subproblems.py) crashed at epoch 20/25.
+This script resumes from the saved checkpoint to complete the
+remaining 5 epochs (global_step offset = 40).
 
 Usage::
 
-    python grpo_subproblems.py
+    python grpo_subproblems_resume.py
 """
 
 import logging
@@ -33,12 +29,12 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
-# 21 subproblems → batch_size=21 means 1 step per epoch.
-# Run enough epochs for the model to learn all subproblems.
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir="./subproblems-run",
+    log_dir="./subproblems-run-resumed",
+
+    resume_from="tinker://d7bcdbad-55ee-5d6d-bd99-a92db456ff1b:train:0/weights/subproblems-run.ckpt-000040",
 
     batch_size=25,
     group_size=16,
@@ -49,6 +45,7 @@ config = GRPOConfig(
     save_every=5,
 
     wandb_project="grpo-conics-subproblems3",
+    wandb_run_name="subproblems-resumed-ep20",
 
     temperature=0.7,
     system_prompt="""
@@ -66,7 +63,7 @@ After completing the reasoning, clearly state the final answer.
     few_shot=[],
 )
 
-EPOCHS = 25
+EPOCHS = 5
 
 
 # ── Problems ───────────────────────────────────────────────────────────────

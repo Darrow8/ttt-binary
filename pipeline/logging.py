@@ -33,7 +33,7 @@ class MetricsLogger:
                     entity=wandb_entity,
                     name=wandb_run_name,
                     config=config or {},
-                    reinit=True,
+                    reinit="finish_previous",
                 )
                 logger.info("W&B logging → %s/%s", wandb_entity or "(default)", wandb_project)
             except Exception as exc:

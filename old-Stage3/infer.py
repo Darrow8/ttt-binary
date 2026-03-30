@@ -23,15 +23,18 @@ from transformers import AutoTokenizer
 # ── Configuration ─────────────────────────────────────────────────────────
 
 QUESTION = r"""
-Consider the projective space \(\mathbb{P}^5\) over an algebraically closed field of characteristic 0, with homogeneous coordinates \([z_0:\dots:z_5]\). Let \(Q_1,Q_2,Q_3\) 
-be three generic homogeneous quadratic polynomials and \(C_1,C_2\) be two generic homogeneous cubic polynomials in these variables. Define the zero‑dimensional scheme
-\[ X = \{[z]\in \mathbb{P}^5 \mid Q_1([z]) = Q_2([z]) = Q_3([z]) = C_1([z]) = C_2([z]) = 0\}.\]
-Let \(\mathcal{Q}\) be the parameter space of ordered 5‑tuples \((Q_1,Q_2,Q_3,C_1,C_2)\) of such polynomials (each up to scaling), which is a dense open subset of a product of projective spaces. Define the incidence variety
-\[ Z = \{(x,\mathbf{Q}) \in \mathbb{P}^5 \times \mathcal{Q} \mid x \text{ satisfies all five equations of } \mathbf{Q}\} \]
-and let \(\pi : Z \to \mathcal{Q}\) be the projection onto the second factor. Over a dense open subset \(V\subset \mathcal{Q}\) the map \(\pi\) is finite étale.
-Define
-\[ L = \lim_{p\to\infty} \frac{1}{\#V(\mathbb{F}_p)} \sum_{\mathbf{Q}\in V(\mathbb{F}_p)} \#\pi^{-1}(\mathbf{Q}).\]
-Compute \(\lfloor 100L \rfloor\)."""
+There are unique constants \(C, \alpha, \beta\) such that the number of solutions to the equation
+\[
+ab + 1 = cde
+\]
+with \(a, b, c, d, e \in \mathbb{N}\) and \(ab \le x\) is asymptotic to
+\[
+C x^{\alpha} \log^{\beta} x
+\]
+as \(x \to \infty\). Compute
+\[
+\left\lfloor 1000C \right\rfloor .
+\]"""
 
 
 

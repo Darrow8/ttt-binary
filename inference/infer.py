@@ -53,14 +53,8 @@ to the answer. Think carefully and work through the math explicitly. \
 Write out every key derivation.
 
 Round your answer to 4 decimal places if necessary. \
-
-After you have fully worked through the solution, write your final \
-numerical answer on the very last line in exactly this format \
-(including the double asterisks):
-
-**ANSWER: <your numerical answer here>**
-
-Your answer must be a number, not an expression. Begin your solution now.
+Your answer must be a number, not an expression. \
+Put your final answer inside \\boxed{{}}.
 
 """
 
@@ -72,8 +66,9 @@ BASE_MODEL = "openai/gpt-oss-120b"
 # ---------------------------------------------------------------------------
 
 EXTRACT_ANSWER_PROMPT = """\
-Below is a student's solution to a math problem. What is the student's \
-final answer? Reply with ONLY the answer value — nothing else.
+Below is a student's solution to a math problem. The student was asked to \
+put their final answer inside \\boxed{{}}. What is the value inside the \
+last \\boxed{{}}? Reply with ONLY the answer value — nothing else.
 
 Rules:
 - If the answer is a number, return just the number (e.g. 42, 3/2, 0.75).
@@ -87,15 +82,51 @@ Rules:
 {solution}"""
 
 
+def _extract_boxed_raw(text: str) -> str:
+    """Return the raw contents of the last ``\\boxed{...}``, handling nested braces."""
+    idx = text.rfind("\\boxed{")
+    if idx == -1:
+        return ""
+    depth, start = 0, idx + len("\\boxed{")
+    for i, ch in enumerate(text[start:], start=start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            if depth == 0:
+                return text[start:i].strip()
+            depth -= 1
+    return ""
+
+
+_LATEX_NOISE = re.compile(
+    r"\\(?:displaystyle|bigl?|Bigl?|bigr?|Bigr?|left|right|text\{[^}]*\}|lfloor|rfloor|,|;| )"
+)
+
+
+def _clean_boxed(raw: str) -> str:
+    """Extract a plain numeric answer from the raw boxed content."""
+    if "=" in raw:
+        raw = raw.rsplit("=", 1)[1]
+    cleaned = _LATEX_NOISE.sub("", raw)
+    cleaned = cleaned.replace(",", "").replace(" ", "").strip().rstrip(".")
+    if not cleaned:
+        return ""
+    try:
+        num = float(cleaned)
+        if num == int(num):
+            return str(int(num))
+        return str(num)
+    except (ValueError, OverflowError):
+        pass
+    return cleaned
+
+
 def _regex_extract(solution: str) -> str:
     if not solution:
         return ""
-    matches = re.findall(r"\*\*ANSWER:\s*(.+?)\*\*", solution, re.IGNORECASE)
-    if matches:
-        return matches[-1].strip()
-    boxed = re.findall(r"\\boxed\{([^}]+)\}", solution)
-    if boxed:
-        return boxed[-1].strip()
+    raw = _extract_boxed_raw(solution)
+    if raw:
+        return _clean_boxed(raw) or raw
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
         solution, re.IGNORECASE,

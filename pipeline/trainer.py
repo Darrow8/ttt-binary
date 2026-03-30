@@ -72,7 +72,7 @@ class GRPOConfig:
     max_tokens: int = 256
 
     save_every: int = 20
-    ttl_seconds: int = 604_800
+    ttl_seconds: int | None = None
 
     wandb_project: str | None = "grpo-tinker"
     wandb_entity: str | None = None
