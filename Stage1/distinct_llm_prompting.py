@@ -41,7 +41,50 @@ DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
 # Tinker checkpoint client (adapter over tinker sampling API)
 # ---------------------------------------------------------------------------
 TINKER_BASE_MODEL = "openai/gpt-oss-120b"
-TINKER_CKPT_50 = "tinker://e6b448b4-7e70-5e39-b0f7-06e0ef5b8e0d:train:0/weights/subproblems-run.ckpt-000050"
+
+
+def _resolve_tinker_checkpoint_path(
+    explicit: str | None, *, step: int = 50
+) -> str:
+    """CLI --checkpoint / TINKER_CHECKPOINT, else list this account's training checkpoints."""
+    if explicit and explicit.strip():
+        return explicit.strip()
+    env_path = (os.environ.get("TINKER_CHECKPOINT") or "").strip()
+    if env_path:
+        return env_path
+    import tinker
+
+    if not os.environ.get("TINKER_API_KEY"):
+        raise RuntimeError(
+            "TINKER_API_KEY not set. Add it to .env or export it."
+        )
+    service = tinker.ServiceClient()
+    rest = service.create_rest_client()
+    response = rest.list_user_checkpoints(limit=200).result()
+    training_ckpts = [
+        c for c in response.checkpoints if c.checkpoint_type == "training"
+    ]
+    if not training_ckpts:
+        raise RuntimeError(
+            "No training checkpoints on this Tinker account. Train first, "
+            "or set TINKER_CHECKPOINT / pass --checkpoint with a tinker://… path."
+        )
+    step_tag = f"ckpt-{step:06d}"
+    for ckpt in training_ckpts:
+        if step_tag in ckpt.tinker_path:
+            print(
+                f"Using Tinker checkpoint (step {step}): {ckpt.tinker_path}  "
+                f"(created {ckpt.time})"
+            )
+            return ckpt.tinker_path
+    sample = "\n".join(
+        f"  {c.tinker_path}  ({c.time})" for c in training_ckpts[:25]
+    )
+    raise RuntimeError(
+        f"No training checkpoint matching step {step} ({step_tag!r}). "
+        "Pass --checkpoint, set TINKER_CHECKPOINT, or use --tinker-step.\n"
+        f"Available on this account:\n{sample}"
+    )
 
 
 class _FakeMessage:
@@ -75,7 +118,7 @@ class _TinkerCompletions:
         )
         ids = self._tokenizer.encode(text, add_special_tokens=False)
         prompt = types.ModelInput.from_ints(ids)
-        params = types.SamplingParams(temperature=temperature)
+        params = types.SamplingParams(temperature=temperature, context_length=120000)
         result = self._sampling_client.sample(
             prompt=prompt, num_samples=1, sampling_params=params,
         ).result()
@@ -101,7 +144,8 @@ class TinkerClient:
             )
         service = tinker.ServiceClient()
         print(f"Loading tinker checkpoint: {tinker_path}")
-        sampling_client = service.create_sampling_client(model_path=tinker_path)
+        training_client = service.create_training_client_from_state(tinker_path)
+        sampling_client = training_client.save_weights_and_get_sampling_client()
 
         from transformers import AutoTokenizer
         hf_token = os.environ.get("HF_TOKEN")
@@ -115,8 +159,12 @@ class TinkerClient:
         print(f"Tinker checkpoint ready: {tinker_path}\n")
 
 
-def get_tinker_client(checkpoint: str | None = None) -> tuple["TinkerClient", str]:
-    path = checkpoint or TINKER_CKPT_50
+def get_tinker_client(
+    checkpoint: str | None = None,
+    *,
+    checkpoint_step: int = 50,
+) -> tuple["TinkerClient", str]:
+    path = _resolve_tinker_checkpoint_path(checkpoint, step=checkpoint_step)
     client = TinkerClient(path)
     return client, TINKER_BASE_MODEL
 
@@ -284,9 +332,9 @@ SOLVE_PROMPT = """\
 {problem}
 
 When you are done, write your final numerical answer on the very last line \
-in exactly this format (including the double asterisks):
+in exactly this format:
 
-**ANSWER: <your numerical answer here>**
+\\boxed{<your numerical answer here>}
 
 Your answer MUST be a single decimal number (e.g. 0.6079, 42, 3.1416). \
 Do NOT write symbolic expressions like 1/π², 6/π², √2, or ln 2. \
@@ -427,9 +475,50 @@ def _is_numeric_answer(answer: str) -> bool:
     return bool(_NUMERIC_ANSWER_RE.match(answer))
 
 
+def _extract_last_boxed(text: str) -> str:
+    """Return the contents of the last \boxed{...} block, if any."""
+    marker = r"\boxed{"
+    start = text.rfind(marker)
+    if start == -1:
+        return ""
+
+    i = start + len(marker)
+    depth = 1
+    pieces: list[str] = []
+    while i < len(text):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return "".join(pieces).strip()
+        pieces.append(ch)
+        i += 1
+    return ""
+
+
+def _normalize_if_numeric(answer: str) -> str:
+    norm = normalize_answer(answer)
+    return norm if _is_numeric_answer(norm) else ""
+
+
 def _regex_extract(solution: str) -> str:
     if not solution:
         return ""
+
+    lines = [line.strip() for line in solution.splitlines() if line.strip()]
+    if lines:
+        last_line = lines[-1]
+        boxed_last = _extract_last_boxed(last_line)
+        if boxed_last:
+            return boxed_last
+        if _normalize_if_numeric(last_line):
+            return last_line
+
+    boxed = _extract_last_boxed(solution)
+    if boxed:
+        return boxed
 
     matches = re.findall(
         r"\*\*ANSWER:\s*(.+?)\*\*",
@@ -438,10 +527,6 @@ def _regex_extract(solution: str) -> str:
     )
     if matches:
         return matches[-1].strip()
-
-    boxed = re.findall(r"\\boxed\{([^}]+)\}", solution)
-    if boxed:
-        return boxed[-1].strip()
 
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
@@ -457,12 +542,15 @@ def extract_answer(
     client: OpenAI,
     model: str,
     solution: str,
+    *,
+    use_llm_extract: bool = False,
 ) -> str:
     answer = _regex_extract(solution)
-    if answer:
-        return answer
+    numeric = _normalize_if_numeric(answer)
+    if numeric:
+        return numeric
 
-    if not solution:
+    if not solution or not use_llm_extract:
         return ""
 
     prompt = EXTRACT_ANSWER_PROMPT.format(solution=solution)
@@ -470,7 +558,11 @@ def extract_answer(
     answer = raw.strip()
     if answer.upper() == "NONE":
         return ""
-    return answer
+    numeric = _normalize_if_numeric(answer)
+    if numeric:
+        return numeric
+    extracted = _regex_extract(answer)
+    return _normalize_if_numeric(extracted)
 
 
 def normalize_answer(answer: str) -> str:
@@ -507,13 +599,20 @@ def _solve_one(
         solution = call_llm(client, model, prompt, temperature=0.7)
         if not solution:
             continue
-        answer = extract_answer(client, model, solution)
-        if normalize_answer(answer):
-            return normalize_answer(answer), solution
+        answer = extract_answer(
+            client, model, solution, use_llm_extract=_use_llm_extract
+        )
+        if answer:
+            return answer, solution
         if attempt < _SOLVE_MAX_RETRIES - 1:
             print("r", end="", flush=True)
-    answer = extract_answer(client, model, solution) if solution else ""
-    return normalize_answer(answer), solution
+    answer = (
+        extract_answer(
+            client, model, solution, use_llm_extract=_use_llm_extract
+        )
+        if solution else ""
+    )
+    return answer, solution
 
 
 def solve_and_check_agreement(
@@ -586,6 +685,19 @@ def build_dataset(
     seen_problems: set[str] = set()
     round_num = 0
     save_lock = threading.Lock()
+
+    if output_path and os.path.exists(output_path):
+        try:
+            with open(output_path) as f:
+                existing = json.load(f)
+            for p in existing.get("problems", []):
+                entry = GeneratedProblem(**p)
+                dataset.problems.append(entry)
+                seen_problems.add(entry.problem)
+            if dataset.problems:
+                print(f"  Resumed {len(dataset.problems)} existing problems from {output_path}")
+        except (json.JSONDecodeError, TypeError, KeyError):
+            pass
 
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
@@ -779,6 +891,7 @@ def run(
     failed_solutions: list[str] | None = None,
     use_tinker: bool = False,
     tinker_checkpoint: str | None = None,
+    tinker_checkpoint_step: int = 50,
 ) -> Dataset:
     # Generation always uses Vertex AI (needs instruction-following for JSON).
     gen_client, gen_default_model = get_client()
@@ -788,13 +901,15 @@ def run(
     # against the fine-tuned model), otherwise falls back to the same client.
     solve_client, solve_model = None, None
     if use_tinker:
-        solve_client, solve_model = get_tinker_client(tinker_checkpoint)
+        solve_client, solve_model = get_tinker_client(
+            tinker_checkpoint, checkpoint_step=tinker_checkpoint_step
+        )
 
     from datetime import datetime
     run_dir = output or os.path.join(
         os.path.dirname(__file__),
         "runs",
-        datetime.now().strftime("%Y%m%d_%H%M%S"),
+        datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}",
     )
     os.makedirs(run_dir, exist_ok=True)
     out_path = os.path.join(run_dir, "keeps.json")
@@ -826,6 +941,7 @@ def run(
 # ---------------------------------------------------------------------------
 _FAILED_SOLUTIONS_FILES = [
     "hard_attempts_ckpt50.json",
+    "failed_solutions.json",
 ]
 
 
@@ -863,7 +979,19 @@ def main():
     )
     parser.add_argument(
         "--checkpoint", type=str, default=None,
-        help=f"Tinker checkpoint path (default: ckpt-50 = {TINKER_CKPT_50})",
+        help=(
+            "Tinker checkpoint tinker://… path. If omitted, uses TINKER_CHECKPOINT "
+            "env or lists your account's checkpoints (--tinker-step)."
+        ),
+    )
+    parser.add_argument(
+        "--tinker-step",
+        type=int,
+        default=50,
+        help=(
+            "When --checkpoint is omitted, use the training checkpoint whose path "
+            "contains ckpt-NNNNNN for this step (default: 50)."
+        ),
     )
     parser.add_argument("--n-problems", type=int, default=20)
     parser.add_argument("--n-samples", type=int, default=10)
@@ -888,6 +1016,7 @@ def main():
         failed_solutions=failed_solutions,
         use_tinker=args.tinker,
         tinker_checkpoint=args.checkpoint,
+        tinker_checkpoint_step=args.tinker_step,
         output=args.output,
     )
 

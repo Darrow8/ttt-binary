@@ -1,5 +1,7 @@
 tinker
 tinker-cookbook
+google-auth
+requests
 datasets
 torch
 tqdm

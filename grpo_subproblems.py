@@ -40,15 +40,15 @@ config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
     log_dir="./subproblems-run",
 
-    batch_size=25,
+    batch_size=15,
     group_size=16,
     learning_rate=1e-4,
     lora_rank=32,
-    max_tokens=16384,
+    max_tokens=100000,
 
     save_every=5,
 
-    wandb_project="grpo-conics-subproblems3",
+    wandb_project="grpo-conics-subproblems",
 
     temperature=0.7,
     system_prompt="""
@@ -66,12 +66,12 @@ After completing the reasoning, clearly state the final answer.
     few_shot=[],
 )
 
-EPOCHS = 25
+EPOCHS = 30
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems("problems/conics-50.jsonl")
+problems = load_problems("./subproblems.jsonl")
 
 
 # ── Reward function ────────────────────────────────────────────────────────

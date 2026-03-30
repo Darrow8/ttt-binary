@@ -407,9 +407,10 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
         for seq in result.sequences
     ]
 
+    extract_client = _get_remote_client()
     results = []
     for i, resp in enumerate(responses):
-        answer = extract_answer(resp)
+        answer = extract_answer(resp, client=extract_client, model=REMOTE_MODEL)
         results.append({
             "sample_idx": i,
             "answer": answer,
