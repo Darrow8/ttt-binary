@@ -11,10 +11,16 @@ Workflow:
 
 Usage::
 
-    python grpo_subproblems.py
+    python -m pipeline.grpo_subproblems
 """
 
 import logging
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -38,9 +44,9 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir="./subproblems-run",
+    log_dir=str(_REPO_ROOT / "subproblems-run"),
 
-    batch_size=15,
+    batch_size=25,
     group_size=16,
     learning_rate=1e-4,
     lora_rank=32,
@@ -66,12 +72,12 @@ After completing the reasoning, clearly state the final answer.
     few_shot=[],
 )
 
-EPOCHS = 30
+EPOCHS = 50
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems("./subproblems.jsonl")
+problems = load_problems(str(_REPO_ROOT / "problems" / "subproblems.jsonl"))
 
 
 # ── Reward function ────────────────────────────────────────────────────────

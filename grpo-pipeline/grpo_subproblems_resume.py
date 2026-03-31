@@ -1,21 +1,22 @@
 """
-GRPO training on retrosynthesis subproblems derived from a hard source problem.
+Resume GRPO training on subproblems from checkpoint at epoch 20.
 
-Workflow:
-    1. retro_suzuki_subproblems.jsonl contains 20 easier retrosynthesis
-       problems with verified ground-truth reactant SMILES.
-    2. This script runs GRPO on those 20 subproblems for several epochs
-       so the model learns the component retrosynthetic skills (Suzuki
-       coupling disconnection, boronic acid/halide assignment, etc.).
-    3. After training, evaluate the hard problem again to see if the
-       model can now produce correct answers (target: >0/10).
+The original run (pipeline.grpo_subproblems) crashed at epoch 20/25.
+This script resumes from the saved checkpoint to complete the
+remaining 5 epochs (global_step offset = 40).
 
 Usage::
 
-    python grpo_retrosynthesis.py
+    python -m pipeline.grpo_subproblems_resume
 """
 
 import logging
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -24,7 +25,7 @@ from pipeline import (
     GRPOConfig,
     GRPOTrainer,
     load_problems,
-    smiles_match,
+    boxed_match,
     boxed_format_bonus,
     combined,
 )
@@ -34,43 +35,52 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
-# 20 subproblems → batch_size=20 means 1 step per epoch.
-# Run enough epochs for the model to learn all subproblems.
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir="/tmp/tinker-grpo/retrosynthesis-run",
+    log_dir=str(_REPO_ROOT / "subproblems-run-resumed"),
 
-    batch_size=20,
+    resume_from="tinker://d7bcdbad-55ee-5d6d-bd99-a92db456ff1b:train:0/weights/subproblems-run.ckpt-000040",
+
+    batch_size=25,
     group_size=16,
-    learning_rate=4e-5,
+    learning_rate=1e-4,
     lora_rank=32,
     max_tokens=16384,
 
     save_every=5,
 
-    wandb_project="grpo-tinker-retrosynthesis",
+    wandb_project="grpo-conics-subproblems3",
+    wandb_run_name="subproblems-resumed-ep20",
 
     temperature=0.7,
-    system_prompt="You are a helpful assistant. Show your reasoning step by step.",
+    system_prompt="""
+You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
+
+Show all important intermediate reasoning, derivations, and calculations. Explain why each step is valid and reference any relevant theorems or identities when appropriate. Avoid skipping logical steps or making large jumps in reasoning.
+
+If the problem involves multiple cases or approaches, consider them systematically. Use clear mathematical notation and keep the solution organized.
+
+After completing the reasoning, clearly state the final answer.
+    """,
 
     prompt_suffix=" Put your final answer inside \\boxed{}.",
 
     few_shot=[],
 )
 
-EPOCHS = 10
+EPOCHS = 5
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems("problems/retro_suzuki_subproblems.jsonl")
+problems = load_problems(str(_REPO_ROOT / "problems" / "conics-50.jsonl"))
 
 
 # ── Reward function ────────────────────────────────────────────────────────
 
 reward_fn = combined(
-    (1.0, smiles_match),
+    (1.0, boxed_match),
     (0.1, boxed_format_bonus),
 )
 

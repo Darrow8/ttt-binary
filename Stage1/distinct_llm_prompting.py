@@ -1,17 +1,15 @@
 """
-TTT-Discover (distinct variant): Dataset generation via LLM self-consistency.
+TTT-Discover: Dataset generation via LLM self-consistency.
 
-Like llm_prompting.py, but prioritises quality over quantity in generation:
-each round launches N_GENERATORS independent LLM calls that each produce only
-PROBLEMS_PER_GENERATOR problems (default 5 × 2 = 10 per round). Because each
-call only asks for 2 problems, the LLM can spend more effort on each one, and
-because the calls are independent (high temperature), we get natural diversity.
+Generates subproblems one at a time, evaluates each by sampling N solutions
+in parallel, and accumulates problems that hit a target self-consistency
+(agreement rate) window.
 """
 
 import concurrent.futures
 import json
 import os
-import threading
+import random
 import time
 import re
 from collections import Counter
@@ -29,7 +27,18 @@ if os.path.exists(_env_path):
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, _, val = line.partition("=")
-                val = val.strip().strip('"').strip("'")
+                val = val.strip()
+                if val and val[0] in ('"', "'"):
+                    quote = val[0]
+                    end = val.find(quote, 1)
+                    if end != -1:
+                        val = val[1:end]
+                    else:
+                        val = val[1:]
+                else:
+                    if " #" in val:
+                        val = val[:val.index(" #")]
+                    val = val.strip()
                 os.environ.setdefault(key.strip(), val)
 
 # ---------------------------------------------------------------------------
@@ -118,7 +127,7 @@ class _TinkerCompletions:
         )
         ids = self._tokenizer.encode(text, add_special_tokens=False)
         prompt = types.ModelInput.from_ints(ids)
-        params = types.SamplingParams(temperature=temperature, context_length=120000)
+        params = types.SamplingParams(temperature=temperature, context_length=32768)
         result = self._sampling_client.sample(
             prompt=prompt, num_samples=1, sampling_params=params,
         ).result()
@@ -268,12 +277,12 @@ class Dataset:
 # Prompt templates
 # ---------------------------------------------------------------------------
 GENERATE_PROBLEMS_PROMPT = """\
-You are designing training problems for test-time training on ONE hard source problem.
-Your job is to create problems that preserve the same mathematical bottleneck as the
+You are designing a training problem for training on ONE hard source problem.
+Your job is to create a problem that preserves the same mathematical bottleneck as the
 source problem, while being smaller, cleaner, and self-contained.
 
-Your goal is NOT to create random "similar-looking" problems or parametric variants
-(e.g. changing the number of variables). Your goal is to create problems whose solution
+Your goal is NOT to create a random "similar-looking" problem or a parametric variant
+(e.g. changing the number of variables). Your goal is to create a problem whose solution
 would train the model on a reusable subskill needed for the original problem.
 
 ## Source Problem
@@ -293,13 +302,10 @@ to determine the correct answer.
 1. Read the attempted solutions above and identify the DISTINCT mathematical techniques
    they use (e.g. Dirichlet series, CRT, Euler products, divisor sums, asymptotic
    estimates, Tauberian theorems, etc.)
-2. For each technique, consider: what is a simpler, self-contained problem that would
-   teach EXACTLY that technique? Write out a set of techniques and concepts that are needed to solve the problem.
-3. Generate {batch_size} problems, each targeting a DIFFERENT technique or subskill.
-   DO NOT generate multiple problems that only differ in a parameter (like the number
-   of factors in a product). Each problem must be structurally distinct.
+2. Pick ONE technique or subskill and design a single problem that would teach
+   EXACTLY that technique. The problem must be structurally distinct from the source.
 
-Each generated problem MUST satisfy all of the following:
+The generated problem MUST satisfy all of the following:
 - It has a SINGLE numerical final answer that is a DECIMAL NUMBER (not a symbolic
   expression like 1/π², 6/π², √2, ln 2, etc.). If the exact answer is irrational
   or a fraction, the problem must ask the solver to ROUND to 4 decimal places.
@@ -307,23 +313,22 @@ Each generated problem MUST satisfy all of the following:
   "Find the value of C, rounded to 4 decimal places" (answer: 0.6079).
 - It is self-contained.
 - It isolates one real bottleneck or subskill from the source problem.
-- It is NOT a parametric variant of the source problem (e.g. changing ab+1=cde to
-  ab+1=cdef is NOT acceptable — that tests the same skill at the same difficulty).
+- It is NOT a parametric variant of the source problem.
 - It avoids fake complexity and decorative algebraic clutter.
 - CRITICAL: The problem must be HARD — comparable to a research-level or competition
   math problem. A strong LLM should get it WRONG 20-40% of the time.
-  DO NOT generate textbook exercises, definitions, or routine calculations like
-  "compute ζ(2)", "count divisors of 60", "evaluate a standard limit", or
-  "state a well-known asymptotic formula". These are TOO EASY.
+  DO NOT generate textbook exercises, definitions, or routine calculations.
   The problem should require COMBINING techniques or applying them in a non-obvious way.
+- The problem cannot have subparts, it must be a single problem with a single answer.
 
-## Output Format
+## Output
 
-Return ONLY valid JSON, with no markdown fences and no extra text.
-Return a JSON array of objects in exactly this shape:
-[
-  {{"problem": "..."}}
-]
+First briefly state which technique/subskill you are targeting and why.
+Then write the problem statement between these exact delimiters:
+
+===PROBLEM START===
+<the problem text>
+===PROBLEM END===
 """
 
 SOLVE_PROMPT = """\
@@ -334,7 +339,9 @@ SOLVE_PROMPT = """\
 When you are done, write your final numerical answer on the very last line \
 in exactly this format:
 
-\\boxed{<your numerical answer here>}
+\\boxed{{<answer>}}
+
+For example: \\boxed{{0.6079}} or \\boxed{{42}}
 
 Your answer MUST be a single decimal number (e.g. 0.6079, 42, 3.1416). \
 Do NOT write symbolic expressions like 1/π², 6/π², √2, or ln 2. \
@@ -348,122 +355,45 @@ Solve the problem above step by step.
 # ---------------------------------------------------------------------------
 # Core functions
 # ---------------------------------------------------------------------------
+_PROBLEM_DELIM_RE = re.compile(
+    r"===\s*PROBLEM\s+START\s*===\s*\n(.*?)\n\s*===\s*PROBLEM\s+END\s*===",
+    re.DOTALL,
+)
+
+
 def generate_similar_problems(
     client: OpenAI,
     model: str,
     hard_problem: str,
-    batch_size: int = 2,
     failed_solutions: list[str] | None = None,
 ) -> list[dict]:
-    """Prompt the LLM to generate a small batch of similar problems."""
+    """Prompt the LLM to generate one similar problem.
+
+    To stay within context limits, only one randomly-chosen failed solution
+    is included per call. Across many calls this still exposes the generator
+    to all attempted techniques.
+    """
     if failed_solutions:
-        solutions_block = "\n\n---\n\n".join(
-            f"### Attempt {i+1}\n\n{sol}"
-            for i, sol in enumerate(failed_solutions)
-        )
+        pick = random.choice(failed_solutions)
+        solutions_block = f"### Attempt 1\n\n{pick}"
     else:
         solutions_block = "(No attempted solutions available.)"
 
     prompt = GENERATE_PROBLEMS_PROMPT.format(
         problem=hard_problem,
-        batch_size=batch_size,
         failed_solutions=solutions_block,
     )
     raw = call_llm(client, model, prompt, temperature=0.8)
 
-    json_str = raw
-    if "```" in json_str:
-        parts = json_str.split("```")
-        for part in parts[1:]:
-            cleaned = part.strip()
-            if cleaned.startswith("json"):
-                cleaned = cleaned[4:].strip()
-            if cleaned.startswith("["):
-                json_str = cleaned
-                break
+    problems = [m.group(1).strip() for m in _PROBLEM_DELIM_RE.finditer(raw)
+                if m.group(1).strip()]
 
-    json_str = re.sub(
-        r'\\\\|\\(?!["\\/bfnrtu])',
-        lambda m: m.group() if m.group() == '\\\\' else '\\\\',
-        json_str,
-    )
-
-    try:
-        problems = json.loads(json_str)
-        if not isinstance(problems, list):
-            raise ValueError("Expected a JSON array")
-        cleaned_problems = []
-        for item in problems:
-            if not isinstance(item, dict):
-                continue
-            problem_text = item.get("problem", "")
-            if not isinstance(problem_text, str):
-                continue
-            problem_text = problem_text.strip()
-            if not problem_text:
-                continue
-            cleaned_problems.append({"problem": problem_text})
-        return cleaned_problems
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"  [warn] Failed to parse generated problems: {e}")
+    if not problems:
+        print(f"  [warn] No delimited problem found in response")
         print(f"  [warn] Raw response (first 500 chars): {raw[:500]}")
         return []
 
-
-def generate_problems_parallel(
-    client: OpenAI,
-    model: str,
-    hard_problem: str,
-    n_generators: int = 5,
-    problems_per_generator: int = 2,
-    failed_solutions: list[str] | None = None,
-    pool: concurrent.futures.ThreadPoolExecutor | None = None,
-) -> list[dict]:
-    """Launch n_generators independent LLM calls, each producing problems_per_generator problems.
-
-    Returns the merged, deduplicated list of candidate dicts.
-    """
-    futures = [
-        pool.submit(
-            generate_similar_problems,
-            client, model, hard_problem,
-            batch_size=problems_per_generator,
-            failed_solutions=failed_solutions,
-        )
-        for _ in range(n_generators)
-    ]
-
-    all_candidates: list[dict] = []
-    seen: set[str] = set()
-    for i, fut in enumerate(concurrent.futures.as_completed(futures)):
-        try:
-            batch = fut.result()
-            for cand in batch:
-                text = cand.get("problem", "")
-                if text and text not in seen:
-                    seen.add(text)
-                    all_candidates.append(cand)
-            print(f"    generator {i+1}/{n_generators}: {len(batch)} problems")
-        except Exception as e:
-            print(f"    generator {i+1}/{n_generators}: ERROR {e}")
-
-    return all_candidates
-
-
-EXTRACT_ANSWER_PROMPT = """\
-Below is a student's solution to a math problem. What is the student's \
-final answer? Reply with ONLY the answer value — nothing else.
-
-Rules:
-- If the answer is a number, return just the number (e.g. 42, 3/2, 0.75).
-- If the answer is "infinity" or "does not exist" or similar, return \
-  that phrase in lowercase (e.g. "infinity", "does not exist").
-- No LaTeX, no units, no extra words.
-- If there is no clear final answer, reply with exactly: NONE
-
-## Solution
-
-{solution}"""
+    return [{"problem": p} for p in problems]
 
 
 _NUMERIC_ANSWER_RE = re.compile(
@@ -475,94 +405,66 @@ def _is_numeric_answer(answer: str) -> bool:
     return bool(_NUMERIC_ANSWER_RE.match(answer))
 
 
-def _extract_last_boxed(text: str) -> str:
-    """Return the contents of the last \boxed{...} block, if any."""
-    marker = r"\boxed{"
-    start = text.rfind(marker)
-    if start == -1:
+def _extract_boxed_raw(text: str) -> str:
+    """Return the raw contents of the last ``\\boxed{...}``, handling nested braces."""
+    idx = text.rfind("\\boxed{")
+    if idx == -1:
         return ""
-
-    i = start + len(marker)
-    depth = 1
-    pieces: list[str] = []
-    while i < len(text):
-        ch = text[i]
+    depth, start = 0, idx + len("\\boxed{")
+    for i, ch in enumerate(text[start:], start=start):
         if ch == "{":
             depth += 1
         elif ch == "}":
-            depth -= 1
             if depth == 0:
-                return "".join(pieces).strip()
-        pieces.append(ch)
-        i += 1
+                return text[start:i].strip()
+            depth -= 1
     return ""
 
 
-def _normalize_if_numeric(answer: str) -> str:
-    norm = normalize_answer(answer)
-    return norm if _is_numeric_answer(norm) else ""
+_LATEX_NOISE = re.compile(
+    r"\\(?:displaystyle|bigl?|Bigl?|bigr?|Bigr?|left|right|text\{[^}]*\}|lfloor|rfloor|,|;| )"
+)
+
+
+def _clean_boxed(raw: str) -> str:
+    """Extract a plain numeric answer from the raw boxed content."""
+    if "=" in raw:
+        raw = raw.rsplit("=", 1)[1]
+    cleaned = _LATEX_NOISE.sub("", raw)
+    cleaned = cleaned.replace(",", "").replace(" ", "").strip().rstrip(".")
+    if not cleaned:
+        return ""
+    try:
+        num = float(cleaned)
+        if num == int(num):
+            return str(int(num))
+        return str(num)
+    except (ValueError, OverflowError):
+        pass
+    return cleaned
 
 
 def _regex_extract(solution: str) -> str:
     if not solution:
         return ""
-
-    lines = [line.strip() for line in solution.splitlines() if line.strip()]
-    if lines:
-        last_line = lines[-1]
-        boxed_last = _extract_last_boxed(last_line)
-        if boxed_last:
-            return boxed_last
-        if _normalize_if_numeric(last_line):
-            return last_line
-
-    boxed = _extract_last_boxed(solution)
-    if boxed:
-        return boxed
-
-    matches = re.findall(
-        r"\*\*ANSWER:\s*(.+?)\*\*",
-        solution,
-        re.IGNORECASE,
-    )
-    if matches:
-        return matches[-1].strip()
-
+    raw = _extract_boxed_raw(solution)
+    if raw:
+        return _clean_boxed(raw) or raw
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
         solution, re.IGNORECASE,
     )
     if m:
         return m.group(1).strip()
-
     return ""
 
 
-def extract_answer(
-    client: OpenAI,
-    model: str,
-    solution: str,
-    *,
-    use_llm_extract: bool = False,
-) -> str:
-    answer = _regex_extract(solution)
-    numeric = _normalize_if_numeric(answer)
-    if numeric:
-        return numeric
-
-    if not solution or not use_llm_extract:
+def extract_answer(solution: str) -> str:
+    """Extract the answer from a solution using regex only (no LLM)."""
+    ans = _regex_extract(solution)
+    if ans and "<" in ans and ">" in ans:
         return ""
-
-    prompt = EXTRACT_ANSWER_PROMPT.format(solution=solution)
-    raw = call_llm(client, model, prompt, temperature=0.0)
-    answer = raw.strip()
-    if answer.upper() == "NONE":
-        return ""
-    numeric = _normalize_if_numeric(answer)
-    if numeric:
-        return numeric
-    extracted = _regex_extract(answer)
-    return _normalize_if_numeric(extracted)
+    return ans
 
 
 def normalize_answer(answer: str) -> str:
@@ -592,26 +494,18 @@ def _solve_one(
     client: OpenAI,
     model: str,
     problem: str,
-    _use_llm_extract: bool,
 ) -> tuple[str, str]:
     prompt = SOLVE_PROMPT.format(problem=problem)
     for attempt in range(_SOLVE_MAX_RETRIES):
         solution = call_llm(client, model, prompt, temperature=0.7)
         if not solution:
             continue
-        answer = extract_answer(
-            client, model, solution, use_llm_extract=_use_llm_extract
-        )
+        answer = extract_answer(solution)
         if answer:
             return answer, solution
         if attempt < _SOLVE_MAX_RETRIES - 1:
             print("r", end="", flush=True)
-    answer = (
-        extract_answer(
-            client, model, solution, use_llm_extract=_use_llm_extract
-        )
-        if solution else ""
-    )
+    answer = extract_answer(solution) if solution else ""
     return answer, solution
 
 
@@ -620,11 +514,10 @@ def solve_and_check_agreement(
     model: str,
     problem: str,
     n_samples: int = 10,
-    use_llm_extract: bool = False,
     pool: concurrent.futures.ThreadPoolExecutor | None = None,
 ) -> tuple[float, str, list[str], list[str]]:
     futures = [
-        pool.submit(_solve_one, client, model, problem, use_llm_extract)
+        pool.submit(_solve_one, client, model, problem)
         for _ in range(n_samples)
     ]
     results = [f.result() for f in futures]
@@ -656,10 +549,6 @@ def build_dataset(
     n_samples_per_problem: int = 10,
     target_agreement_low: float = 0.60,
     target_agreement_high: float = 0.80,
-    n_generators: int = 5,
-    problems_per_generator: int = 2,
-    max_generation_rounds: int = 20,
-    use_llm_extract: bool = False,
     output_path: str | None = None,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
@@ -668,9 +557,11 @@ def build_dataset(
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
-    Uses `client`/`model` for problem generation (needs instruction-following)
-    and `solve_client`/`solve_model` for solving/evaluation (needs math
-    reasoning). When solve_client is None, falls back to client/model for both.
+    Generates one problem at a time, evaluates it with parallel solve samples,
+    and keeps it if it lands in the target agreement window.
+
+    Uses `client`/`model` for generation and `solve_client`/`solve_model` for
+    evaluation. When solve_client is None, falls back to client/model for both.
     """
     s_client = solve_client or client
     s_model = solve_model or model
@@ -683,8 +574,6 @@ def build_dataset(
 
     skipped_problems: list[GeneratedProblem] = []
     seen_problems: set[str] = set()
-    round_num = 0
-    save_lock = threading.Lock()
 
     if output_path and os.path.exists(output_path):
         try:
@@ -722,120 +611,87 @@ def build_dataset(
             "problems": [asdict(p) for p in skipped_problems],
         })
 
-    def _evaluate_candidate(
-        problem_text: str,
-        pool: concurrent.futures.ThreadPoolExecutor,
-    ) -> tuple[str, float, str, list[str], list[str], float]:
-        t1 = time.time()
-        agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
-            s_client, s_model, problem_text,
-            n_samples=n_samples_per_problem,
-            use_llm_extract=use_llm_extract,
-            pool=pool,
-        )
-        elapsed = time.time() - t1
-        return problem_text, agreement, majority_ans, all_answers, all_solutions, elapsed
-
-    total_per_round = n_generators * problems_per_generator
-
     gen_label = model
     solve_label = s_model if solve_client else "(same)"
 
     print(f"\n{'='*70}")
-    print(f"  TTT-Discover (distinct): Building dataset from hard problem")
+    print(f"  TTT-Discover: Building dataset from hard problem")
     print(f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement")
-    print(f"  Generation: {n_generators} generators × {problems_per_generator} problems = {total_per_round}/round")
     print(f"  Samples per problem: {n_samples_per_problem}")
     print(f"  Failed solution attempts for context: {len(failed_solutions or [])}")
     print(f"  Generate model: {gen_label}")
     print(f"  Solve model:    {solve_label}")
-    print(f"  Max parallel API calls: {max_workers}")
+    print(f"  Max parallel solve workers: {max_workers}")
     if output_path:
         print(f"  Keeps file:  {output_path}")
         print(f"  Skips file:  {skips_path}")
     print(f"{'='*70}\n")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        while len(dataset.problems) < n_target and round_num < max_generation_rounds:
-            round_num += 1
+    candidate_num = 0
 
-            print(f"--- Round {round_num}: {n_generators} generators × {problems_per_generator} problems "
-                  f"({len(dataset.problems)}/{n_target} collected) ---")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        while len(dataset.problems) < n_target:
+            candidate_num += 1
+            print(f"--- Candidate {candidate_num} ({len(dataset.problems)}/{n_target} kept) ---")
 
             t0 = time.time()
-            candidates = generate_problems_parallel(
+            candidates = generate_similar_problems(
                 client, model, hard_problem,
-                n_generators=n_generators,
-                problems_per_generator=problems_per_generator,
                 failed_solutions=failed_solutions,
-                pool=pool,
             )
             gen_time = time.time() - t0
-            print(f"  Generated {len(candidates)} unique candidates across {n_generators} generators ({gen_time:.1f}s)")
 
-            to_evaluate: list[tuple[int, str]] = []
-            for j, cand in enumerate(candidates):
-                problem_text = cand.get("problem", "")
-                if not problem_text or problem_text in seen_problems:
-                    continue
-                seen_problems.add(problem_text)
-                to_evaluate.append((j, problem_text))
-
-            if not to_evaluate:
-                print("  No new unique candidates, retrying...")
+            if not candidates:
+                print(f"  Generation failed ({gen_time:.1f}s), retrying...")
                 continue
 
-            future_to_idx: dict[concurrent.futures.Future, tuple[int, str]] = {}
-            for j, problem_text in to_evaluate:
-                fut = pool.submit(_evaluate_candidate, problem_text, pool)
-                future_to_idx[fut] = (j, problem_text)
+            problem_text = candidates[0]["problem"]
+            if problem_text in seen_problems:
+                print(f"  Duplicate problem, retrying...")
+                continue
+            seen_problems.add(problem_text)
 
-            print(f"  Evaluating {len(to_evaluate)} candidates in parallel...\n")
+            print(f"  Generated problem ({gen_time:.1f}s), evaluating with {n_samples_per_problem} samples...")
 
-            for fut in concurrent.futures.as_completed(future_to_idx):
-                j, problem_text = future_to_idx[fut]
-                try:
-                    _, agreement, majority_ans, all_answers, all_solutions, elapsed = fut.result()
-                except Exception as e:
-                    print(f"  [{j+1}] ERROR: {e}")
-                    continue
+            t1 = time.time()
+            agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
+                s_client, s_model, problem_text,
+                n_samples=n_samples_per_problem,
+                pool=pool,
+            )
+            eval_time = time.time() - t1
 
-                in_range = target_agreement_low <= agreement <= target_agreement_high
-                numeric = _is_numeric_answer(normalize_answer(majority_ans))
-                kept = in_range and bool(majority_ans) and numeric
-                if not bool(majority_ans):
-                    status = "skip (empty answer)"
-                elif not numeric:
-                    status = f"skip (non-numeric: {majority_ans[:40]})"
-                elif in_range:
-                    status = "KEEP"
-                else:
-                    status = "skip"
+            in_range = target_agreement_low <= agreement <= target_agreement_high
+            numeric = _is_numeric_answer(normalize_answer(majority_ans))
+            kept = in_range and bool(majority_ans) and numeric
+            if not bool(majority_ans):
+                status = "skip (empty answer)"
+            elif not numeric:
+                status = f"skip (non-numeric: {majority_ans[:40]})"
+            elif in_range:
+                status = "KEEP"
+            else:
+                status = "skip"
 
-                entry = GeneratedProblem(
-                    problem=problem_text,
-                    ground_truth_answer=majority_ans,
-                    agreement_rate=agreement,
-                    all_answers=all_answers,
-                    all_solutions=all_solutions,
-                    n_samples=n_samples_per_problem,
-                )
+            entry = GeneratedProblem(
+                problem=problem_text,
+                ground_truth_answer=majority_ans,
+                agreement_rate=agreement,
+                all_answers=all_answers,
+                all_solutions=all_solutions,
+                n_samples=n_samples_per_problem,
+            )
 
-                with save_lock:
-                    if kept:
-                        dataset.problems.append(entry)
-                    else:
-                        skipped_problems.append(entry)
-                    _flush()
-                    n_keeps = len(dataset.problems)
-                    n_skips = len(skipped_problems)
+            if kept:
+                dataset.problems.append(entry)
+            else:
+                skipped_problems.append(entry)
+            _flush()
 
-                print(f"  [{j+1}] {agreement:.0%} agreement ({elapsed:.1f}s) -> {status}")
-                if kept:
-                    print(f"    majority answer: {majority_ans[:80]}")
-                print(f"    -> saved (keeps: {n_keeps}, skips: {n_skips})")
-
-            print()
+            print(f"  {agreement:.0%} agreement ({eval_time:.1f}s) -> {status}")
+            if kept:
+                print(f"    majority answer: {majority_ans[:80]}")
+            print(f"    totals: {len(dataset.problems)} kept, {len(skipped_problems)} skipped\n")
 
     print(f"{'='*70}")
     print(f"  Dataset complete: {len(dataset.problems)} kept, {len(skipped_problems)} skipped")
@@ -882,28 +738,24 @@ def run(
     n_samples: int = 10,
     agree_low: float = 0.60,
     agree_high: float = 0.80,
-    n_generators: int = 5,
-    problems_per_generator: int = 2,
     output: str | None = None,
     model: str | None = None,
-    llm_extract: bool = False,
     max_workers: int = 16,
     failed_solutions: list[str] | None = None,
     use_tinker: bool = False,
     tinker_checkpoint: str | None = None,
     tinker_checkpoint_step: int = 50,
 ) -> Dataset:
-    # Generation always uses Vertex AI (needs instruction-following for JSON).
-    gen_client, gen_default_model = get_client()
-    gen_model = model or gen_default_model
-
-    # Solving uses tinker checkpoint when requested (calibrates difficulty
-    # against the fine-tuned model), otherwise falls back to the same client.
-    solve_client, solve_model = None, None
     if use_tinker:
-        solve_client, solve_model = get_tinker_client(
+        tinker_client, tinker_model = get_tinker_client(
             tinker_checkpoint, checkpoint_step=tinker_checkpoint_step
         )
+        gen_client, gen_model = tinker_client, model or tinker_model
+        solve_client, solve_model = tinker_client, tinker_model
+    else:
+        gen_client, gen_default_model = get_client()
+        gen_model = model or gen_default_model
+        solve_client, solve_model = None, None
 
     from datetime import datetime
     run_dir = output or os.path.join(
@@ -922,9 +774,6 @@ def run(
         n_samples_per_problem=n_samples,
         target_agreement_low=agree_low,
         target_agreement_high=agree_high,
-        n_generators=n_generators,
-        problems_per_generator=problems_per_generator,
-        use_llm_extract=llm_extract,
         output_path=out_path,
         max_workers=max_workers,
         failed_solutions=failed_solutions,
@@ -940,8 +789,7 @@ def run(
 # CLI
 # ---------------------------------------------------------------------------
 _FAILED_SOLUTIONS_FILES = [
-    "hard_attempts_ckpt50.json",
-    "failed_solutions.json",
+    "attempted_answers.json",
 ]
 
 
@@ -995,8 +843,6 @@ def main():
     )
     parser.add_argument("--n-problems", type=int, default=20)
     parser.add_argument("--n-samples", type=int, default=10)
-    parser.add_argument("--n-generators", type=int, default=5)
-    parser.add_argument("--problems-per-generator", type=int, default=2)
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
@@ -1009,10 +855,7 @@ def main():
         problem=PROBLEM_STATEMENT,
         n_problems=args.n_problems,
         n_samples=args.n_samples,
-        n_generators=args.n_generators,
-        problems_per_generator=args.problems_per_generator,
         model=args.model or "openai/gpt-oss-120b-maas",
-        llm_extract=True,
         failed_solutions=failed_solutions,
         use_tinker=args.tinker,
         tinker_checkpoint=args.checkpoint,
