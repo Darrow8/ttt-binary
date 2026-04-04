@@ -1,139 +1,188 @@
-# GRPO Pipeline with the Tinker API
+# TTT-Binary
 
-A modular pipeline for **Group Relative Policy Optimization (GRPO)** training via the [Thinking Machines Tinker API](https://thinkingmachines.ai/tinker/).
+**Test-Time Training with Binary Reward Signals for Mathematical Reasoning**
 
-Bring your own problems, plug in a reward function, and train.
+A pipeline for improving LLM mathematical reasoning through self-generated training data and Group Relative Policy Optimization (GRPO). Given a hard target problem the base model cannot solve, TTT-Binary discovers calibrated subproblems via LLM self-consistency, trains a LoRA adapter on those subproblems with GRPO, and evaluates whether the fine-tuned model can now solve the original problem.
 
-## Quick start
+This project was developed as part of Stanford CS224N (Spring 2026).
+
+## Overview
+
+TTT-Binary operates in three stages:
+
+1. **TTT-Discover** — Generate a curriculum of subproblems calibrated by self-consistency. An LLM proposes related problems; parallel sampling estimates agreement rate; problems in a target difficulty band (e.g., 60–80% agreement) are kept as training data.
+2. **GRPO Fine-Tuning** — Train a LoRA adapter on the discovered subproblems using Group Relative Policy Optimization with binary (correct/incorrect) reward signals via the Tinker API.
+3. **Evaluation** — Compare the fine-tuned checkpoint against the base model and frontier models (Claude, GPT-5.4, Gemini) on the target problem and related tasks.
+
+## Repository Structure
+
+```
+├── Stage1/                        # TTT-Discover: subproblem generation
+│   ├── distinct_llm_prompting.py  # Main generation script
+│   ├── attempted_answers.json     # Failed attempts for prompt conditioning
+│   ├── sum_keeps.py               # Aggregate kept problems across runs
+│   └── runs/                      # Timestamped output (keeps.json, skips.json)
+│
+├── grpo-pipeline/                 # GRPO training framework
+│   ├── pipeline/
+│   │   ├── __init__.py            # Public API re-exports
+│   │   ├── trainer.py             # GRPOTrainer + GRPOConfig
+│   │   ├── rewards.py             # Pluggable reward functions
+│   │   ├── problems.py            # Problem loader (JSONL, JSON, CSV, HF)
+│   │   └── logging.py             # MetricsLogger (JSONL + W&B)
+│   ├── grpo_subproblems.py        # Driver: train on discovered subproblems
+│   └── grpo_subproblems_resume.py # Driver: resume from a checkpoint
+│
+├── inference/
+│   └── infer.py                   # Evaluate via Vertex AI or local Tinker checkpoint
+│
+├── problems/                      # Problem banks (JSONL)
+│   ├── conics-50.jsonl
+│   ├── conics-100.jsonl
+│   └── subproblems.jsonl
+│
+├── eval-results/                  # Frontier model evaluation
+│   ├── eval_frontier_models.py    # Compare Claude / GPT-5.4 / Gemini
+│   └── eval_gpt54_repeat.py       # Pass@k-style repeated evaluation
+│
+├── utils/
+│   ├── compile_problems.py        # Merge Stage1 keeps into one dataset
+│   └── plot_comparison.py         # Base vs GRPO answer distribution plots
+│
+├── retrosynthesis/                # Chemistry domain: SMILES retrosynthesis eval
+│   └── batch_retro_eval.py        # RDKit-based batch evaluation
+│
+├── simple-query/                  # Standalone query scripts
+│   ├── query_gpt_oss.py           # One-shot Vertex query
+│   └── query_tinker_ckpt50.py     # Tinker checkpoint sampling
+│
+├── runs/                          # Inference & eval outputs (gitignored)
+├── requirements.txt
+└── .env                           # API keys (not committed)
+```
+
+## Setup
 
 ```bash
-# 1. Virtual environment
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# 2. Set your keys in .env
-#    TINKER_API_KEY, HF_TOKEN, WANDB_API_KEY, WANDB_ENTITY
-
-# 3. Run
-python grpo_train.py
 ```
 
-## Project structure
+Create a `.env` file with the required credentials:
 
 ```
-grpo-project/
-├── grpo_train.py              # Entry point — configure & run
-├── pipeline/
-│   ├── __init__.py
-│   ├── problems.py            # Load problems from JSONL, CSV, HF datasets, or lists
-│   ├── rewards.py             # Pluggable reward functions
-│   ├── trainer.py             # GRPOTrainer class (the training loop)
-│   └── logging.py             # Metrics logger (JSONL + W&B)
-├── problems/
-│   ├── math.jsonl             # Example: arithmetic problems
-│   └── reasoning.jsonl        # Example: reasoning problems
-├── requirements.txt
-└── .env                       # API keys (not committed)
+TINKER_API_KEY=<your-tinker-key>
+HF_TOKEN=<your-huggingface-token>
 ```
 
-## How GRPO works
+Vertex AI access requires Google Cloud credentials configured via `gcloud auth application-default login`.
 
-For each problem in a batch:
+## Usage
 
-1. **Sample** a group of completions from the current policy
-2. **Score** each completion with your reward function
-3. **Center** rewards within the group (advantage = reward − group mean)
-4. **Update** the policy via importance-sampled policy gradient
+### Stage 1: Generate Subproblems (TTT-Discover)
 
-Problems where every completion scores the same are skipped (no learning signal).
+Generate calibrated subproblems by sampling and filtering on self-consistency:
 
-## Loading problems
-
-Problems can come from several sources:
-
-```python
-from pipeline import load_problems
-
-# From a JSONL file (each line: {"prompt": "...", "reference": "..."})
-problems = load_problems("problems/math.jsonl")
-
-# From a CSV
-problems = load_problems("data/questions.csv")
-
-# From a HuggingFace dataset
-problems = load_problems("openai/gsm8k", prompt_field="question", reference_field="answer")
-
-# From a Python list
-problems = load_problems([
-    {"prompt": "What is 2+2?", "reference": "4"},
-    {"prompt": "Capital of France?", "reference": "Paris"},
-])
+```bash
+python Stage1/distinct_llm_prompting.py --n-problems 50 --n-samples 32
 ```
 
-## Reward functions
+Key flags:
+- `--n-problems` — Number of subproblems to collect
+- `--n-samples` — Parallel samples per candidate for agreement estimation
+- `--tinker` — Use a Tinker checkpoint instead of Vertex AI
+- `--checkpoint` — Explicit `tinker://…` checkpoint path
 
-Built-in rewards in `pipeline.rewards`:
+Output lands in `Stage1/runs/<timestamp>/keeps.json` and `skips.json`.
 
-| Function | Description |
-|---|---|
-| `exact_match` | 1.0 if reference appears in response (normalized) |
-| `boxed_match` | 1.0 if `\boxed{...}` answer matches reference |
-| `boxed_format_bonus` | +0.1 if `\boxed{}` present, −0.1 otherwise |
-| `contains_reference` | 1.0 if reference appears in response (case-insensitive) |
-| `regex_match(pattern)` | 1.0 if regex pattern matches response |
-| `length_penalty(max)` | Small negative reward for overly long responses |
+### Compile Training Data
 
-Combine them with weights:
+Merge all kept subproblems into a single dataset:
 
-```python
-from pipeline import combined, boxed_match, boxed_format_bonus
-
-reward_fn = combined(
-    (1.0, boxed_match),
-    (0.1, boxed_format_bonus),
-)
+```bash
+python utils/compile_problems.py --input-dir Stage1/runs --output problems/subproblems.jsonl
 ```
 
-Or write your own:
+### Stage 2: GRPO Training
 
-```python
-def my_reward(response: str, problem) -> float:
-    return 1.0 if problem.reference.lower() in response.lower() else 0.0
+Train a LoRA adapter on the discovered subproblems:
+
+```bash
+cd grpo-pipeline
+python -m pipeline.grpo_subproblems
 ```
 
-## Configuration
-
-All settings live in `GRPOConfig`:
+Configuration is set in `grpo_subproblems.py` — key parameters:
 
 | Parameter | Default | Description |
-|---|---|---|
-| `model_name` | `openai/gpt-oss-120b` | Base model to fine-tune |
-| `batch_size` | `128` | Unique problems per training step |
-| `group_size` | `16` | Rollouts per problem |
-| `learning_rate` | `4e-5` | Adam learning rate |
-| `lora_rank` | `32` | LoRA adapter rank |
-| `max_tokens` | `256` | Max tokens per completion |
-| `save_every` | `20` | Checkpoint interval (0 = disabled) |
-| `system_prompt` | `None` | System message prepended to every prompt |
-| `few_shot` | `[]` | Few-shot examples as chat messages |
-| `prompt_suffix` | `""` | Text appended to every problem prompt |
-| `wandb_project` | `"grpo-tinker"` | W&B project name (`None` to disable) |
+|-----------|---------|-------------|
+| `model_name` | `openai/gpt-oss-120b` | Base model |
+| `batch_size` | 25 | Problems per training step |
+| `group_size` | 16 | Samples per problem for advantage estimation |
+| `learning_rate` | 1e-4 | LoRA learning rate |
+| `lora_rank` | 32 | LoRA rank |
+| `max_tokens` | 100000 | Max generation length |
+| `save_every` | 5 | Checkpoint frequency (steps) |
 
-## W&B dashboard
+To resume from an existing checkpoint:
 
-Every training step logs to Weights & Biases:
-
-- **Scalars**: `reward/mean`, `reward/min`, `reward/max`, `advantage/std`, `tokens/mean_per_completion`, `time/total`
-- **Histograms**: reward distribution, advantage distribution
-- **Tables**: sample completions with prompt, response, expected/predicted answer, correctness
-
-## Plotting locally
-
-```python
-import pandas as pd, matplotlib.pyplot as plt
-
-df = pd.read_json("/tmp/tinker-grpo/run/metrics.jsonl", lines=True)
-plt.plot(df["step"], df["reward/mean"])
-plt.xlabel("Step"); plt.ylabel("Mean Reward")
-plt.title("GRPO Training"); plt.grid(True); plt.show()
+```bash
+python -m pipeline.grpo_subproblems_resume
 ```
+
+### Stage 3: Evaluation
+
+**Inference with the fine-tuned model:**
+
+```bash
+python inference/infer.py --local --n-samples 100
+```
+
+**Inference with the base model (Vertex AI):**
+
+```bash
+python inference/infer.py --n-samples 100
+```
+
+**Frontier model comparison:**
+
+```bash
+python eval-results/eval_frontier_models.py
+```
+
+## Reward Functions
+
+The GRPO pipeline supports pluggable reward functions defined in `grpo-pipeline/pipeline/rewards.py`:
+
+| Function | Description |
+|----------|-------------|
+| `boxed_match` | 1.0 if `\boxed{...}` answer matches reference |
+| `boxed_format_bonus` | ±0.1 for presence/absence of `\boxed{}` |
+| `exact_match` | 1.0 if response contains the reference answer |
+| `answer_tag_match` | 1.0 if `**ANSWER: ...**` matches reference |
+| `smiles_match` | 1.0 if `\boxed{...}` SMILES matches reference (RDKit canonicalization) |
+| `combined()` | Weighted combination of any reward functions |
+
+## Problem Format
+
+Problems are stored as JSONL with one object per line:
+
+```json
+{"prompt": "Find the value of ...", "reference": "42", "id": "prob_001"}
+```
+
+The loader also accepts JSON arrays, CSV files, and HuggingFace dataset identifiers.
+
+## Dependencies
+
+Core dependencies (see `requirements.txt`):
+
+- `tinker` / `tinker-cookbook` — Tinker API for training and sampling
+- `torch` — Tensor operations for GRPO advantage computation
+- `transformers` — Tokenizer for chat template rendering
+- `openai` — Vertex AI API client
+- `google-auth` — Google Cloud authentication
+- `wandb` — Experiment tracking
+- `datasets` — HuggingFace dataset loading
+- `rdkit` — SMILES canonicalization (retrosynthesis tasks only)

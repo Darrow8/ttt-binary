@@ -43,9 +43,19 @@ def extract_boxed(text: str) -> str:
     raise ValueError("unmatched braces in \\boxed{}")
 
 
+def _strip_latex(s: str) -> str:
+    """Strip common LaTeX wrappers and extract the final numeric value."""
+    s = re.sub(r"\\(?:text|textbf|texttt|mathrm|mathbf|mathtt)\{([^}]*)\}", r"\1", s)
+    s = re.sub(r"\\(?:lfloor|rfloor|lceil|rceil|left|right|bigl|bigr|Bigl|Bigr|,|;|!|quad)", " ", s)
+    s = re.sub(r"\\(?:approx|sim|simeq|cong|neq|le|ge)", " ", s)
+    if "=" in s:
+        s = s.split("=")[-1]
+    return s.strip()
+
+
 def _normalize(s: str) -> str:
+    s = _strip_latex(s)
     s = s.replace(",", "").replace(" ", "").strip().rstrip(".")
-    # Normalize numeric strings so "3264.0000" == "3264"
     try:
         num = float(s)
         if num == int(num):
@@ -152,7 +162,7 @@ def length_penalty(max_tokens: int = 512, *, penalty_per_token: float = 0.001) -
 # Chemistry / SMILES reward functions
 # ---------------------------------------------------------------------------
 
-def _strip_latex(smiles: str) -> str:
+def _strip_latex_smiles(smiles: str) -> str:
     """Remove LaTeX wrappers like \\text{}, \\texttt{}, \\mathrm{} from SMILES."""
     s = smiles.strip()
     s = re.sub(r"\\(?:text|texttt|textbf|mathrm|mathtt)\{([^}]*)\}", r"\1", s)
@@ -164,7 +174,7 @@ def _canonicalize_smiles(smiles: str) -> str | None:
     """Canonicalize a SMILES and sort multi-component reactants."""
     try:
         from rdkit import Chem
-        s = _strip_latex(smiles)
+        s = _strip_latex_smiles(smiles)
         parts = s.split(".")
         canonical = []
         for part in parts:
@@ -183,7 +193,7 @@ def smiles_match(response: str, problem: "Problem") -> float:
         predicted_raw = extract_boxed(response)
     except ValueError:
         return 0.0
-    predicted_clean = _strip_latex(predicted_raw)
+    predicted_clean = _strip_latex_smiles(predicted_raw)
     ref_canon = _canonicalize_smiles(problem.reference)
     pred_canon = _canonicalize_smiles(predicted_clean)
     if ref_canon is None or pred_canon is None:

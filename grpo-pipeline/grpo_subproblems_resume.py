@@ -40,18 +40,18 @@ config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
     log_dir=str(_REPO_ROOT / "subproblems-run-resumed"),
 
-    resume_from="tinker://d7bcdbad-55ee-5d6d-bd99-a92db456ff1b:train:0/weights/subproblems-run.ckpt-000040",
+    resume_from="tinker://858c48a0-b533-5d70-8c41-4d2d787508bb:train:0/weights/subproblems-run-resumed.ckpt-000010",
 
     batch_size=25,
     group_size=16,
-    learning_rate=1e-4,
+    learning_rate=3e-5,
     lora_rank=32,
     max_tokens=16384,
 
     save_every=5,
 
-    wandb_project="grpo-conics-subproblems3",
-    wandb_run_name="subproblems-resumed-ep20",
+    wandb_project="grpo-conics-l2",
+    wandb_run_name="subproblems-from-ep25",
 
     temperature=0.7,
     system_prompt="""
@@ -69,12 +69,12 @@ After completing the reasoning, clearly state the final answer.
     few_shot=[],
 )
 
-EPOCHS = 5
+EPOCHS = 25
 
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems(str(_REPO_ROOT / "problems" / "conics-50.jsonl"))
+problems = load_problems(str(_REPO_ROOT / "problems" / "conics-l2-50-new.json"))
 
 
 # ── Reward function ────────────────────────────────────────────────────────

@@ -50,7 +50,7 @@ config = GRPOConfig(
     group_size=16,
     learning_rate=1e-4,
     lora_rank=32,
-    max_tokens=100000,
+    max_tokens=16384,
 
     save_every=5,
 
