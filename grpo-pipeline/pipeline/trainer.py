@@ -19,7 +19,7 @@ from tinker import types
 from tinker.types.tensor_data import TensorData
 from tqdm import tqdm
 
-from pipeline.logging import MetricsLogger
+from pipeline.metrics_logging import MetricsLogger
 from pipeline.problems import Problem
 from pipeline.rewards import RewardFunc, extract_boxed, extract_answer_tag
 
@@ -185,6 +185,19 @@ class GRPOTrainer:
         return msgs
 
     # ------------------------------------------------------------------
+    # Reference resolution (override for consensus-based training)
+    # ------------------------------------------------------------------
+
+    def _get_reference(self, problem: Problem, decoded_responses: list[str]) -> str:
+        """Return the reference answer for reward computation.
+
+        The default implementation returns ``problem.reference`` unchanged.
+        Subclasses (e.g. consensus-based TTRL) can override this to derive
+        a reference from the sampled responses via majority vote.
+        """
+        return problem.reference
+
+    # ------------------------------------------------------------------
     # Main training entry point
     # ------------------------------------------------------------------
 
@@ -272,7 +285,16 @@ class GRPOTrainer:
                 all_token_counts.append(len(seq.tokens))
                 decoded = self.renderer.decode(seq.tokens)
                 decoded_g.append(decoded)
+
+            # Allow subclasses to override the reference (e.g. consensus).
+            effective_ref = self._get_reference(problem, decoded_g)
+            orig_ref = problem.reference
+            problem.reference = effective_ref
+
+            for decoded in decoded_g:
                 rewards_g.append(self.reward_fn(decoded, problem))
+
+            problem.reference = orig_ref
 
             mean_r = sum(rewards_g) / len(rewards_g)
             advantages_g = [r - mean_r for r in rewards_g]

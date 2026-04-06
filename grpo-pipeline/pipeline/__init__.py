@@ -13,7 +13,7 @@ from pipeline.rewards import (
     combined,
 )
 from pipeline.trainer import GRPOTrainer, GRPOConfig
-from pipeline.logging import MetricsLogger
+from pipeline.metrics_logging import MetricsLogger
 
 __all__ = [
     "Problem",
