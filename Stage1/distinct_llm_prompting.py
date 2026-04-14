@@ -277,13 +277,13 @@ class Dataset:
 # Prompt templates
 # ---------------------------------------------------------------------------
 GENERATE_PROBLEMS_PROMPT = """\
-You are designing a training problem for training on ONE hard source problem.
-Your job is to create a problem that preserves the same mathematical bottleneck as the
-source problem, while being smaller, cleaner, and self-contained.
+You are designing a math problem for helping a student learn to solve ONE hard source problem.
+Your job is to create a related math problem that is similar in difficulty to the source problem and is related in content to the source problem.
 
 Your goal is NOT to create a random "similar-looking" problem or a parametric variant
 (e.g. changing the number of variables). Your goal is to create a problem whose solution
-would train the model on a reusable subskill needed for the original problem.
+would train the model on a reusable subskill needed for the original problem. 
+You should also not create a problem with a flawed or confusing premise. 
 
 ## Source Problem
 
@@ -300,8 +300,7 @@ to determine the correct answer.
 ## Instructions
 
 1. Read the attempted solutions above and identify the DISTINCT mathematical techniques
-   they use (e.g. Dirichlet series, CRT, Euler products, divisor sums, asymptotic
-   estimates, Tauberian theorems, etc.)
+   they use
 2. Pick ONE technique or subskill and design a single problem that would teach
    EXACTLY that technique. The problem must be structurally distinct from the source.
 
@@ -315,11 +314,12 @@ The generated problem MUST satisfy all of the following:
 - It isolates one real bottleneck or subskill from the source problem.
 - It is NOT a parametric variant of the source problem.
 - It avoids fake complexity and decorative algebraic clutter.
+- The problem cannot have subparts, it must be a single problem with a single answer.
+- The problem must not have a confusing or contradictory premise.
 - CRITICAL: The problem must be HARD — comparable to a research-level or competition
   math problem. A strong LLM should get it WRONG 20-40% of the time.
   DO NOT generate textbook exercises, definitions, or routine calculations.
   The problem should require COMBINING techniques or applying them in a non-obvious way.
-- The problem cannot have subparts, it must be a single problem with a single answer.
 
 ## Output
 
@@ -330,6 +330,7 @@ Then write the problem statement between these exact delimiters:
 <the problem text>
 ===PROBLEM END===
 """
+
 
 SOLVE_PROMPT = """\
 ## Problem
