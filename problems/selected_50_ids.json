@@ -1,0 +1,172 @@
+[
+  {
+    "id": 6,
+    "reason": "Introduces the basic set\u2011up: a universal square\u2011free polynomial and its root cover\u202f\u03c0\u2099\u202f\u2192\u202fU\u2099.  The Chebotarev density theorem for the S\u2099\u2011monodromy yields the harmonic number\u202fL\u2099, the same technique needed for the conic\u2011tangency cover."
+  },
+  {
+    "id": 1,
+    "reason": "Adds a square\u2011root of the discriminant, yielding a degree\u20112\u202f\u00e9tale extension of the universal cover.  It shows how extra \u00e9tale data (as in the discriminant condition for tangency) does not change the harmonic\u2011number computation."
+  },
+  {
+    "id": 2,
+    "reason": "Studies the ordered\u2011pair cover\u202fY\u202f\u2192\u202fU\u2099 of distinct roots, whose fibre has degree\u202fn(n\u20111).  The problem uses the fixed\u2011point statistic X(\u03c3)(X(\u03c3)\u20111) and the moment formulas for a random permutation, a prototype for the more intricate tangency condition."
+  },
+  {
+    "id": 7,
+    "reason": "Provides a concrete geometric incidence problem (smooth conic \u2194 smooth cubic) whose fibre parametrises cubic curves meeting a fixed conic.  The monodromy is S\u2086 and the average number of components is obtained via Chebotarev, mirroring the set\u2011up of Z\u202f\u2192\u202fU\u2075."
+  },
+  {
+    "id": 15,
+    "reason": "Reformulates a tangency\u2011type condition algebraically: the unordered pair of distinct roots of a quartic.  Its fibre has degree\u202f6 and monodromy S\u2086, illustrating how a geometric contact condition can be encoded by a discriminant\u2011square hypothesis."
+  },
+  {
+    "id": 14,
+    "reason": "Treats a higher\u2011dimensional enumerative problem (lines meeting six skew lines) with fibre of degree\u202f12 and monodromy S\u2081\u2082.  The analysis of connected components via Frobenius cycles is formally identical to the conic\u2011tangency situation and prepares the student for dealing with large symmetric\u2011group monodromy."
+  },
+  {
+    "id": 5,
+    "reason": "Shows how imposing a square\u2011discriminant condition forces the geometric monodromy to the alternating group\u202fA\u2087.  Understanding this reduction is essential for recognizing why the conic\u2011tangency cover, despite its discriminant constraints, still has full symmetric monodromy."
+  },
+  {
+    "id": 10,
+    "reason": "Gives a case where the monodromy group is a proper simple subgroup\u202fPSL\u2082(\ud835\udd3d\u2087)\u2282S\u2087.  The computation of the average number of components via the class\u2011by\u2011class count teaches the student to verify that the conic\u2011tangency problem really has full\u202fS_{3264}\u202fand not a smaller subgroup."
+  },
+  {
+    "id": 12,
+    "reason": "Analyzes the ordered\u2011root scheme\u202fZ\u2099\u202f\u2192\u202fU\u2099 with fibre\u202fn!\u202fand monodromy\u202fS_{n!}.  The number of connected components equals the number of cycles of the Frobenius action on orderings, exactly the combinatorial object that appears when counting the 3264 conics tangent to five given conics."
+  },
+  {
+    "id": 9,
+    "reason": "States the general theorem that the average number of irreducible factors of a square\u2011free degree\u2011n polynomial equals the n\u2011th harmonic number\u202fH\u2099, and asks for n\u202f=\u202f3264.  Computing \u230a100\u00b7H\u2083\u2082\u2086\u2084\u230b reproduces the final numeric answer required for the conic\u2011tangency problem, tying together all previous monodromy and Chebotarev arguments."
+  },
+  {
+    "id": 21
+  },
+  {
+    "id": 22
+  },
+  {
+    "id": 27
+  },
+  {
+    "id": 31
+  },
+  {
+    "id": 32
+  },
+  {
+    "id": 40
+  },
+  {
+    "id": 25
+  },
+  {
+    "id": 29
+  },
+  {
+    "id": 33
+  },
+  {
+    "id": 38
+  },
+  {
+    "id": 41
+  },
+  {
+    "id": 42
+  },
+  {
+    "id": 43
+  },
+  {
+    "id": 44
+  },
+  {
+    "id": 45
+  },
+  {
+    "id": 46
+  },
+  {
+    "id": 47
+  },
+  {
+    "id": 48
+  },
+  {
+    "id": 52
+  },
+  {
+    "id": 57
+  },
+  {
+    "id": 61
+  },
+  {
+    "id": 62
+  },
+  {
+    "id": 63
+  },
+  {
+    "id": 67
+  },
+  {
+    "id": 69
+  },
+  {
+    "id": 71
+  },
+  {
+    "id": 72
+  },
+  {
+    "id": 73
+  },
+  {
+    "id": 74
+  },
+  {
+    "id": 80
+  },
+  {
+    "id": 86,
+    "reason": "Computes the limit of the average number of fixed points of a random permutation acting on a finite set; this is the combinatorial model for the Chebotarev argument that the average fibre size of a finite \u00e9tale cover equals the number of orbits of its geometric monodromy."
+  },
+  {
+    "id": 88,
+    "reason": "Classical Schubert problem of lines meeting four general lines in\u202f\u2119\u00b3; the incidence variety is a degree\u20112 finite \u00e9tale cover of an open subset, and one proves that the average number of rational lines tends to 1, mirroring the conic\u2011tangency situation for five conics."
+  },
+  {
+    "id": 89,
+    "reason": "Studies monic degree\u20115 polynomials with full\u202fS\u2085\u202fGalois group; averaging the number of \u2131\u209a\u2011rational roots uses the same S\u2099\u2011monodromy/average\u2011fixed\u2011point principle that appears for the 3264 tangent\u2011conic cover."
+  },
+  {
+    "id": 97,
+    "reason": "Considers the zero\u2011dimensional scheme cut out by a quadratic and a cubic in\u202f\u211d\u00b2, giving a degree\u20116 \u00e9tale cover of the\u202fa\u2011line; the computation of\u202fL\u202fuses B\u00e9zout, smoothness, and the expectation of fixed points of a random element of\u202fS\u2086."
+  },
+  {
+    "id": 100,
+    "reason": "Counts \u2131\u209a\u2011rational common tangent lines to four smooth plane conics; the incidence correspondence is analogous to the one for conics tangent to five conics, and the same monodromy\u2011symmetry ideas give the average count needed for the target problem."
+  },
+  {
+    "id": 87,
+    "reason": "Intersection of a quadric, two cubics and a quartic in\u202f\u2119\u00b3 produces a zero\u2011dimensional scheme of degree\u202f2\u00b73\u00b73\u00b74; analysing its average number of \u2131\u209a\u2011points introduces genericity, B\u00e9zout, and the passage from geometric degree to arithmetic averages."
+  },
+  {
+    "id": 91,
+    "reason": "Average number of \u2131\u209a\u2011points of the complete intersection of five random quadrics in\u202f\u2119\u2075; this higher\u2011dimensional analogue of the conic\u2011tangency incidence variety illustrates how to set up the counting problem in a parameter space of quadrics."
+  },
+  {
+    "id": 93,
+    "reason": "Same computation as\u202f91\u202fbut in\u202f\u2119\u00b3, giving a concrete model where the ambient space has the same dimension as the plane of conics (\u2119\u2075) after projectivising the space of conics; it reinforces the use of generic complete intersections and Lang\u2013Weil estimates."
+  },
+  {
+    "id": 83,
+    "reason": "Averaging point counts on the fibres of the elliptic surface\u202fy\u00b2 = x\u00b3 + t over\u202f\u2131\u209a; the argument uses Hasse\u2013Weil bounds and the fact that the fibrewise point count is\u202fp\u202f+\u202f1 on average, a prototype for the limit definition of\u202fL\u202fin the conic\u2011tangency problem."
+  },
+  {
+    "id": 84,
+    "reason": "Gives the exact expected number of cycles of a random even permutation (alternating group); the parity restriction mimics the double\u2011cover defined by the discriminant hypersurface in the space of smooth conics, helping the learner understand how symmetry constraints affect average counts."
+  }
+]
