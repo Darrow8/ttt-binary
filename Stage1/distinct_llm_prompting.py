@@ -10,9 +10,11 @@ import concurrent.futures
 import json
 import os
 import random
+import threading
 import time
 import re
 from collections import Counter
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import dataclass, field, asdict
 
 from openai import OpenAI
@@ -177,19 +179,17 @@ def get_tinker_client(
     client = TinkerClient(path)
     return client, TINKER_BASE_MODEL
 
-PROBLEM_STATEMENT = r"""
-Let \(U \subset PH^0_{\mathbb{Z}}(\mathbb{P}^2,\mathcal{O}(2))\) be the space of smooth conics in \(\mathbb{P}^2\), and let \(Z \subset U^6\) be the closed subscheme parametrizing \(6\)-tuples \((C_1,\dots,C_6)\) with \(C_1\) tangent to \(C_2,\dots,C_6\). Let
-\[
-\pi : Z \to U^5
-\]
-be the map induced by the projection onto the last \(5\) coordinates, and let \(V \subset U^5\) be the dense open subscheme over which \(\pi\) is finite étale. Let
-\[
-L=\lim_{p\to\infty}\frac{1}{\#V(\mathbb{F}_p)}\sum_{x\in V(\mathbb{F}_p)} \#\pi^{-1}(x),
-\]
-that is, the limit of the average number of components of the space of conics tangent to \(5\) smooth conics over \(\mathbb{F}_p\), as \(p\) tends to infinity. Find \(\lfloor 100L \rfloor\).
-"""
-
-print(PROBLEM_STATEMENT)
+def load_hard_problem(problem_set: str, problem_id: str) -> tuple[str, dict]:
+    """Look up one hard problem in a JSONL set file. Returns (statement, full_row)."""
+    with open(problem_set) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if row.get("id") == problem_id:
+                return row["statement"], row
+    raise KeyError(f"id {problem_id!r} not found in {problem_set}")
 
 
 def _get_vertex_access_token() -> str:
@@ -552,14 +552,17 @@ def build_dataset(
     target_agreement_high: float = 0.80,
     output_path: str | None = None,
     max_workers: int = 16,
+    gen_workers: int = 8,
     failed_solutions: list[str] | None = None,
     solve_client: OpenAI | None = None,
     solve_model: str | None = None,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
-    Generates one problem at a time, evaluates it with parallel solve samples,
-    and keeps it if it lands in the target agreement window.
+    Pipelines `gen_workers` candidates concurrently through gen+eval. Each
+    worker generates one candidate problem and evaluates it with up to
+    `max_workers` parallel solve samples; results stream back to a shared
+    keeps/skips list as soon as they're ready.
 
     Uses `client`/`model` for generation and `solve_client`/`solve_model` for
     evaluation. When solve_client is None, falls back to client/model for both.
@@ -623,76 +626,138 @@ def build_dataset(
     print(f"  Generate model: {gen_label}")
     print(f"  Solve model:    {solve_label}")
     print(f"  Max parallel solve workers: {max_workers}")
+    print(f"  Gen pipeline workers:       {gen_workers}")
     if output_path:
         print(f"  Keeps file:  {output_path}")
         print(f"  Skips file:  {skips_path}")
     print(f"{'='*70}\n")
 
-    candidate_num = 0
+    seen_lock = threading.Lock()
+    state_lock = threading.Lock()
+    candidate_counter = {"n": 0}
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        while len(dataset.problems) < n_target:
-            candidate_num += 1
-            print(f"--- Candidate {candidate_num} ({len(dataset.problems)}/{n_target} kept) ---")
+    def _gen_and_eval_one(solve_pool: concurrent.futures.ThreadPoolExecutor):
+        with state_lock:
+            candidate_counter["n"] += 1
+            cn = candidate_counter["n"]
 
-            t0 = time.time()
-            candidates = generate_similar_problems(
-                client, model, hard_problem,
-                failed_solutions=failed_solutions,
-            )
-            gen_time = time.time() - t0
+        t0 = time.time()
+        candidates = generate_similar_problems(
+            client, model, hard_problem,
+            failed_solutions=failed_solutions,
+        )
+        gen_time = time.time() - t0
 
-            if not candidates:
-                print(f"  Generation failed ({gen_time:.1f}s), retrying...")
-                continue
+        if not candidates:
+            return {"kind": "gen_failed", "candidate_num": cn, "gen_time": gen_time}
 
-            problem_text = candidates[0]["problem"]
+        problem_text = candidates[0]["problem"]
+        with seen_lock:
             if problem_text in seen_problems:
-                print(f"  Duplicate problem, retrying...")
-                continue
+                return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
             seen_problems.add(problem_text)
 
-            print(f"  Generated problem ({gen_time:.1f}s), evaluating with {n_samples_per_problem} samples...")
+        t1 = time.time()
+        agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
+            s_client, s_model, problem_text,
+            n_samples=n_samples_per_problem,
+            pool=solve_pool,
+        )
+        eval_time = time.time() - t1
 
-            t1 = time.time()
-            agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
-                s_client, s_model, problem_text,
-                n_samples=n_samples_per_problem,
-                pool=pool,
-            )
-            eval_time = time.time() - t1
+        in_range = target_agreement_low <= agreement <= target_agreement_high
+        numeric = _is_numeric_answer(normalize_answer(majority_ans))
+        kept = in_range and bool(majority_ans) and numeric
+        if not bool(majority_ans):
+            status = "skip (empty answer)"
+        elif not numeric:
+            status = f"skip (non-numeric: {majority_ans[:40]})"
+        elif in_range:
+            status = "KEEP"
+        else:
+            status = "skip"
 
-            in_range = target_agreement_low <= agreement <= target_agreement_high
-            numeric = _is_numeric_answer(normalize_answer(majority_ans))
-            kept = in_range and bool(majority_ans) and numeric
-            if not bool(majority_ans):
-                status = "skip (empty answer)"
-            elif not numeric:
-                status = f"skip (non-numeric: {majority_ans[:40]})"
-            elif in_range:
-                status = "KEEP"
-            else:
-                status = "skip"
+        entry = GeneratedProblem(
+            problem=problem_text,
+            ground_truth_answer=majority_ans,
+            agreement_rate=agreement,
+            all_answers=all_answers,
+            all_solutions=all_solutions,
+            n_samples=n_samples_per_problem,
+        )
+        return {
+            "kind": "evaluated",
+            "candidate_num": cn,
+            "gen_time": gen_time,
+            "eval_time": eval_time,
+            "kept": kept,
+            "status": status,
+            "agreement": agreement,
+            "majority_ans": majority_ans,
+            "entry": entry,
+        }
 
-            entry = GeneratedProblem(
-                problem=problem_text,
-                ground_truth_answer=majority_ans,
-                agreement_rate=agreement,
-                all_answers=all_answers,
-                all_solutions=all_solutions,
-                n_samples=n_samples_per_problem,
-            )
+    # Two pools: outer pool runs gen+eval workers, inner pool runs the
+    # parallel solve samples for whichever candidate is currently evaluating.
+    # Sizing: gen_workers concurrent candidates × n_samples_per_problem solve
+    # calls each → up to gen_workers * n_samples concurrent solve calls.
+    solve_pool_size = max(max_workers, gen_workers * n_samples_per_problem)
 
-            if kept:
-                dataset.problems.append(entry)
-            else:
-                skipped_problems.append(entry)
-            _flush()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=gen_workers) as gen_pool, \
+         concurrent.futures.ThreadPoolExecutor(max_workers=solve_pool_size) as solve_pool:
 
-            print(f"  {agreement:.0%} agreement ({eval_time:.1f}s) -> {status}")
-            if kept:
-                print(f"    majority answer: {majority_ans[:80]}")
-            print(f"    totals: {len(dataset.problems)} kept, {len(skipped_problems)} skipped\n")
+        in_flight: set[Future] = set()
+
+        def _submit_more():
+            with state_lock:
+                target_inflight = max(0, n_target - len(dataset.problems))
+            target_inflight = min(target_inflight, gen_workers)
+            while len(in_flight) < target_inflight:
+                in_flight.add(gen_pool.submit(_gen_and_eval_one, solve_pool))
+
+        _submit_more()
+
+        while in_flight:
+            done, _ = wait(in_flight, return_when=FIRST_COMPLETED)
+            for fut in done:
+                in_flight.discard(fut)
+                try:
+                    result = fut.result()
+                except Exception as e:
+                    print(f"  [error] worker raised: {e}")
+                    continue
+
+                cn = result["candidate_num"]
+                kind = result["kind"]
+
+                if kind == "gen_failed":
+                    print(f"--- Candidate {cn} ---  generation failed "
+                          f"({result['gen_time']:.1f}s), continuing")
+                elif kind == "duplicate":
+                    print(f"--- Candidate {cn} ---  duplicate, continuing")
+                elif kind == "evaluated":
+                    entry = result["entry"]
+                    with state_lock:
+                        if result["kept"]:
+                            dataset.problems.append(entry)
+                        else:
+                            skipped_problems.append(entry)
+                        kept_count = len(dataset.problems)
+                        skipped_count = len(skipped_problems)
+                        _flush()
+                    print(
+                        f"--- Candidate {cn} ---  gen {result['gen_time']:.1f}s "
+                        f"+ eval {result['eval_time']:.1f}s  "
+                        f"{result['agreement']:.0%} -> {result['status']}"
+                    )
+                    if result["kept"]:
+                        print(f"    majority answer: {result['majority_ans'][:80]}")
+                    print(f"    totals: {kept_count} kept, {skipped_count} skipped")
+
+            with state_lock:
+                done_yet = len(dataset.problems) >= n_target
+            if not done_yet:
+                _submit_more()
 
     print(f"{'='*70}")
     print(f"  Dataset complete: {len(dataset.problems)} kept, {len(skipped_problems)} skipped")
@@ -742,6 +807,7 @@ def run(
     output: str | None = None,
     model: str | None = None,
     max_workers: int = 16,
+    gen_workers: int = 8,
     failed_solutions: list[str] | None = None,
     use_tinker: bool = False,
     tinker_checkpoint: str | None = None,
@@ -777,6 +843,7 @@ def run(
         target_agreement_high=agree_high,
         output_path=out_path,
         max_workers=max_workers,
+        gen_workers=gen_workers,
         failed_solutions=failed_solutions,
         solve_client=solve_client,
         solve_model=solve_model,
@@ -789,31 +856,32 @@ def run(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-_FAILED_SOLUTIONS_FILES = [
-    "attempted_answers.json",
-]
+def _load_failed_solutions(path: str) -> list[str]:
+    """Load failed-attempt reasoning traces from a JSON file.
 
+    Accepts either a list of strings, a list of {answer, reasoning} dicts, or
+    a Stage 0 base_attempts.json with {"top_attempts": [{answer, reasoning}, ...]}.
+    """
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        data = json.load(f)
 
-def _load_failed_solutions() -> list[str]:
-    base = os.path.dirname(__file__)
-    for name in _FAILED_SOLUTIONS_FILES:
-        path = os.path.join(base, name)
-        if not os.path.exists(path):
-            continue
-        with open(path) as f:
-            data = json.load(f)
-        if not isinstance(data, list):
-            continue
-        solutions: list[str] = []
-        for item in data:
-            if isinstance(item, str):
-                solutions.append(item)
-            elif isinstance(item, dict) and "reasoning" in item:
-                solutions.append(item["reasoning"])
-        if solutions:
-            print(f"Loaded {len(solutions)} failed solutions from {name}")
-            return solutions
-    return []
+    items: list = []
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        items = data.get("top_attempts") or data.get("attempts") or []
+
+    solutions: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            solutions.append(item)
+        elif isinstance(item, dict) and "reasoning" in item:
+            solutions.append(item["reasoning"])
+    if solutions:
+        print(f"Loaded {len(solutions)} failed solutions from {path}")
+    return solutions
 
 
 def main():
@@ -821,6 +889,22 @@ def main():
 
     parser = argparse.ArgumentParser(
         description="TTT-Discover (distinct): generate training subproblems"
+    )
+    parser.add_argument(
+        "--problem-set", type=str,
+        default=os.path.join(os.path.dirname(__file__), "..", "problems", "hard_problems.jsonl"),
+        help="Path to hard_problems.jsonl",
+    )
+    parser.add_argument(
+        "--id", type=str, required=True,
+        help="Hard-problem id to generate subproblems for (must exist in --problem-set)",
+    )
+    parser.add_argument(
+        "--failed-solutions", type=str, default=None,
+        help=(
+            "Path to failed-attempts JSON. Defaults to runs/<id>/base_attempts.json. "
+            "Pass an explicit path to override."
+        ),
     )
     parser.add_argument(
         "--tinker", action="store_true",
@@ -834,9 +918,7 @@ def main():
         ),
     )
     parser.add_argument(
-        "--tinker-step",
-        type=int,
-        default=50,
+        "--tinker-step", type=int, default=50,
         help=(
             "When --checkpoint is omitted, use the training checkpoint whose path "
             "contains ckpt-NNNNNN for this step (default: 50)."
@@ -844,16 +926,40 @@ def main():
     )
     parser.add_argument("--n-problems", type=int, default=20)
     parser.add_argument("--n-samples", type=int, default=10)
+    parser.add_argument("--gen-workers", type=int, default=8,
+                        help="Concurrent gen+eval pipeline workers (default 8)")
+    parser.add_argument("--max-workers", type=int, default=16,
+                        help="Solve-pool worker hint (default 16)")
     parser.add_argument("--model", type=str, default=None)
-    parser.add_argument("--output", type=str, default=None)
+    parser.add_argument(
+        "--output", type=str, default=None,
+        help="Override run dir. Defaults to runs/<id>/stage1/<timestamp>/",
+    )
     args = parser.parse_args()
 
-    failed_solutions = _load_failed_solutions()
+    problem_text, problem_row = load_hard_problem(args.problem_set, args.id)
+    print(f"\nLoaded hard problem id={args.id} ({len(problem_text)} chars)\n")
+
+    repo_root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+    runs_root = os.path.join(repo_root, "runs", args.id)
+
+    failed_path = args.failed_solutions or os.path.join(runs_root, "base_attempts.json")
+    failed_solutions = _load_failed_solutions(failed_path)
     if not failed_solutions:
-        print("No failed solutions found. Place hard_attempts_ckpt50.json or failed_solutions.json in Stage1/.")
+        print(
+            f"No failed solutions at {failed_path}. "
+            f"Run Stage 0 first or pass --failed-solutions explicitly."
+        )
+
+    if args.output:
+        run_dir = args.output
+    else:
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
+        run_dir = os.path.join(runs_root, "stage1", ts)
 
     run(
-        problem=PROBLEM_STATEMENT,
+        problem=problem_text,
         n_problems=args.n_problems,
         n_samples=args.n_samples,
         model=args.model or "openai/gpt-oss-120b-maas",
@@ -861,7 +967,9 @@ def main():
         use_tinker=args.tinker,
         tinker_checkpoint=args.checkpoint,
         tinker_checkpoint_step=args.tinker_step,
-        output=args.output,
+        output=run_dir,
+        gen_workers=args.gen_workers,
+        max_workers=args.max_workers,
     )
 
 
