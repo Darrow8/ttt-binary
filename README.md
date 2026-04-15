@@ -186,3 +186,4 @@ Core dependencies (see `requirements.txt`):
 - `wandb` — Experiment tracking
 - `datasets` — HuggingFace dataset loading
 - `rdkit` — SMILES canonicalization (retrosynthesis tasks only)
+ 
