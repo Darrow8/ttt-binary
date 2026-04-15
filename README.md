@@ -29,7 +29,7 @@ TTT-Binary operates in three stages:
 │   │   ├── trainer.py             # GRPOTrainer + GRPOConfig
 │   │   ├── rewards.py             # Pluggable reward functions
 │   │   ├── problems.py            # Problem loader (JSONL, JSON, CSV, HF)
-│   │   └── logging.py             # MetricsLogger (JSONL + W&B)
+│   │   └── metrics_logging.py     # MetricsLogger (JSONL + W&B)
 │   ├── grpo_subproblems.py        # Driver: train on discovered subproblems
 │   └── grpo_subproblems_resume.py # Driver: resume from a checkpoint
 │
