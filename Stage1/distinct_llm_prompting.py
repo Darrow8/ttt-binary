@@ -10,15 +10,15 @@ import concurrent.futures
 import json
 import os
 import random
+import re
 import threading
 import time
-import re
 from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 
 from openai import OpenAI
-from tenacity import retry, wait_random_exponential, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 # ---------------------------------------------------------------------------
 # .env loader
@@ -40,7 +40,7 @@ if os.path.exists(_env_path):
                         val = val[1:]
                 else:
                     if " #" in val:
-                        val = val[:val.index(" #")]
+                        val = val[: val.index(" #")]
                     val = val.strip()
                 os.environ.setdefault(key.strip(), val)
 
@@ -55,9 +55,7 @@ DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
 TINKER_BASE_MODEL = "openai/gpt-oss-120b"
 
 
-def _resolve_tinker_checkpoint_path(
-    explicit: str | None, *, step: int = 50
-) -> str:
+def _resolve_tinker_checkpoint_path(explicit: str | None, *, step: int = 50) -> str:
     """CLI --checkpoint / TINKER_CHECKPOINT, else list this account's training checkpoints."""
     if explicit and explicit.strip():
         return explicit.strip()
@@ -67,9 +65,7 @@ def _resolve_tinker_checkpoint_path(
     import tinker
 
     if not os.environ.get("TINKER_API_KEY"):
-        raise RuntimeError(
-            "TINKER_API_KEY not set. Add it to .env or export it."
-        )
+        raise RuntimeError("TINKER_API_KEY not set. Add it to .env or export it.")
     service = tinker.ServiceClient()
     rest = service.create_rest_client()
     response = rest.list_user_checkpoints(limit=200).result()
@@ -89,9 +85,7 @@ def _resolve_tinker_checkpoint_path(
                 f"(created {ckpt.time})"
             )
             return ckpt.tinker_path
-    sample = "\n".join(
-        f"  {c.tinker_path}  ({c.time})" for c in training_ckpts[:25]
-    )
+    sample = "\n".join(f"  {c.tinker_path}  ({c.time})" for c in training_ckpts[:25])
     raise RuntimeError(
         f"No training checkpoint matching step {step} ({step_tag!r}). "
         "Pass --checkpoint, set TINKER_CHECKPOINT, or use --tinker-step.\n"
@@ -121,21 +115,32 @@ class _TinkerCompletions:
         self._sampling_client = sampling_client
         self._tokenizer = tokenizer
 
-    def create(self, *, model: str = "", messages: list | None = None,
-               temperature: float = 0.7, **_kwargs) -> _FakeResponse:
+    def create(
+        self,
+        *,
+        model: str = "",
+        messages: list | None = None,
+        temperature: float = 0.7,
+        **_kwargs,
+    ) -> _FakeResponse:
         from tinker import types
 
         text = self._tokenizer.apply_chat_template(
-            messages or [], tokenize=False, add_generation_prompt=True,
+            messages or [],
+            tokenize=False,
+            add_generation_prompt=True,
         )
         ids = self._tokenizer.encode(text, add_special_tokens=False)
         prompt = types.ModelInput.from_ints(ids)
         params = types.SamplingParams(temperature=temperature, context_length=32768)
         result = self._sampling_client.sample(
-            prompt=prompt, num_samples=1, sampling_params=params,
+            prompt=prompt,
+            num_samples=1,
+            sampling_params=params,
         ).result()
         content = self._tokenizer.decode(
-            result.sequences[0].tokens, skip_special_tokens=True,
+            result.sequences[0].tokens,
+            skip_special_tokens=True,
         )
         return _FakeResponse(content)
 
@@ -150,19 +155,20 @@ class TinkerClient:
 
     def __init__(self, tinker_path: str):
         import tinker
+
         if not os.environ.get("TINKER_API_KEY"):
-            raise RuntimeError(
-                "TINKER_API_KEY not set. Add it to .env or export it."
-            )
+            raise RuntimeError("TINKER_API_KEY not set. Add it to .env or export it.")
         service = tinker.ServiceClient()
         print(f"Loading tinker checkpoint: {tinker_path}")
         training_client = service.create_training_client_from_state(tinker_path)
         sampling_client = training_client.save_weights_and_get_sampling_client()
 
         from transformers import AutoTokenizer
+
         hf_token = os.environ.get("HF_TOKEN")
         if hf_token:
             from huggingface_hub import login as hf_login
+
             hf_login(token=hf_token)
         tokenizer = AutoTokenizer.from_pretrained(TINKER_BASE_MODEL)
 
@@ -179,6 +185,7 @@ def get_tinker_client(
     path = _resolve_tinker_checkpoint_path(checkpoint, step=checkpoint_step)
     client = TinkerClient(path)
     return client, TINKER_BASE_MODEL
+
 
 def load_hard_problem(problem_set: str, problem_id: str) -> tuple[str, dict]:
     """Look up one hard problem in a JSONL set file. Returns (statement, full_row)."""
@@ -248,7 +255,9 @@ def call_llm(
     prompt: str,
     temperature: float = 0.7,
 ) -> str:
-    @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
+    @retry(
+        wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8)
+    )
     def _call():
         return client.chat.completions.create(
             model=model,
@@ -258,7 +267,11 @@ def call_llm(
 
     try:
         response = _call()
-        return response.choices[0].message.content or ""
+        if response.choices and len(response.choices) > 0:
+            return response.choices[0].message.content or ""
+        else:
+            print(f"  [warn] LLM response has no choices")
+            return ""
     except Exception as e:
         print(f"  [warn] LLM call failed after all retries: {e}")
         return ""
@@ -294,8 +307,8 @@ Your job is to create a related math problem that is similar in difficulty to th
 
 Your goal is NOT to create a random "similar-looking" problem or a parametric variant
 (e.g. changing the number of variables). Your goal is to create a problem whose solution
-would train the model on a reusable subskill needed for the original problem. 
-You should also not create a problem with a flawed or confusing premise. 
+would train the model on a reusable subskill needed for the original problem.
+You should also not create a problem with a flawed or confusing premise.
 
 ## Source Problem
 
@@ -398,8 +411,11 @@ def generate_similar_problems(
     )
     raw = call_llm(client, model, prompt, temperature=0.8)
 
-    problems = [m.group(1).strip() for m in _PROBLEM_DELIM_RE.finditer(raw)
-                if m.group(1).strip()]
+    problems = [
+        m.group(1).strip()
+        for m in _PROBLEM_DELIM_RE.finditer(raw)
+        if m.group(1).strip()
+    ]
 
     if not problems:
         print(f"  [warn] No delimited problem found in response")
@@ -409,9 +425,7 @@ def generate_similar_problems(
     return [{"problem": p} for p in problems]
 
 
-_NUMERIC_ANSWER_RE = re.compile(
-    r"^[+-]?\d+([.,]\d+)?(/\d+)?$"
-)
+_NUMERIC_ANSWER_RE = re.compile(r"^[+-]?\d+([.,]\d+)?(/\d+)?$")
 
 
 def _is_numeric_answer(answer: str) -> bool:
@@ -465,7 +479,8 @@ def _regex_extract(solution: str) -> str:
         return _clean_boxed(raw) or raw
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
-        solution, re.IGNORECASE,
+        solution,
+        re.IGNORECASE,
     )
     if m:
         return m.group(1).strip()
@@ -488,6 +503,7 @@ def normalize_answer(answer: str) -> str:
 
     try:
         from fractions import Fraction
+
         if "/" in a and a.replace("/", "").replace("-", "").replace(".", "").isdigit():
             val = float(Fraction(a))
             a = f"{val:.10g}"
@@ -530,8 +546,7 @@ def solve_and_check_agreement(
     pool: concurrent.futures.ThreadPoolExecutor | None = None,
 ) -> tuple[float, str, list[str], list[str]]:
     futures = [
-        pool.submit(_solve_one, client, model, problem)
-        for _ in range(n_samples)
+        pool.submit(_solve_one, client, model, problem) for _ in range(n_samples)
     ]
     results = [f.result() for f in futures]
     answers = [r[0] for r in results]
@@ -600,7 +615,9 @@ def build_dataset(
                 dataset.problems.append(entry)
                 seen_problems.add(entry.problem)
             if dataset.problems:
-                print(f"  Resumed {len(dataset.problems)} existing problems from {output_path}")
+                print(
+                    f"  Resumed {len(dataset.problems)} existing problems from {output_path}"
+                )
         except (json.JSONDecodeError, TypeError, KeyError):
             pass
 
@@ -612,27 +629,35 @@ def build_dataset(
     def _flush() -> None:
         if not output_path:
             return
-        _save_atomic(output_path, {
-            "source_problem": dataset.source_problem,
-            "target_agreement_low": dataset.target_agreement_low,
-            "target_agreement_high": dataset.target_agreement_high,
-            "n_problems": len(dataset.problems),
-            "problems": [asdict(p) for p in dataset.problems],
-        })
-        _save_atomic(skips_path, {
-            "source_problem": dataset.source_problem,
-            "target_agreement_low": dataset.target_agreement_low,
-            "target_agreement_high": dataset.target_agreement_high,
-            "n_problems": len(skipped_problems),
-            "problems": [asdict(p) for p in skipped_problems],
-        })
+        _save_atomic(
+            output_path,
+            {
+                "source_problem": dataset.source_problem,
+                "target_agreement_low": dataset.target_agreement_low,
+                "target_agreement_high": dataset.target_agreement_high,
+                "n_problems": len(dataset.problems),
+                "problems": [asdict(p) for p in dataset.problems],
+            },
+        )
+        _save_atomic(
+            skips_path,
+            {
+                "source_problem": dataset.source_problem,
+                "target_agreement_low": dataset.target_agreement_low,
+                "target_agreement_high": dataset.target_agreement_high,
+                "n_problems": len(skipped_problems),
+                "problems": [asdict(p) for p in skipped_problems],
+            },
+        )
 
     gen_label = model
     solve_label = s_model if solve_client else "(same)"
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  TTT-Discover: Building dataset from hard problem")
-    print(f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement")
+    print(
+        f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement"
+    )
     print(f"  Samples per problem: {n_samples_per_problem}")
     print(f"  Failed solution attempts for context: {len(failed_solutions or [])}")
     print(f"  Generate model: {gen_label}")
@@ -642,7 +667,7 @@ def build_dataset(
     if output_path:
         print(f"  Keeps file:  {output_path}")
         print(f"  Skips file:  {skips_path}")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     seen_lock = threading.Lock()
     state_lock = threading.Lock()
@@ -655,7 +680,9 @@ def build_dataset(
 
         t0 = time.time()
         candidates = generate_similar_problems(
-            client, model, hard_problem,
+            client,
+            model,
+            hard_problem,
             failed_solutions=failed_solutions,
         )
         gen_time = time.time() - t0
@@ -671,7 +698,9 @@ def build_dataset(
 
         t1 = time.time()
         agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
-            s_client, s_model, problem_text,
+            s_client,
+            s_model,
+            problem_text,
             n_samples=n_samples_per_problem,
             pool=solve_pool,
         )
@@ -715,9 +744,12 @@ def build_dataset(
     # calls each → up to gen_workers * n_samples concurrent solve calls.
     solve_pool_size = max(max_workers, gen_workers * n_samples_per_problem)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=gen_workers) as gen_pool, \
-         concurrent.futures.ThreadPoolExecutor(max_workers=solve_pool_size) as solve_pool:
-
+    with (
+        concurrent.futures.ThreadPoolExecutor(max_workers=gen_workers) as gen_pool,
+        concurrent.futures.ThreadPoolExecutor(
+            max_workers=solve_pool_size
+        ) as solve_pool,
+    ):
         in_flight: set[Future] = set()
 
         def _submit_more():
@@ -743,8 +775,10 @@ def build_dataset(
                 kind = result["kind"]
 
                 if kind == "gen_failed":
-                    print(f"--- Candidate {cn} ---  generation failed "
-                          f"({result['gen_time']:.1f}s), continuing")
+                    print(
+                        f"--- Candidate {cn} ---  generation failed "
+                        f"({result['gen_time']:.1f}s), continuing"
+                    )
                 elif kind == "duplicate":
                     print(f"--- Candidate {cn} ---  duplicate, continuing")
                 elif kind == "evaluated":
@@ -771,14 +805,17 @@ def build_dataset(
             if not done_yet:
                 _submit_more()
 
-    print(f"{'='*70}")
-    print(f"  Dataset complete: {len(dataset.problems)} kept, {len(skipped_problems)} skipped")
+    print(f"{'=' * 70}")
+    print(
+        f"  Dataset complete: {len(dataset.problems)} kept, {len(skipped_problems)} skipped"
+    )
     avg_agreement = (
         sum(p.agreement_rate for p in dataset.problems) / len(dataset.problems)
-        if dataset.problems else 0
+        if dataset.problems
+        else 0
     )
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     return dataset
 
@@ -837,6 +874,7 @@ def run(
         solve_client, solve_model = None, None
 
     from datetime import datetime
+
     run_dir = output or os.path.join(
         os.path.dirname(__file__),
         "runs",
@@ -903,11 +941,15 @@ def main():
         description="TTT-Discover (distinct): generate training subproblems"
     )
     parser.add_argument(
-        "--problem-path", type=str, required=True,
+        "--problem-path",
+        type=str,
+        required=True,
         help="Path to a .txt file containing the problem statement",
     )
     parser.add_argument(
-        "--runs-subdir", type=str, default=None,
+        "--runs-subdir",
+        type=str,
+        default=None,
         help=(
             "Subdirectory name under runs/ for outputs (default: the .txt filename "
             "without extension). Set when the filename does not match how later stages "
@@ -915,25 +957,32 @@ def main():
         ),
     )
     parser.add_argument(
-        "--failed-solutions", type=str, default=None,
+        "--failed-solutions",
+        type=str,
+        default=None,
         help=(
             "Path to failed-attempts JSON. Defaults to runs/<runs-subdir>/base_attempts.json "
             "(--runs-subdir defaults to the .txt basename). Pass an explicit path to override."
         ),
     )
     parser.add_argument(
-        "--tinker", action="store_true",
+        "--tinker",
+        action="store_true",
         help="Use a tinker checkpoint instead of the Vertex AI API",
     )
     parser.add_argument(
-        "--checkpoint", type=str, default=None,
+        "--checkpoint",
+        type=str,
+        default=None,
         help=(
             "Tinker checkpoint tinker://… path. If omitted, uses TINKER_CHECKPOINT "
             "env or lists your account's checkpoints (--tinker-step)."
         ),
     )
     parser.add_argument(
-        "--tinker-step", type=int, default=50,
+        "--tinker-step",
+        type=int,
+        default=50,
         help=(
             "When --checkpoint is omitted, use the training checkpoint whose path "
             "contains ckpt-NNNNNN for this step (default: 50)."
@@ -941,13 +990,23 @@ def main():
     )
     parser.add_argument("--n-problems", type=int, default=20)
     parser.add_argument("--n-samples", type=int, default=10)
-    parser.add_argument("--gen-workers", type=int, default=8,
-                        help="Concurrent gen+eval pipeline workers (default 8)")
-    parser.add_argument("--max-workers", type=int, default=16,
-                        help="Solve-pool worker hint (default 16)")
+    parser.add_argument(
+        "--gen-workers",
+        type=int,
+        default=8,
+        help="Concurrent gen+eval pipeline workers (default 8)",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=16,
+        help="Solve-pool worker hint (default 16)",
+    )
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument(
-        "--output", type=str, default=None,
+        "--output",
+        type=str,
+        default=None,
         help=(
             "Override run dir. Defaults to runs/<runs-subdir>/stage1/<timestamp>/ "
             "(see --runs-subdir)."
@@ -956,7 +1015,9 @@ def main():
     args = parser.parse_args()
 
     problem_text = load_problem_from_txt(args.problem_path)
-    problem_stem = os.path.splitext(os.path.basename(os.path.abspath(args.problem_path)))[0]
+    problem_stem = os.path.splitext(
+        os.path.basename(os.path.abspath(args.problem_path))
+    )[0]
     runs_subdir = (args.runs_subdir or "").strip() or problem_stem
     print(
         f"\nLoaded problem from {args.problem_path} "
@@ -978,6 +1039,7 @@ def main():
         run_dir = args.output
     else:
         from datetime import datetime
+
         ts = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
         run_dir = os.path.join(runs_root, "stage1", ts)
 

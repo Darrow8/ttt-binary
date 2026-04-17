@@ -20,7 +20,8 @@ from collections import Counter
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from tenacity import retry, wait_random_exponential, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_random_exponential
+
 load_dotenv()
 
 # ---------------------------------------------------------------------------
@@ -129,7 +130,8 @@ def _regex_extract(solution: str) -> str:
         return _clean_boxed(raw) or raw
     m = re.search(
         r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
-        solution, re.IGNORECASE,
+        solution,
+        re.IGNORECASE,
     )
     if m:
         return m.group(1).strip()
@@ -150,7 +152,11 @@ def extract_answer(solution: str, *, client=None, model: str = "") -> str:
             messages=[{"role": "user", "content": prompt}],
             temperature=TEMPERATURE,
         )
-        answer = (resp.choices[0].message.content or "").strip()
+        if resp.choices and len(resp.choices) > 0:
+            answer = (resp.choices[0].message.content or "").strip()
+        else:
+            print(f"  [warn] answer-extraction LLM response has no choices")
+            answer = ""
     except Exception as e:
         print(f"  [warn] answer-extraction LLM call failed: {e}")
         return ""
@@ -166,7 +172,9 @@ def _save_atomic(path: str, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def _print_summary(answers: list[str], n_samples: int, total_time: float | None = None) -> dict:
+def _print_summary(
+    answers: list[str], n_samples: int, total_time: float | None = None
+) -> dict:
     counter = Counter(answers)
     majority_answer, majority_count = counter.most_common(1)[0]
     summary = {
@@ -176,14 +184,16 @@ def _print_summary(answers: list[str], n_samples: int, total_time: float | None 
         "n_valid_answers": len(answers),
         "n_empty": n_samples - len(answers),
     }
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  Majority answer: {majority_answer}")
-    print(f"  Agreement: {majority_count}/{len(answers)} "
-          f"({majority_count/len(answers):.0%})")
+    print(
+        f"  Agreement: {majority_count}/{len(answers)} "
+        f"({majority_count / len(answers):.0%})"
+    )
     print(f"  Distribution: {dict(counter.most_common())}")
     if total_time is not None:
         print(f"  Total time: {total_time:.1f}s")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     return summary
 
 
@@ -197,6 +207,7 @@ MAX_WORKERS = 15
 def _get_vertex_access_token() -> str:
     from google.auth import default
     from google.auth.transport.requests import Request
+
     credentials, _ = default()
     credentials.refresh(Request())
     return credentials.token
@@ -211,13 +222,13 @@ def _build_vertex_base_url() -> str:
         else f"{location}-aiplatform.googleapis.com"
     )
     return (
-        f"https://{host}/v1/"
-        f"projects/{project}/locations/{location}/endpoints/openapi"
+        f"https://{host}/v1/projects/{project}/locations/{location}/endpoints/openapi"
     )
 
 
 def _get_remote_client():
     from openai import OpenAI
+
     token = _get_vertex_access_token()
     base_url = _build_vertex_base_url()
     return OpenAI(api_key=token, base_url=base_url)
@@ -226,7 +237,9 @@ def _get_remote_client():
 def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
     prompt = SOLVE_PROMPT.format(problem=problem)
 
-    @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
+    @retry(
+        wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8)
+    )
     def _call():
         return client.chat.completions.create(
             model=MODEL,
@@ -238,10 +251,20 @@ def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
         t0 = time.time()
         resp = _call()
         elapsed = time.time() - t0
+        if not resp.choices or len(resp.choices) == 0:
+            print(f"  [sample {sample_idx + 1}] LLM response has no choices")
+            return {
+                "sample_idx": sample_idx,
+                "answer": "",
+                "reasoning": "",
+                "elapsed_s": round(elapsed, 2),
+            }
         msg = resp.choices[0].message
         content = msg.content or ""
         reasoning_content = getattr(msg, "reasoning_content", None) or ""
-        solution = (reasoning_content + "\n\n" + content) if reasoning_content else content
+        solution = (
+            (reasoning_content + "\n\n" + content) if reasoning_content else content
+        )
         answer = extract_answer(solution, client=client, model=MODEL)
         result = {
             "sample_idx": sample_idx,
@@ -254,7 +277,7 @@ def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
             result["reasoning_content_length"] = len(reasoning_content)
         return result
     except Exception as e:
-        print(f"  [sample {sample_idx+1}] failed after all retries: {e}")
+        print(f"  [sample {sample_idx + 1}] failed after all retries: {e}")
         return {
             "sample_idx": sample_idx,
             "answer": "",
@@ -265,7 +288,9 @@ def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
 
 
 def run_remote(problem: str, n_samples: int) -> None:
-    out_dir = os.path.join("runs", "base_model_inference", datetime.now().strftime("%Y%m%d_%H%M%S"))
+    out_dir = os.path.join(
+        "runs", "base_model_inference", datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "results.json")
 
@@ -299,14 +324,17 @@ def run_remote(problem: str, n_samples: int) -> None:
         with lock:
             results.append(result)
             output_data["results"] = sorted(
-                results, key=lambda r: r.get("sample_idx", 0),
+                results,
+                key=lambda r: r.get("sample_idx", 0),
             )
             _save_atomic(out_path, output_data)
         idx = result.get("sample_idx", "?")
         ans = result.get("answer", "")
         t = result.get("elapsed_s", 0)
-        print(f"  [sample {idx+1}/{n_samples}] answer={ans!r}  ({t:.1f}s)  "
-              f"[{len(results)}/{n_samples} done]")
+        print(
+            f"  [sample {idx + 1}/{n_samples}] answer={ans!r}  ({t:.1f}s)  "
+            f"[{len(results)}/{n_samples} done]"
+        )
 
     t_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
@@ -331,12 +359,13 @@ def run_remote(problem: str, n_samples: int) -> None:
 # Local (tinker checkpoint) backend
 # ---------------------------------------------------------------------------
 
+
 def _get_tinker_service():
     import tinker
+
     if not os.environ.get("TINKER_API_KEY"):
         sys.exit(
-            "TINKER_API_KEY not set. "
-            "Add it to your .env or export it in your shell."
+            "TINKER_API_KEY not set. Add it to your .env or export it in your shell."
         )
     return tinker.ServiceClient()
 
@@ -345,8 +374,7 @@ def _find_latest_checkpoint(service):
     rest = service.create_rest_client()
     response = rest.list_user_checkpoints(limit=100).result()
     training_ckpts = [
-        c for c in response.checkpoints
-        if c.checkpoint_type == "training"
+        c for c in response.checkpoints if c.checkpoint_type == "training"
     ]
     if not training_ckpts:
         sys.exit("No training checkpoints found. Run training first.")
@@ -357,12 +385,14 @@ def _find_latest_checkpoint(service):
 
 def _build_local_clients(service, tinker_path: str):
     from transformers import AutoTokenizer
+
     print(f"Loading checkpoint: {tinker_path}")
     training_client = service.create_training_client_from_state(tinker_path)
     sampling_client = training_client.save_weights_and_get_sampling_client()
     hf_token = os.environ.get("HF_TOKEN")
     if hf_token:
         from huggingface_hub import login as hf_login
+
         hf_login(token=hf_token)
     tokenizer = AutoTokenizer.from_pretrained(MODEL)
     print("Ready.\n")
@@ -384,7 +414,9 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
     solve_prompt = SOLVE_PROMPT.format(problem=problem)
     messages = [{"role": "user", "content": solve_prompt}]
     text = tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True,
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
     )
     ids = tokenizer.encode(text, add_special_tokens=False)
     prompt = types.ModelInput.from_ints(ids)
@@ -405,11 +437,13 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
     results = []
     for i, resp in enumerate(responses):
         answer = extract_answer(resp, client=extract_client, model=MODEL)
-        results.append({
-            "sample_idx": i,
-            "answer": answer,
-            "reasoning": resp,
-        })
+        results.append(
+            {
+                "sample_idx": i,
+                "answer": answer,
+                "reasoning": resp,
+            }
+        )
 
     output = {
         "mode": "local",
@@ -427,7 +461,9 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
     if answers:
         output["summary"] = _print_summary(answers, n_samples)
 
-    out_dir = os.path.join("runs", "local_inference", datetime.now().strftime("%Y%m%d_%H%M%S"))
+    out_dir = os.path.join(
+        "runs", "local_inference", datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "results.json")
     with open(out_path, "w") as f:
@@ -439,20 +475,26 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Solve a math problem with the remote API or a local GRPO checkpoint.",
     )
     parser.add_argument(
-        "--local", action="store_true",
+        "--local",
+        action="store_true",
         help="Use local tinker checkpoint instead of remote Vertex AI API",
     )
     parser.add_argument(
-        "--n-samples", type=int, default=None,
+        "--n-samples",
+        type=int,
+        default=None,
         help="Number of samples (default: 100)",
     )
     parser.add_argument(
-        "--checkpoint", type=str, default=None,
+        "--checkpoint",
+        type=str,
+        default=None,
         help="Tinker checkpoint path (default: auto-detect latest)",
     )
     args = parser.parse_args()

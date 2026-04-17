@@ -85,7 +85,7 @@ Vertex AI access requires Google Cloud credentials configured via `gcloud auth a
 Generate calibrated subproblems by sampling and filtering on self-consistency:
 
 ```bash
-python3 Stage1/distinct_llm_prompting.py   --problem-path hard-problems/conics.txt   --runs-subdir conics-tangent-5   --n-problems 20
+python3 Stage1/distinct_llm_prompting.py   --problem-path data/target-problems/conics.txt    --runs-subdir conics-tangent-5 --n-samples 20 --gen-workers 20 --n-problems 500 --failed-solutions data/reasoning-traces/conics.json
 ```
 
 Key flags:
