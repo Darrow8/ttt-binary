@@ -254,6 +254,7 @@ def call_llm(
     model: str,
     prompt: str,
     temperature: float = 0.7,
+<<<<<<< Updated upstream
 ) -> str:
     @retry(
         wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8)
@@ -275,6 +276,50 @@ def call_llm(
     except Exception as e:
         print(f"  [warn] LLM call failed after all retries: {e}")
         return ""
+=======
+    max_retries: int = 3,
+    max_tokens: int = 16384,
+    timeout: float = 180.0,
+) -> str:
+    """Call the chat-completions endpoint with a per-call deadline.
+
+    `timeout` caps wall-clock per attempt (openai client raises APITimeoutError
+    on expiry, which falls through to the retry loop). `max_tokens` caps the
+    generation length — without it Vertex uses its endpoint default, which
+    can let a single stuck call hold a worker slot for many minutes.
+    """
+    for attempt in range(max_retries):
+        response = None
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                timeout=timeout,
+            )
+            # Vertex's OpenAI-compat endpoint occasionally returns a response
+            # body that the openai SDK passes back as a raw string instead of
+            # a ChatCompletion. Detect and treat as a transient failure.
+            if isinstance(response, str):
+                print(
+                    f"  [warn] vertex returned raw string, not ChatCompletion "
+                    f"(attempt {attempt+1}/{max_retries}): {response[:300]!r}"
+                )
+            else:
+                content = response.choices[0].message.content or ""
+                if content:
+                    return content
+                print(f"  [warn] empty response (attempt {attempt+1}/{max_retries})")
+        except Exception as e:
+            detail = ""
+            if response is not None:
+                detail = f"  [response type={type(response).__name__}, repr={repr(response)[:200]}]"
+            print(f"  [warn] LLM call failed (attempt {attempt+1}/{max_retries}): {e}{detail}")
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+    return ""
+>>>>>>> Stashed changes
 
 
 # ---------------------------------------------------------------------------
@@ -569,6 +614,49 @@ def _save_atomic(path: str, data: dict | list) -> None:
     os.replace(tmp_path, path)
 
 
+QUALITY_SCORE_PROMPT = """\
+You are evaluating a candidate training problem for its usefulness in learning
+to solve a specific hard target problem. Score the candidate on a 0 to 10 integer
+scale, where:
+
+  10 = excellent — directly teaches a reusable subskill needed for the target,
+       well-posed with a single unambiguous numerical answer, appropriately
+       difficult (neither trivial nor impossible), isolates one real bottleneck.
+   9 = very good — clearly relevant, well-posed, only minor imperfections.
+ 7-8 = useful but not perfectly targeted.
+ 5-6 = weakly related; teaches tangential skills.
+ 3-4 = mostly off-topic or poorly constructed.
+ 0-2 = bad (ill-posed, multi-part, contradictory, or irrelevant).
+
+## Target problem (the one we ultimately want the model to solve)
+
+{target}
+
+## Candidate training problem
+
+{candidate}
+
+## Your task
+
+Rate the candidate as a single integer 0-10. Be strict — only give 9 or 10 to
+problems you would actually include in a careful training curriculum for this
+target.
+
+Return JSON only, no other text:
+{{"score": <integer 0-10>, "reason": "<1-2 sentence justification>"}}
+"""
+
+
+def _parse_quality_score(raw: str) -> int:
+    m = re.search(r"\{.*?\}", raw or "", re.DOTALL)
+    if not m:
+        return -1
+    try:
+        return int(json.loads(m.group(0)).get("score", -1))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return -1
+
+
 def build_dataset(
     client: OpenAI,
     model: str,
@@ -583,6 +671,7 @@ def build_dataset(
     failed_solutions: list[str] | None = None,
     solve_client: OpenAI | None = None,
     solve_model: str | None = None,
+    quality_threshold: int | None = None,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
@@ -590,6 +679,12 @@ def build_dataset(
     worker generates one candidate problem and evaluates it with up to
     `max_workers` parallel solve samples; results stream back to a shared
     keeps/skips list as soon as they're ready.
+
+    When `quality_threshold` is set (e.g. 9), each candidate that passes the
+    60-80% agreement window is ALSO scored 0-10 by the same model, inline.
+    Only candidates scoring >= threshold count toward `n_target`. This lets
+    you do ``--n-problems 100 --quality-threshold 9`` and get exactly 100
+    quality-rated subproblems without needing a separate judging pass.
 
     Uses `client`/`model` for generation and `solve_client`/`solve_model` for
     evaluation. When solve_client is None, falls back to client/model for both.
@@ -664,6 +759,8 @@ def build_dataset(
     print(f"  Solve model:    {solve_label}")
     print(f"  Max parallel solve workers: {max_workers}")
     print(f"  Gen pipeline workers:       {gen_workers}")
+    if quality_threshold is not None:
+        print(f"  Quality threshold:          >= {quality_threshold}/10 (inline judge)")
     if output_path:
         print(f"  Keeps file:  {output_path}")
         print(f"  Skips file:  {skips_path}")
@@ -718,6 +815,19 @@ def build_dataset(
         else:
             status = "skip"
 
+        quality_score = None
+        if kept and quality_threshold is not None:
+            prompt = QUALITY_SCORE_PROMPT.format(
+                target=hard_problem, candidate=problem_text,
+            )
+            raw = call_llm(client, model, prompt, temperature=0.3)
+            quality_score = _parse_quality_score(raw)
+            if quality_score < quality_threshold:
+                kept = False
+                status = f"skip (quality {quality_score}/10 < {quality_threshold})"
+            else:
+                status = f"KEEP (quality {quality_score}/10)"
+
         entry = GeneratedProblem(
             problem=problem_text,
             ground_truth_answer=majority_ans,
@@ -735,6 +845,7 @@ def build_dataset(
             "status": status,
             "agreement": agreement,
             "majority_ans": majority_ans,
+            "quality_score": quality_score,
             "entry": entry,
         }
 
@@ -861,6 +972,7 @@ def run(
     use_tinker: bool = False,
     tinker_checkpoint: str | None = None,
     tinker_checkpoint_step: int = 50,
+    quality_threshold: int | None = None,
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = get_tinker_client(
@@ -897,6 +1009,7 @@ def run(
         failed_solutions=failed_solutions,
         solve_client=solve_client,
         solve_model=solve_model,
+        quality_threshold=quality_threshold,
     )
 
     save_dataset(dataset, out_path)
@@ -906,31 +1019,49 @@ def run(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def _load_failed_solutions(path: str) -> list[str]:
-    """Load failed-attempt reasoning traces from a JSON file.
+def _load_failed_solutions(path: str, k_top: int = 3, seed: int = 0) -> list[str]:
+    """Load top-K most-common-answer reasoning traces from a Stage 0 file.
 
-    Accepts either a list of strings, a list of {answer, reasoning} dicts, or
-    a Stage 0 base_attempts.json with {"top_attempts": [{answer, reasoning}, ...]}.
+    Stage 0 saves all N (typically 500) per-sample results in `results`. Per
+    the paper methodology, we group by extracted answer, take the K most
+    common answer groups, and return one randomly-chosen reasoning trace per
+    group. This gives Stage 1 K diverse failed traces that represent the
+    most prevalent ways the base model gets the target wrong.
     """
     if not os.path.exists(path):
         return []
     with open(path) as f:
         data = json.load(f)
 
-    items: list = []
     if isinstance(data, list):
-        items = data
+        results = data
     elif isinstance(data, dict):
-        items = data.get("top_attempts") or data.get("attempts") or []
+        results = data.get("results") or []
+    else:
+        return []
 
-    solutions: list[str] = []
-    for item in items:
-        if isinstance(item, str):
-            solutions.append(item)
-        elif isinstance(item, dict) and "reasoning" in item:
-            solutions.append(item["reasoning"])
+    by_answer: dict[str, list[str]] = {}
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        ans = r.get("answer", "")
+        reasoning = r.get("reasoning", "")
+        if not ans or not reasoning:
+            continue
+        by_answer.setdefault(ans, []).append(reasoning)
+
+    if not by_answer:
+        return []
+
+    top_groups = sorted(by_answer.items(), key=lambda x: -len(x[1]))[:k_top]
+    rng = random.Random(seed)
+    solutions = [rng.choice(traces) for _, traces in top_groups]
     if solutions:
-        print(f"Loaded {len(solutions)} failed solutions from {path}")
+        print(
+            f"Loaded {len(solutions)} failed solutions "
+            f"(top-{k_top} answer groups out of {len(by_answer)} unique) "
+            f"from {path}"
+        )
     return solutions
 
 
@@ -1003,6 +1134,13 @@ def main():
         help="Solve-pool worker hint (default 16)",
     )
     parser.add_argument("--model", type=str, default=None)
+    parser.add_argument("--quality-threshold", type=int, default=None,
+                        help=(
+                            "If set, each candidate that passes the 60-80%% agreement "
+                            "window is also scored 0-10 inline by the same model. "
+                            "Only candidates >= this threshold count toward --n-problems. "
+                            "Example: --quality-threshold 9"
+                        ))
     parser.add_argument(
         "--output",
         type=str,
@@ -1054,6 +1192,7 @@ def main():
         tinker_checkpoint_step=args.tinker_step,
         output=run_dir,
         gen_workers=args.gen_workers,
+        quality_threshold=args.quality_threshold,
         max_workers=args.max_workers,
     )
 

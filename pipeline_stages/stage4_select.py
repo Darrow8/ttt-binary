@@ -203,10 +203,18 @@ def select_one(
     judge_checkpoint: str | None = None,
 ) -> dict:
     runs_root = REPO_ROOT / "runs" / problem_id
-    in_path = runs_root / "filtered_keeps.json"
-    if not in_path.exists():
+    # Prefer quality_scored_keeps.json (post Stage 3c) over filtered_keeps.json
+    # (post Stage 3). That way generate-until's output feeds Stage 4 directly.
+    quality_path = runs_root / "quality_scored_keeps.json"
+    filtered_path = runs_root / "filtered_keeps.json"
+    if quality_path.exists():
+        in_path = quality_path
+    elif filtered_path.exists():
+        in_path = filtered_path
+    else:
         raise FileNotFoundError(
-            f"Missing {in_path}. Run Stage 3 (filter) first for id={problem_id!r}."
+            f"Missing both {quality_path} and {filtered_path}. "
+            f"Run Stage 3 or generate-until first for id={problem_id!r}."
         )
 
     with open(in_path) as f:
