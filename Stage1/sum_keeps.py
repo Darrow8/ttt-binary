@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import json
-import os
+import sys
 from pathlib import Path
 
-runs_dir = Path(__file__).parent / "runs"
+runs_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent / "runs"
 
 total = 0
 for run_dir in sorted(runs_dir.iterdir()):

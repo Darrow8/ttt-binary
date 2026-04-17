@@ -254,72 +254,30 @@ def call_llm(
     model: str,
     prompt: str,
     temperature: float = 0.7,
-<<<<<<< Updated upstream
+    timeout: float = 180.0,
 ) -> str:
-    @retry(
-        wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8)
-    )
+    @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
     def _call():
-        return client.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
+            timeout=timeout,
         )
+        if isinstance(response, str):
+            raise ValueError(f"vertex returned raw string: {response[:300]!r}")
+        if not response.choices:
+            raise ValueError("LLM response has no choices")
+        content = response.choices[0].message.content or ""
+        if not content:
+            raise ValueError("empty response content")
+        return content
 
     try:
-        response = _call()
-        if response.choices and len(response.choices) > 0:
-            return response.choices[0].message.content or ""
-        else:
-            print(f"  [warn] LLM response has no choices")
-            return ""
+        return _call()
     except Exception as e:
         print(f"  [warn] LLM call failed after all retries: {e}")
         return ""
-=======
-    max_retries: int = 3,
-    max_tokens: int = 16384,
-    timeout: float = 180.0,
-) -> str:
-    """Call the chat-completions endpoint with a per-call deadline.
-
-    `timeout` caps wall-clock per attempt (openai client raises APITimeoutError
-    on expiry, which falls through to the retry loop). `max_tokens` caps the
-    generation length — without it Vertex uses its endpoint default, which
-    can let a single stuck call hold a worker slot for many minutes.
-    """
-    for attempt in range(max_retries):
-        response = None
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-                timeout=timeout,
-            )
-            # Vertex's OpenAI-compat endpoint occasionally returns a response
-            # body that the openai SDK passes back as a raw string instead of
-            # a ChatCompletion. Detect and treat as a transient failure.
-            if isinstance(response, str):
-                print(
-                    f"  [warn] vertex returned raw string, not ChatCompletion "
-                    f"(attempt {attempt+1}/{max_retries}): {response[:300]!r}"
-                )
-            else:
-                content = response.choices[0].message.content or ""
-                if content:
-                    return content
-                print(f"  [warn] empty response (attempt {attempt+1}/{max_retries})")
-        except Exception as e:
-            detail = ""
-            if response is not None:
-                detail = f"  [response type={type(response).__name__}, repr={repr(response)[:200]}]"
-            print(f"  [warn] LLM call failed (attempt {attempt+1}/{max_retries}): {e}{detail}")
-        if attempt < max_retries - 1:
-            time.sleep(2 ** attempt)
-    return ""
->>>>>>> Stashed changes
 
 
 # ---------------------------------------------------------------------------
@@ -1075,7 +1033,7 @@ def main():
         "--problem-path",
         type=str,
         required=True,
-        help="Path to a .txt file containing the problem statement",
+        help="Path to a .txt file containing the problem statement (e.g. data/target-problems/conics.txt)",
     )
     parser.add_argument(
         "--runs-subdir",
@@ -1165,12 +1123,12 @@ def main():
     repo_root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
     runs_root = os.path.join(repo_root, "runs", runs_subdir)
 
-    failed_path = args.failed_solutions or os.path.join(runs_root, "base_attempts.json")
+    failed_path = args.failed_solutions or os.path.join(repo_root, "data", "reasoning-traces", f"{runs_subdir}.json")
     failed_solutions = _load_failed_solutions(failed_path)
     if not failed_solutions:
         print(
             f"No failed solutions at {failed_path}. "
-            f"Run Stage 0 first or pass --failed-solutions explicitly."
+            f"Add traces to data/reasoning-traces/{runs_subdir}.json or pass --failed-solutions explicitly."
         )
 
     if args.output:
