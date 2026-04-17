@@ -57,6 +57,21 @@ def _resolve_ids(arg: str) -> list[str]:
     return [s.strip() for s in arg.split(",") if s.strip()]
 
 
+def _stage1_problem_txt(problem_id: str) -> Path:
+    """Resolve hard-problems/<id>.txt, or prefix match (e.g. conics-tangent-5 -> conics.txt)."""
+    hp = REPO_ROOT / "hard-problems"
+    exact = hp / f"{problem_id}.txt"
+    if exact.is_file():
+        return exact
+    prefix = problem_id.split("-", 1)[0]
+    fallback = hp / f"{prefix}.txt"
+    if fallback.is_file():
+        return fallback
+    raise FileNotFoundError(
+        f"No .txt problem for id {problem_id!r}: tried {exact} and {fallback}"
+    )
+
+
 def _run_subproc(cmd: list[str], *, label: str) -> tuple[str, int]:
     print(f"\n>>> [{label}] {' '.join(cmd)}")
     result = subprocess.run(cmd, cwd=str(REPO_ROOT))
@@ -101,17 +116,21 @@ def cmd_stage0(args):
 
 def cmd_stage1(args):
     ids = _resolve_ids(args.ids)
-    cmds = [
-        (f"stage1:{pid}", [
-            sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
-            "--id", pid,
-            "--n-problems", str(args.n_problems),
-            "--n-samples", str(args.n_samples),
-            "--gen-workers", str(args.gen_workers),
-            "--max-workers", str(args.max_workers),
-        ])
-        for pid in ids
-    ]
+    cmds = []
+    for pid in ids:
+        problem_path = _stage1_problem_txt(pid)
+        cmds.append((
+            f"stage1:{pid}",
+            [
+                sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
+                "--problem-path", str(problem_path),
+                "--runs-subdir", pid,
+                "--n-problems", str(args.n_problems),
+                "--n-samples", str(args.n_samples),
+                "--gen-workers", str(args.gen_workers),
+                "--max-workers", str(args.max_workers),
+            ],
+        ))
     return _fan_out(cmds, args.workers)
 
 

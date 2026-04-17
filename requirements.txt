@@ -1,3 +1,5 @@
+openai
+tenacity
 tinker
 tinker-cookbook
 google-auth

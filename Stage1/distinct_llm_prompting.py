@@ -193,6 +193,20 @@ def load_hard_problem(problem_set: str, problem_id: str) -> tuple[str, dict]:
     raise KeyError(f"id {problem_id!r} not found in {problem_set}")
 
 
+def load_problem_from_txt(path: str) -> str:
+    """Load a single problem statement from a plain .txt file."""
+    p = os.path.abspath(path)
+    if not os.path.isfile(p):
+        raise FileNotFoundError(f"Problem file not found: {p}")
+    if not p.lower().endswith(".txt"):
+        raise ValueError(f"--problem-path must be a .txt file, got: {path}")
+    with open(p, encoding="utf-8") as f:
+        text = f.read().strip()
+    if not text:
+        raise ValueError(f"Problem file is empty: {p}")
+    return text
+
+
 def _get_vertex_access_token() -> str:
     from google.auth import default
     from google.auth.transport.requests import Request
@@ -889,19 +903,22 @@ def main():
         description="TTT-Discover (distinct): generate training subproblems"
     )
     parser.add_argument(
-        "--problem-set", type=str,
-        default=os.path.join(os.path.dirname(__file__), "..", "problems", "hard_problems.jsonl"),
-        help="Path to hard_problems.jsonl",
+        "--problem-path", type=str, required=True,
+        help="Path to a .txt file containing the problem statement",
     )
     parser.add_argument(
-        "--id", type=str, required=True,
-        help="Hard-problem id to generate subproblems for (must exist in --problem-set)",
+        "--runs-subdir", type=str, default=None,
+        help=(
+            "Subdirectory name under runs/ for outputs (default: the .txt filename "
+            "without extension). Set when the filename does not match how later stages "
+            "name their run folders."
+        ),
     )
     parser.add_argument(
         "--failed-solutions", type=str, default=None,
         help=(
-            "Path to failed-attempts JSON. Defaults to runs/<id>/base_attempts.json. "
-            "Pass an explicit path to override."
+            "Path to failed-attempts JSON. Defaults to runs/<runs-subdir>/base_attempts.json "
+            "(--runs-subdir defaults to the .txt basename). Pass an explicit path to override."
         ),
     )
     parser.add_argument(
@@ -931,15 +948,23 @@ def main():
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument(
         "--output", type=str, default=None,
-        help="Override run dir. Defaults to runs/<id>/stage1/<timestamp>/",
+        help=(
+            "Override run dir. Defaults to runs/<runs-subdir>/stage1/<timestamp>/ "
+            "(see --runs-subdir)."
+        ),
     )
     args = parser.parse_args()
 
-    problem_text, problem_row = load_hard_problem(args.problem_set, args.id)
-    print(f"\nLoaded hard problem id={args.id} ({len(problem_text)} chars)\n")
+    problem_text = load_problem_from_txt(args.problem_path)
+    problem_stem = os.path.splitext(os.path.basename(os.path.abspath(args.problem_path)))[0]
+    runs_subdir = (args.runs_subdir or "").strip() or problem_stem
+    print(
+        f"\nLoaded problem from {args.problem_path} "
+        f"(runs/{runs_subdir}/, {len(problem_text)} chars)\n"
+    )
 
     repo_root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-    runs_root = os.path.join(repo_root, "runs", args.id)
+    runs_root = os.path.join(repo_root, "runs", runs_subdir)
 
     failed_path = args.failed_solutions or os.path.join(runs_root, "base_attempts.json")
     failed_solutions = _load_failed_solutions(failed_path)
