@@ -18,6 +18,7 @@ from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import dataclass, field, asdict
 
 from openai import OpenAI
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 
 # ---------------------------------------------------------------------------
 # .env loader
@@ -232,24 +233,21 @@ def call_llm(
     model: str,
     prompt: str,
     temperature: float = 0.7,
-    max_retries: int = 3,
 ) -> str:
-    for attempt in range(max_retries):
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-            )
-            content = response.choices[0].message.content or ""
-            if content:
-                return content
-            print(f"  [warn] empty response (attempt {attempt+1}/{max_retries})")
-        except Exception as e:
-            print(f"  [warn] LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
-        if attempt < max_retries - 1:
-            time.sleep(2 ** attempt)
-    return ""
+    @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
+    def _call():
+        return client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+        )
+
+    try:
+        response = _call()
+        return response.choices[0].message.content or ""
+    except Exception as e:
+        print(f"  [warn] LLM call failed after all retries: {e}")
+        return ""
 
 
 # ---------------------------------------------------------------------------
