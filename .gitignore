@@ -32,7 +32,4 @@ wandb/
 
 # Project-specific
 **/runs/
-data/
-*.json
-*.jsonl
 *.log
