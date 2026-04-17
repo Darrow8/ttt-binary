@@ -85,7 +85,7 @@ Vertex AI access requires Google Cloud credentials configured via `gcloud auth a
 Generate calibrated subproblems by sampling and filtering on self-consistency:
 
 ```bash
-python Stage1/distinct_llm_prompting.py --n-problems 50 --n-samples 32
+python3 Stage1/distinct_llm_prompting.py   --problem-path hard-problems/conics.txt   --runs-subdir conics-tangent-5   --n-problems 20
 ```
 
 Key flags:
@@ -186,4 +186,3 @@ Core dependencies (see `requirements.txt`):
 - `wandb` — Experiment tracking
 - `datasets` — HuggingFace dataset loading
 - `rdkit` — SMILES canonicalization (retrosynthesis tasks only)
- 
