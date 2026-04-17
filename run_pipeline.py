@@ -104,13 +104,17 @@ def _fan_out(commands: list[tuple[str, list[str]]], workers: int) -> int:
 
 def cmd_stage0(args):
     ids = _resolve_ids(args.ids)
-    cmds = [
-        (f"stage0:{pid}", [
+    cmds = []
+    for pid in ids:
+        cmd = [
             sys.executable, str(STAGES_DIR / "stage0_collect_attempts.py"),
             "--id", pid, "--n", str(args.n), "--workers", str(args.attempt_workers),
-        ])
-        for pid in ids
-    ]
+        ]
+        if args.resume:
+            cmd.append("--resume")
+        if args.force:
+            cmd.append("--force")
+        cmds.append((f"stage0:{pid}", cmd))
     return _fan_out(cmds, args.workers)
 
 
@@ -118,6 +122,7 @@ def cmd_stage1(args):
     ids = _resolve_ids(args.ids)
     cmds = []
     for pid in ids:
+<<<<<<< Updated upstream
         problem_path = _stage1_problem_txt(pid)
         cmds.append((
             f"stage1:{pid}",
@@ -131,6 +136,19 @@ def cmd_stage1(args):
                 "--max-workers", str(args.max_workers),
             ],
         ))
+=======
+        cmd = [
+            sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
+            "--id", pid,
+            "--n-problems", str(args.n_problems),
+            "--n-samples", str(args.n_samples),
+            "--gen-workers", str(args.gen_workers),
+            "--max-workers", str(args.max_workers),
+        ]
+        if args.quality_threshold is not None:
+            cmd += ["--quality-threshold", str(args.quality_threshold)]
+        cmds.append((f"stage1:{pid}", cmd))
+>>>>>>> Stashed changes
     return _fan_out(cmds, args.workers)
 
 
@@ -158,6 +176,138 @@ def cmd_stage3(args):
         for pid in ids
     ]
     return _fan_out(cmds, args.workers)
+
+
+def cmd_stage3c(args):
+    ids = _resolve_ids(args.ids)
+    cmds = [
+        (f"stage3c:{pid}", [
+            sys.executable, str(STAGES_DIR / "stage3c_quality_score.py"),
+            "--id", pid,
+            "--threshold", str(args.threshold),
+            "--tries", str(args.tries),
+            "--workers", str(args.judge_workers),
+        ])
+        for pid in ids
+    ]
+    return _fan_out(cmds, args.workers)
+
+
+def _count_quality_passing(problem_id: str, threshold: int) -> int:
+    """Return the current number of quality-passing subproblems for id."""
+    path = REPO_ROOT / "runs" / problem_id / "quality_scored_keeps.json"
+    if not path.exists():
+        return 0
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        return 0
+    return int(data.get("n_problems", 0))
+
+
+def cmd_generate_until(args):
+    """Loop Stage 1 → 2 → 3 → 3c until target quality-passing subproblems exist.
+
+    Each iteration runs Stage 1 with `--n-problems` targeting the current
+    shortfall (clamped to a minimum batch size), then re-aggregates, filters,
+    and quality-scores. Stops on success, max iterations, or zero progress.
+    """
+    if args.id and args.ids:
+        raise SystemExit("Pass --id <id> OR --ids <ids>, not both.")
+    if args.id:
+        ids = [args.id]
+    elif args.ids:
+        ids = _resolve_ids(args.ids)
+    else:
+        raise SystemExit("Pass --id <id> or --ids <ids>")
+
+    failures = 0
+    for pid in ids:
+        print(f"\n{'#'*70}")
+        print(f"# generate-until  id={pid}  target={args.target} (>= {args.threshold}/10)")
+        print(f"{'#'*70}")
+
+        iteration = 0
+        prev_count = -1
+        while True:
+            current = _count_quality_passing(pid, args.threshold)
+            print(f"\n--- iteration {iteration}: {current}/{args.target} passing ---")
+
+            if current >= args.target:
+                print(f"  target reached ({current} >= {args.target}), stopping.")
+                break
+
+            if iteration >= args.max_iterations:
+                print(f"  hit max_iterations={args.max_iterations} with {current}/{args.target}, stopping.")
+                break
+
+            if iteration > 0 and current == prev_count:
+                print(f"  no progress this iteration ({prev_count} -> {current}), stopping.")
+                break
+            prev_count = current
+
+            shortfall = args.target - current
+            n_request = max(args.min_batch, int(shortfall * args.overshoot_factor))
+            print(f"  shortfall={shortfall}, requesting Stage 1 for {n_request} new candidates")
+
+            # Stage 1 — generate n_request fresh candidates into a new timestamp dir.
+            rc = _run_subproc([
+                sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
+                "--id", pid,
+                "--n-problems", str(n_request),
+                "--n-samples", str(args.n_samples),
+                "--gen-workers", str(args.gen_workers),
+                "--max-workers", str(args.max_workers),
+            ], label=f"generate-until:stage1:{pid}:iter{iteration}")[1]
+            if rc != 0:
+                print(f"  [error] stage1 iteration {iteration} exited {rc}")
+                failures += 1
+                break
+
+            # Stage 2 — aggregate all stage1 runs (including the new one).
+            rc = _run_subproc([
+                sys.executable, str(STAGES_DIR / "stage2_aggregate.py"),
+                "--id", pid,
+            ], label=f"generate-until:stage2:{pid}:iter{iteration}")[1]
+            if rc != 0:
+                print(f"  [error] stage2 iteration {iteration} exited {rc}")
+                failures += 1
+                break
+
+            # Stage 3 — rounding + LLM judge (cached judge is future work; for
+            # now this re-runs on the full aggregated set each iteration).
+            rc = _run_subproc([
+                sys.executable, str(STAGES_DIR / "stage3_filter.py"),
+                "--id", pid,
+                "--judge-model", args.judge_model,
+                "--workers", str(args.judge_workers),
+            ], label=f"generate-until:stage3:{pid}:iter{iteration}")[1]
+            if rc != 0:
+                print(f"  [error] stage3 iteration {iteration} exited {rc}")
+                failures += 1
+                break
+
+            # Stage 3c — quality score filter (CACHED by problem hash, so only
+            # newly-introduced candidates get re-judged).
+            rc = _run_subproc([
+                sys.executable, str(STAGES_DIR / "stage3c_quality_score.py"),
+                "--id", pid,
+                "--threshold", str(args.threshold),
+                "--tries", str(args.tries),
+                "--workers", str(args.judge_workers),
+            ], label=f"generate-until:stage3c:{pid}:iter{iteration}")[1]
+            if rc != 0:
+                print(f"  [error] stage3c iteration {iteration} exited {rc}")
+                failures += 1
+                break
+
+            iteration += 1
+
+        final = _count_quality_passing(pid, args.threshold)
+        print(f"\n===  id={pid}: finished with {final}/{args.target} passing after {iteration} iteration(s)  ===")
+
+    return failures
 
 
 def cmd_stage4(args):
@@ -298,11 +448,15 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--workers", type=int, default=4,
                        help="Cross-id parallelism (process pool, default 4)")
 
-    s0 = sub.add_parser("stage0", help="Collect base-model attempts (N=100)")
+    s0 = sub.add_parser("stage0", help="Collect base-model attempts (N=500)")
     add_ids(s0)
-    s0.add_argument("--n", type=int, default=100)
-    s0.add_argument("--attempt-workers", type=int, default=16,
+    s0.add_argument("--n", type=int, default=500)
+    s0.add_argument("--attempt-workers", type=int, default=32,
                     help="Threads inside each Stage 0 invocation")
+    s0.add_argument("--resume", action="store_true",
+                    help="Resume from partial runs/<id>/base_attempts.json (skip done sample_idx)")
+    s0.add_argument("--force", action="store_true",
+                    help="Overwrite existing non-empty base_attempts.json (mutually exclusive with --resume)")
     s0.set_defaults(func=cmd_stage0)
 
     s1 = sub.add_parser("stage1", help="Generate subproblems (parallelized)")
@@ -312,6 +466,8 @@ def build_parser() -> argparse.ArgumentParser:
     s1.add_argument("--gen-workers", type=int, default=8,
                     help="Concurrent gen+eval candidates within one id")
     s1.add_argument("--max-workers", type=int, default=16)
+    s1.add_argument("--quality-threshold", type=int, default=None,
+                    help="Inline 0-10 quality judge; only keeps scoring >= this (e.g. 9)")
     s1.set_defaults(func=cmd_stage1)
 
     s2 = sub.add_parser("stage2", help="Aggregate Stage 1 keeps")
@@ -325,6 +481,49 @@ def build_parser() -> argparse.ArgumentParser:
     s3.add_argument("--judge-workers", type=int, default=16)
     s3.add_argument("--skip-judge", action="store_true")
     s3.set_defaults(func=cmd_stage3)
+
+    s3c = sub.add_parser("stage3c", help="Quality-score filter (0-10) by working model")
+    add_ids(s3c)
+    s3c.add_argument("--threshold", type=int, default=9,
+                     help="Minimum score to keep (default 9)")
+    s3c.add_argument("--tries", type=int, default=1,
+                     help="Judge calls per problem (default 1; >1 takes median)")
+    s3c.add_argument("--judge-workers", type=int, default=16)
+    s3c.set_defaults(func=cmd_stage3c)
+
+    gu = sub.add_parser(
+        "generate-until",
+        help="Loop Stage 1→2→3→3c until N quality-passing subproblems exist",
+    )
+    gu.add_argument("--id", type=str, default=None)
+    gu.add_argument("--ids", type=str, default=None)
+    gu.add_argument("--target", type=int, default=100,
+                    help="Target number of quality-passing subproblems (default 100)")
+    gu.add_argument("--threshold", type=int, default=9,
+                    help="Minimum median quality score to keep (default 9)")
+    gu.add_argument("--tries", type=int, default=1,
+                    help="Stage 3c judge calls per problem (default 1)")
+    gu.add_argument("--max-iterations", type=int, default=10,
+                    help="Cap on Stage 1→3c iterations (safety, default 10)")
+    gu.add_argument("--min-batch", type=int, default=50,
+                    help="Minimum Stage 1 --n-problems per iteration (default 50)")
+    gu.add_argument("--overshoot-factor", type=float, default=4.0,
+                    help=(
+                        "Multiply shortfall by this to account for Stage 3/3c drop "
+                        "(default 4.0 -- if you need 20 more and pass rate through "
+                        "3 and 3c is ~25%%, you should generate 80 new candidates)"
+                    ))
+    gu.add_argument("--n-samples", type=int, default=10,
+                    help="Stage 1 solve samples per candidate (default 10)")
+    gu.add_argument("--gen-workers", type=int, default=8,
+                    help="Stage 1 gen+eval pipeline workers (default 8)")
+    gu.add_argument("--max-workers", type=int, default=16,
+                    help="Stage 1 solve pool workers (default 16)")
+    gu.add_argument("--judge-model", type=str, default="openai/gpt-oss-20b-maas",
+                    help="Stage 3 (multi-step rejection) judge model")
+    gu.add_argument("--judge-workers", type=int, default=16,
+                    help="Judge concurrency for Stage 3 and 3c")
+    gu.set_defaults(func=cmd_generate_until)
 
     s4 = sub.add_parser("stage4", help="LLM-judge selection")
     add_ids(s4)
