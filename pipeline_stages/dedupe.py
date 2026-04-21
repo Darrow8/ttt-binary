@@ -11,8 +11,10 @@ import hashlib
 import re
 
 JACCARD_THRESHOLD = 0.85
-SHINGLE_SIZE = 5
-_CHAR_SHINGLE_SIZE = 5
+# Controls the word k-gram size used by the exported `shingles()` function.
+WORD_SHINGLE_SIZE = 5
+# Controls the character k-gram size used internally by `DedupeIndex`.
+CHAR_SHINGLE_SIZE = 5
 
 _LATEX_SPACING = re.compile(r"\\[,;\s]|\\quad|\\qquad")
 _WS = re.compile(r"\s+")
@@ -22,7 +24,7 @@ _OP_SPACE = re.compile(r" (?=[+\-=*/^<>|&])|(?<=[+\-=*/^<>|&]) ")
 
 
 def normalize_problem(text: str) -> str:
-    """Lowercase, strip LaTeX spacing commands, collapse whitespace."""
+    """Lowercase, strip LaTeX spacing commands, collapse whitespace, and drop spaces immediately adjacent to math operators."""
     t = text.lower()
     # Replace LaTeX spacing commands with a regular space so that adjacent
     # word tokens remain separated (e.g. "Let\\,N(p)" → "let n(p)").
@@ -35,10 +37,11 @@ def normalize_problem(text: str) -> str:
 
 
 def problem_hash(text: str) -> str:
+    """Return the SHA-1 hexdigest of ``normalize_problem(text)``."""
     return hashlib.sha1(normalize_problem(text).encode("utf-8")).hexdigest()
 
 
-def shingles(text: str, k: int = SHINGLE_SIZE) -> frozenset[str]:
+def shingles(text: str, k: int = WORD_SHINGLE_SIZE) -> frozenset[str]:
     """Return a frozenset of word-level k-grams of *text*."""
     tokens = _WORD.findall(normalize_problem(text))
     if len(tokens) < k:
@@ -49,6 +52,12 @@ def shingles(text: str, k: int = SHINGLE_SIZE) -> frozenset[str]:
 
 
 def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    """Return |a ∩ b| / |a ∪ b|, or 0.0 when both sets are empty.
+
+    The 0.0 convention for two empty sets is intentional: an empty shingle set
+    indicates text that is too short to shingle, so treating two such inputs as
+    identical (Jaccard = 1.0) would cause incorrect duplicate detection.
+    """
     if not a and not b:
         return 0.0
     inter = len(a & b)
@@ -56,7 +65,7 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     return inter / union if union else 0.0
 
 
-def _char_shingles(text: str, k: int = _CHAR_SHINGLE_SIZE) -> frozenset[str]:
+def _char_shingles(text: str, k: int = CHAR_SHINGLE_SIZE) -> frozenset[str]:
     """Return a frozenset of character-level k-grams of normalized *text*."""
     norm = normalize_problem(text)
     if len(norm) < k:
@@ -76,8 +85,8 @@ class DedupeIndex:
     Character-level shingles (rather than word-level) give higher Jaccard
     for strings that differ by just a few words.
 
-    Not thread-safe on its own; callers that use it from multiple threads
-    must guard `add()` with a lock (Stage 1 already holds `seen_lock`).
+    Not thread-safe on its own; callers sharing an instance across threads
+    must guard `add()` with an external lock.
     """
 
     def __init__(self, threshold: float = JACCARD_THRESHOLD):
@@ -103,6 +112,7 @@ class DedupeIndex:
 
         sh = _char_shingles(problem_text)
         if sh:
+            # _shingle_sets entries can be empty (e.g. very short text produced no char shingles); skip those to avoid spurious 0.0 comparisons.
             for existing in self._shingle_sets:
                 if existing and jaccard(sh, existing) >= self._threshold:
                     self.n_fuzzy_dropped += 1
