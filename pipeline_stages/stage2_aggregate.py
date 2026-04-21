@@ -19,6 +19,8 @@ import os
 import sys
 from pathlib import Path
 
+from pipeline_stages.dedupe import DedupeIndex
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -30,7 +32,7 @@ def _save_atomic(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
+def aggregate_one(problem_id: str, *, include_skips: bool = False, no_dedupe: bool = False) -> dict:
     runs_root = REPO_ROOT / "runs" / problem_id
     stage1_root = runs_root / "stage1"
 
@@ -46,7 +48,9 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
             f"Stage 1 may not have produced any output for id={problem_id!r}."
         )
 
-    seen: set[str] = set()
+    dedupe_enabled = not no_dedupe
+    dedupe = DedupeIndex() if dedupe_enabled else None
+    seen_fallback: set[str] = set()
     aggregated: list[dict] = []
     per_run_counts: list[dict] = []
     source_problem: str | None = None
@@ -69,10 +73,15 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
             text = p.get("problem", "")
             if not text:
                 continue
-            if text in seen:
-                dup += 1
-                continue
-            seen.add(text)
+            if dedupe_enabled:
+                if not dedupe.add(text):
+                    dup += 1
+                    continue
+            else:
+                if text in seen_fallback:
+                    dup += 1
+                    continue
+                seen_fallback.add(text)
             aggregated.append(p)
             added += 1
 
@@ -93,6 +102,17 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
         "per_run": per_run_counts,
         "problems": aggregated,
     }
+    if dedupe_enabled:
+        summary["dedupe"] = {
+            "n_kept": dedupe.n_kept,
+            "n_dropped_exact": dedupe.n_exact_dropped,
+            "n_dropped_fuzzy": dedupe.n_fuzzy_dropped,
+        }
+        print(
+            f"  dedupe: kept {dedupe.n_kept}, "
+            f"dropped {dedupe.n_exact_dropped + dedupe.n_fuzzy_dropped} "
+            f"(exact={dedupe.n_exact_dropped}, fuzzy={dedupe.n_fuzzy_dropped})"
+        )
     _save_atomic(out_path, summary)
     print(f"\nWrote {out_path}  ({len(aggregated)} unique problems from {len(keeps_files)} runs)")
 
@@ -129,8 +149,10 @@ def main():
     parser.add_argument("--id", type=str, required=True)
     parser.add_argument("--include-skips", action="store_true",
                         help="Also union skips.json across runs into aggregated_skips.json")
+    parser.add_argument("--no-dedupe", action="store_true",
+                        help="Disable near-duplicate dedup (use exact-string only, for ablation)")
     args = parser.parse_args()
-    aggregate_one(args.id, include_skips=args.include_skips)
+    aggregate_one(args.id, include_skips=args.include_skips, no_dedupe=args.no_dedupe)
 
 
 if __name__ == "__main__":

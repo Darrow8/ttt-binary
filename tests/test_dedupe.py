@@ -132,3 +132,50 @@ class TestDedupeIndex:
         assert idx.n_kept == 2
         assert idx.n_exact_dropped == 1
         assert idx.n_fuzzy_dropped == 1
+
+
+class TestStage2Integration:
+    def test_aggregate_drops_fuzzy_duplicates(self, tmp_path):
+        """Stage 2 aggregate should drop near-duplicate problems across runs."""
+        import json
+
+        # Lay out a minimal fake runs/<id>/stage1/<ts>/keeps.json tree.
+        runs_root = tmp_path / "runs" / "testid"
+        s1 = runs_root / "stage1"
+        (s1 / "run1").mkdir(parents=True)
+        (s1 / "run2").mkdir(parents=True)
+
+        dup_a = "Consider the polynomial f(x)=x^4-5 in Z[x]. Compute the density of separable primes."
+        dup_b = "Let us consider the polynomial f(x)=x^4-5 in Z[x]. Compute the density of separable primes."
+        unique = "Find the number of ways to tile a 2x10 rectangle with dominoes."
+
+        (s1 / "run1" / "keeps.json").write_text(json.dumps({
+            "source_problem": "src",
+            "target_agreement_low": 0.6,
+            "target_agreement_high": 0.8,
+            "n_problems": 2,
+            "problems": [
+                {"problem": dup_a, "ground_truth_answer": "1", "agreement_rate": 0.7,
+                 "all_answers": [], "all_solutions": [], "n_samples": 10},
+                {"problem": unique, "ground_truth_answer": "89", "agreement_rate": 0.75,
+                 "all_answers": [], "all_solutions": [], "n_samples": 10},
+            ],
+        }))
+        (s1 / "run2" / "keeps.json").write_text(json.dumps({
+            "source_problem": "src",
+            "target_agreement_low": 0.6,
+            "target_agreement_high": 0.8,
+            "n_problems": 1,
+            "problems": [
+                {"problem": dup_b, "ground_truth_answer": "1", "agreement_rate": 0.7,
+                 "all_answers": [], "all_solutions": [], "n_samples": 10},
+            ],
+        }))
+
+        from pipeline_stages import stage2_aggregate
+        stage2_aggregate.REPO_ROOT = tmp_path
+
+        summary = stage2_aggregate.aggregate_one("testid", include_skips=False)
+        assert summary["n_problems"] == 2  # dup_a/dup_b collapsed
+        assert summary["dedupe"]["n_kept"] == 2
+        assert summary["dedupe"]["n_dropped_fuzzy"] + summary["dedupe"]["n_dropped_exact"] == 1
