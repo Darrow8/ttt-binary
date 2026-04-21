@@ -178,4 +178,48 @@ class TestStage2Integration:
         summary = stage2_aggregate.aggregate_one("testid", include_skips=False)
         assert summary["n_problems"] == 2  # dup_a/dup_b collapsed
         assert summary["dedupe"]["n_kept"] == 2
-        assert summary["dedupe"]["n_dropped_fuzzy"] + summary["dedupe"]["n_dropped_exact"] == 1
+        assert summary["dedupe"]["n_fuzzy_dropped"] + summary["dedupe"]["n_exact_dropped"] == 1
+
+    def test_no_dedupe_flag_keeps_fuzzy_duplicates(self, tmp_path, monkeypatch):
+        """With no_dedupe=True, Stage 2 uses exact-string dedup only and
+        keeps near-duplicates. The `dedupe` stats key must be absent."""
+        import json
+
+        runs_root = tmp_path / "runs" / "testid"
+        s1 = runs_root / "stage1"
+        (s1 / "run1").mkdir(parents=True)
+        (s1 / "run2").mkdir(parents=True)
+
+        dup_a = "Consider the polynomial f(x)=x^4-5 in Z[x]. Compute the density of separable primes."
+        dup_b = "Let us consider the polynomial f(x)=x^4-5 in Z[x]. Compute the density of separable primes."
+
+        (s1 / "run1" / "keeps.json").write_text(json.dumps({
+            "source_problem": "src",
+            "target_agreement_low": 0.6,
+            "target_agreement_high": 0.8,
+            "n_problems": 1,
+            "problems": [
+                {"problem": dup_a, "ground_truth_answer": "1", "agreement_rate": 0.7,
+                 "all_answers": [], "all_solutions": [], "n_samples": 10},
+            ],
+        }))
+        (s1 / "run2" / "keeps.json").write_text(json.dumps({
+            "source_problem": "src",
+            "target_agreement_low": 0.6,
+            "target_agreement_high": 0.8,
+            "n_problems": 1,
+            "problems": [
+                {"problem": dup_b, "ground_truth_answer": "1", "agreement_rate": 0.7,
+                 "all_answers": [], "all_solutions": [], "n_samples": 10},
+            ],
+        }))
+
+        from pipeline_stages import stage2_aggregate
+        monkeypatch.setattr(stage2_aggregate, "REPO_ROOT", tmp_path)
+
+        summary = stage2_aggregate.aggregate_one(
+            "testid", include_skips=False, no_dedupe=True
+        )
+        # Fuzzy near-duplicate survives because the fallback is exact-string.
+        assert summary["n_problems"] == 2
+        assert "dedupe" not in summary

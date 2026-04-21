@@ -11,6 +11,7 @@ import json
 import os
 import random
 import re
+import sys
 import threading
 import time
 from collections import Counter
@@ -18,7 +19,16 @@ from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import asdict, dataclass, field
 
 from openai import OpenAI
+from pathlib import Path
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+
+# Ensure the repo root is on sys.path so `from pipeline_stages.*` resolves
+# regardless of how this script is invoked.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from pipeline_stages.dedupe import DedupeIndex  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # .env loader
@@ -658,7 +668,6 @@ def build_dataset(
     )
 
     skipped_problems: list[GeneratedProblem] = []
-    from pipeline_stages.dedupe import DedupeIndex
     dedupe = DedupeIndex() if use_dedupe else None
     seen_problems: set[str] = set()  # used only when use_dedupe=False
 
@@ -682,7 +691,14 @@ def build_dataset(
 
     # Snapshot counters after any resume pre-seed so the final summary reports
     # only this run's adds/drops, not the ones re-hydrated from disk.
-    dedupe_baseline_kept = dedupe.n_kept if dedupe is not None else 0
+    if dedupe is not None:
+        dedupe_baseline_kept = dedupe.n_kept
+        dedupe_baseline_exact = dedupe.n_exact_dropped
+        dedupe_baseline_fuzzy = dedupe.n_fuzzy_dropped
+    else:
+        dedupe_baseline_kept = 0
+        dedupe_baseline_exact = 0
+        dedupe_baseline_fuzzy = 0
 
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
@@ -902,10 +918,12 @@ def build_dataset(
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
     if dedupe is not None:
         kept_this_run = dedupe.n_kept - dedupe_baseline_kept
+        exact_this_run = dedupe.n_exact_dropped - dedupe_baseline_exact
+        fuzzy_this_run = dedupe.n_fuzzy_dropped - dedupe_baseline_fuzzy
         print(
             f"  dedupe: kept {kept_this_run}, "
-            f"dropped {dedupe.n_exact_dropped + dedupe.n_fuzzy_dropped} "
-            f"(exact={dedupe.n_exact_dropped}, fuzzy={dedupe.n_fuzzy_dropped})"
+            f"dropped {exact_this_run + fuzzy_this_run} "
+            f"(exact={exact_this_run}, fuzzy={fuzzy_this_run})"
         )
     print(f"{'=' * 70}\n")
 

@@ -20,9 +20,13 @@ import os
 import sys
 from pathlib import Path
 
-from pipeline_stages.dedupe import DedupeIndex
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Ensure the repo root is on sys.path so `from pipeline_stages.*` resolves
+# regardless of how this script is invoked (direct path, module, pytest).
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from pipeline_stages.dedupe import DedupeIndex  # noqa: E402
 
 
 def _save_atomic(path: Path, data: dict) -> None:
@@ -106,8 +110,8 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False, no_dedupe: bo
     if dedupe_enabled:
         summary["dedupe"] = {
             "n_kept": dedupe.n_kept,
-            "n_dropped_exact": dedupe.n_exact_dropped,
-            "n_dropped_fuzzy": dedupe.n_fuzzy_dropped,
+            "n_exact_dropped": dedupe.n_exact_dropped,
+            "n_fuzzy_dropped": dedupe.n_fuzzy_dropped,
         }
         print(
             f"  dedupe: kept {dedupe.n_kept}, "
