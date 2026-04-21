@@ -38,13 +38,21 @@ This spec upgrades both dedupe spots to a shared, smarter check.
 Two-check dedupe, deterministic, no external API calls:
 
 1. **Normalized-text SHA-1 hash** — catches exact and near-exact duplicates
-   (whitespace, case, trivial LaTeX spacing differences). O(1) per candidate.
-2. **5-gram word-shingle Jaccard similarity ≥ 0.9** — catches trivial wording
-   edits (e.g. "Consider the polynomial…" vs "Let me consider the polynomial…").
+   (whitespace, case, LaTeX spacing commands, and spaces immediately adjacent
+   to math operators, so `x + y = 1` and `x+y=1` hash the same).
+   O(1) per candidate.
+2. **5-gram character-shingle Jaccard similarity ≥ 0.85** — catches trivial
+   wording edits (e.g. "Consider the polynomial…" vs "Let us consider the
+   polynomial…") and small insertions (one extra trailing word).
    O(n) per candidate against the running index.
 
-Threshold `0.9` and shingle size `5` are module-level constants (not CLI
-flags) — tune in code if needed.
+Character-level shingles (vs. word-level) give higher Jaccard for
+near-duplicates differing by one or two words. With word 5-grams, Jaccard
+for a pair differing by one appended word is capped at n/(n+1), which sits
+below any reasonable fuzzy-match threshold. Threshold `0.85` and shingle
+size `5` are module-level constants (not CLI flags) — tune in code if
+needed. The exported `shingles()` helper stays word-level for any caller
+that wants word-level k-grams explicitly.
 
 **Tie-breaking:** when a duplicate is found, the candidate already in the
 index wins; the new candidate is dropped. This preserves insertion order and
@@ -61,17 +69,19 @@ vanishingly unlikely in this domain.
 Single module, no external deps beyond `re`, `hashlib`.
 
 ```python
-JACCARD_THRESHOLD = 0.9
-SHINGLE_SIZE = 5
+JACCARD_THRESHOLD = 0.85
+SHINGLE_SIZE = 5   # character shingle size used inside DedupeIndex
 
 def normalize_problem(text: str) -> str:
-    """Lowercase, strip LaTeX spacing commands, collapse whitespace."""
+    """Lowercase, strip LaTeX spacing commands, collapse whitespace, and
+    drop spaces immediately adjacent to math operators."""
 
 def problem_hash(text: str) -> str:
     """SHA-1 of normalize_problem(text)."""
 
 def shingles(text: str, k: int = SHINGLE_SIZE) -> frozenset[str]:
-    """Word-level k-gram shingles over normalized text."""
+    """Word-level k-gram shingles over normalized text. (Exported helper —
+    DedupeIndex itself uses character-level shingles internally.)"""
 
 def jaccard(a: frozenset, b: frozenset) -> float: ...
 
@@ -80,23 +90,19 @@ class DedupeIndex:
     def add(self, problem_text: str) -> bool:
         """Return True if added (unique), False if duplicate of something
         already in the index."""
-    @property
-    def n_exact_dropped(self) -> int: ...
-    @property
-    def n_fuzzy_dropped(self) -> int: ...
-    @property
-    def n_kept(self) -> int: ...
+    # n_kept, n_exact_dropped, n_fuzzy_dropped exposed as plain int
+    # attributes (not properties).
 ```
 
 Implementation notes:
 
-- `add()` first checks the hash set (O(1)). On miss, computes shingles and
-  compares against each existing shingle set (O(n) where n is current
-  `n_kept`). Stage 1 and Stage 2 both operate on O(100) problems, so O(n²)
-  total is fine.
-- Empty text returns `False` from `add()` (treat as already-present so it's
-  skipped).
-- Problems with too few tokens to form any 5-gram fall back to hash-only.
+- `add()` first checks the hash set (O(1)). On miss, computes character
+  5-gram shingles and compares against each existing shingle set (O(n)
+  where n is current `n_kept`). Stage 1 and Stage 2 both operate on O(100)
+  problems, so O(n²) total is fine.
+- Empty/whitespace-only text returns `False` from `add()`.
+- Strings too short to form any 5-character shingle fall back to hash-only
+  (their `sh` is empty, so the fuzzy check is skipped).
 
 ### Stage 1 integration (`Stage1/distinct_llm_prompting.py`)
 
@@ -175,11 +181,13 @@ Stage 2 additionally writes the `dedupe` block into `aggregated_keeps.json`.
 
 ## Risk
 
-- **False positives** (dropping legitimately-distinct problems): low in this
-  domain — the generator temperature and prompt produce textually distinct
-  wording for distinct problems. Jaccard threshold 0.9 requires near-total
-  token overlap. If we see unexpected drops in practice, lower the threshold
-  first before defaulting off.
+- **False positives** (dropping legitimately-distinct problems): low in
+  this domain — the generator temperature and prompt produce textually
+  distinct wording for distinct problems. Char-level Jaccard at threshold
+  0.85 requires near-total shared substring structure. Short problems
+  sharing common math phrases ("Find the", "Compute the") can inflate
+  Jaccard; if we see unexpected drops in practice, raise the threshold
+  (toward 0.9) before defaulting off.
 - **Performance**: O(n²) per-stage, n ≤ a few hundred. Negligible vs. the
   LLM calls.
 - **Backwards compatibility**: the `--no-dedupe` flag preserves the ability
