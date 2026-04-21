@@ -630,6 +630,7 @@ def build_dataset(
     solve_client: OpenAI | None = None,
     solve_model: str | None = None,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
@@ -657,7 +658,9 @@ def build_dataset(
     )
 
     skipped_problems: list[GeneratedProblem] = []
-    seen_problems: set[str] = set()
+    from pipeline_stages.dedupe import DedupeIndex
+    dedupe = DedupeIndex() if use_dedupe else None
+    seen_problems: set[str] = set()  # used only when use_dedupe=False
 
     if output_path and os.path.exists(output_path):
         try:
@@ -666,7 +669,10 @@ def build_dataset(
             for p in existing.get("problems", []):
                 entry = GeneratedProblem(**p)
                 dataset.problems.append(entry)
-                seen_problems.add(entry.problem)
+                if use_dedupe:
+                    dedupe.add(entry.problem)
+                else:
+                    seen_problems.add(entry.problem)
             if dataset.problems:
                 print(
                     f"  Resumed {len(dataset.problems)} existing problems from {output_path}"
@@ -747,9 +753,15 @@ def build_dataset(
 
         problem_text = candidates[0]["problem"]
         with seen_lock:
-            if problem_text in seen_problems:
-                return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
-            seen_problems.add(problem_text)
+            if use_dedupe:
+                # DedupeIndex is not thread-safe; seen_lock serializes add()
+                # just as it did for the set-based check it replaced.
+                if not dedupe.add(problem_text):
+                    return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
+            else:
+                if problem_text in seen_problems:
+                    return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
+                seen_problems.add(problem_text)
 
         t1 = time.time()
         agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
@@ -886,6 +898,13 @@ def build_dataset(
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
     print(f"{'=' * 70}\n")
 
+    if use_dedupe and dedupe is not None:
+        print(
+            f"  dedupe: kept {dedupe.n_kept}, "
+            f"dropped {dedupe.n_exact_dropped + dedupe.n_fuzzy_dropped} "
+            f"(exact={dedupe.n_exact_dropped}, fuzzy={dedupe.n_fuzzy_dropped})"
+        )
+
     return dataset
 
 
@@ -931,6 +950,7 @@ def run(
     tinker_checkpoint: str | None = None,
     tinker_checkpoint_step: int = 50,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = get_tinker_client(
@@ -968,6 +988,7 @@ def run(
         solve_client=solve_client,
         solve_model=solve_model,
         quality_threshold=quality_threshold,
+        use_dedupe=use_dedupe,
     )
 
     save_dataset(dataset, out_path)
@@ -1108,6 +1129,8 @@ def main():
             "(see --runs-subdir)."
         ),
     )
+    parser.add_argument("--no-dedupe", action="store_true",
+                        help="Disable near-duplicate dedup (use exact-string only, for ablation)")
     args = parser.parse_args()
 
     problem_text = load_problem_from_txt(args.problem_path)
@@ -1152,6 +1175,7 @@ def main():
         gen_workers=args.gen_workers,
         quality_threshold=args.quality_threshold,
         max_workers=args.max_workers,
+        use_dedupe=not args.no_dedupe,
     )
 
 
