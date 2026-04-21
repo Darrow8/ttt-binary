@@ -111,9 +111,12 @@ class DedupeIndex:
             return False
 
         sh = _char_shingles(problem_text)
+        # Only run the fuzzy scan when the incoming shingle set is non-empty;
+        # empty sh means the text was too short to shingle.
         if sh:
-            # _shingle_sets entries can be empty (e.g. very short text produced no char shingles); skip those to avoid spurious 0.0 comparisons.
             for existing in self._shingle_sets:
+                # Stored entries can also be empty (from earlier too-short
+                # texts); skip to avoid spurious 0.0 Jaccard comparisons.
                 if existing and jaccard(sh, existing) >= self._threshold:
                     self.n_fuzzy_dropped += 1
                     return False
