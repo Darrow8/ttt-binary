@@ -85,7 +85,7 @@ Vertex AI access requires Google Cloud credentials configured via `gcloud auth a
 Generate calibrated subproblems by sampling and filtering on self-consistency:
 
 ```bash
-python3 Stage1/distinct_llm_prompting.py   --problem-path data/target-problems/conics.txt    --runs-subdir conics-tangent-5 --n-samples 20 --gen-workers 20 --n-problems 500 --failed-solutions data/reasoning-traces/conics.json
+python3 Stage1/distinct_llm_prompting.py   --problem-path data/target-problems/conics.txt    --runs-subdir conics-generation --n-samples 20 --gen-workers 10 --n-problems 100 --failed-solutions data/reasoning-traces/conics.json
 ```
 
 Key flags:
@@ -136,7 +136,7 @@ python -m pipeline.grpo_subproblems_resume
 **Inference with the fine-tuned model:**
 
 ```bash
-python inference/infer.py --local --n-samples 100
+python3 inference/infer.py --local --checkpoint "<>" --n-samples 500
 ```
 
 **Inference with the base model (Vertex AI):**

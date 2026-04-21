@@ -11,3 +11,4 @@ pandas
 matplotlib
 wandb
 python-dotenv
+orjson

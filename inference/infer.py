@@ -60,7 +60,12 @@ Put your final answer inside \\boxed{{}}.
 """
 
 TEMPERATURE = 0.7
+
+# Remote (Vertex AI) model identifier — not a HuggingFace repo.
 MODEL = "openai/gpt-oss-120b-maas"
+
+# Base model on HuggingFace — used only for the local/tinker tokenizer.
+LOCAL_TOKENIZER_MODEL = "openai/gpt-oss-120b"
 
 # ---------------------------------------------------------------------------
 # Answer extraction (regex first, optional LLM fallback)
@@ -394,7 +399,8 @@ def _build_local_clients(service, tinker_path: str):
         from huggingface_hub import login as hf_login
 
         hf_login(token=hf_token)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL)
+    print(f"Loading tokenizer: {LOCAL_TOKENIZER_MODEL}")
+    tokenizer = AutoTokenizer.from_pretrained(LOCAL_TOKENIZER_MODEL)
     print("Ready.\n")
     return sampling_client, tokenizer
 

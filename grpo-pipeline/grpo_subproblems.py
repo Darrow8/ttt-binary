@@ -46,7 +46,7 @@ config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
     log_dir=str(_REPO_ROOT / "subproblems-run"),
 
-    batch_size=25,
+    batch_size=50,
     group_size=16,
     learning_rate=1e-4,
     lora_rank=32,
@@ -54,7 +54,7 @@ config = GRPOConfig(
 
     save_every=5,
 
-    wandb_project="grpo-conics-subproblems",
+    wandb_project="c-100-run-originalbatch-2",
 
     temperature=0.7,
     system_prompt="""
@@ -77,7 +77,7 @@ EPOCHS = 50
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems(str(_REPO_ROOT / "problems" / "subproblems.jsonl"))
+problems = load_problems(str(_REPO_ROOT / "problems" / "conics-100.jsonl"))
 
 
 # ── Reward function ────────────────────────────────────────────────────────
