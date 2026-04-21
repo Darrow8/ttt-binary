@@ -11,6 +11,7 @@ import json
 import os
 import random
 import re
+import sys
 import threading
 import time
 from collections import Counter
@@ -18,7 +19,16 @@ from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import asdict, dataclass, field
 
 from openai import OpenAI
+from pathlib import Path
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+
+# Ensure the repo root is on sys.path so `from pipeline_stages.*` resolves
+# regardless of how this script is invoked.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from pipeline_stages.dedupe import DedupeIndex  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # .env loader
@@ -630,6 +640,7 @@ def build_dataset(
     solve_client: OpenAI | None = None,
     solve_model: str | None = None,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
@@ -657,7 +668,8 @@ def build_dataset(
     )
 
     skipped_problems: list[GeneratedProblem] = []
-    seen_problems: set[str] = set()
+    dedupe = DedupeIndex() if use_dedupe else None
+    seen_problems: set[str] = set()  # used only when use_dedupe=False
 
     if output_path and os.path.exists(output_path):
         try:
@@ -666,13 +678,27 @@ def build_dataset(
             for p in existing.get("problems", []):
                 entry = GeneratedProblem(**p)
                 dataset.problems.append(entry)
-                seen_problems.add(entry.problem)
+                if use_dedupe:
+                    dedupe.add(entry.problem)
+                else:
+                    seen_problems.add(entry.problem)
             if dataset.problems:
                 print(
                     f"  Resumed {len(dataset.problems)} existing problems from {output_path}"
                 )
         except (json.JSONDecodeError, TypeError, KeyError):
             pass
+
+    # Snapshot counters after any resume pre-seed so the final summary reports
+    # only this run's adds/drops, not the ones re-hydrated from disk.
+    if dedupe is not None:
+        dedupe_baseline_kept = dedupe.n_kept
+        dedupe_baseline_exact = dedupe.n_exact_dropped
+        dedupe_baseline_fuzzy = dedupe.n_fuzzy_dropped
+    else:
+        dedupe_baseline_kept = 0
+        dedupe_baseline_exact = 0
+        dedupe_baseline_fuzzy = 0
 
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
@@ -747,9 +773,15 @@ def build_dataset(
 
         problem_text = candidates[0]["problem"]
         with seen_lock:
-            if problem_text in seen_problems:
-                return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
-            seen_problems.add(problem_text)
+            if use_dedupe:
+                # DedupeIndex is not thread-safe; seen_lock serializes add()
+                # just as it did for the set-based check it replaced.
+                if not dedupe.add(problem_text):
+                    return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
+            else:
+                if problem_text in seen_problems:
+                    return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
+                seen_problems.add(problem_text)
 
         t1 = time.time()
         agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
@@ -884,6 +916,15 @@ def build_dataset(
         else 0
     )
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
+    if dedupe is not None:
+        kept_this_run = dedupe.n_kept - dedupe_baseline_kept
+        exact_this_run = dedupe.n_exact_dropped - dedupe_baseline_exact
+        fuzzy_this_run = dedupe.n_fuzzy_dropped - dedupe_baseline_fuzzy
+        print(
+            f"  dedupe: kept {kept_this_run}, "
+            f"dropped {exact_this_run + fuzzy_this_run} "
+            f"(exact={exact_this_run}, fuzzy={fuzzy_this_run})"
+        )
     print(f"{'=' * 70}\n")
 
     return dataset
@@ -931,6 +972,7 @@ def run(
     tinker_checkpoint: str | None = None,
     tinker_checkpoint_step: int = 50,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = get_tinker_client(
@@ -968,6 +1010,7 @@ def run(
         solve_client=solve_client,
         solve_model=solve_model,
         quality_threshold=quality_threshold,
+        use_dedupe=use_dedupe,
     )
 
     save_dataset(dataset, out_path)
@@ -1108,6 +1151,8 @@ def main():
             "(see --runs-subdir)."
         ),
     )
+    parser.add_argument("--no-dedupe", action="store_true",
+                        help="Disable fuzzy dedup; fall back to exact-string equality only (for ablation)")
     args = parser.parse_args()
 
     problem_text = load_problem_from_txt(args.problem_path)
@@ -1152,6 +1197,7 @@ def main():
         gen_workers=args.gen_workers,
         quality_threshold=args.quality_threshold,
         max_workers=args.max_workers,
+        use_dedupe=not args.no_dedupe,
     )
 
 

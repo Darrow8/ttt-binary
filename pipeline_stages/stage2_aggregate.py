@@ -2,9 +2,10 @@
 Stage 2 — aggregate all Stage 1 timestamped runs for one hard problem.
 
 Walks runs/<id>/stage1/*/keeps.json, unions the kept candidates, dedupes by
-problem text (Stage 1 dedupes within a single run via `seen_problems`, but
-across runs duplicates can re-appear), writes runs/<id>/aggregated_keeps.json
-atomically.
+normalized text hash and near-duplicate k-gram Jaccard similarity (see
+`pipeline_stages.dedupe.DedupeIndex`), writes runs/<id>/aggregated_keeps.json
+atomically. Pass --no-dedupe to fall back to the historical exact-string
+dedup behavior (useful for ablation comparisons).
 
 Skipped problems (skips.json) are left in place per-run for debugging — only
 the kept side is unioned here. If you want a unioned skips file, pass
@@ -20,6 +21,12 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Ensure the repo root is on sys.path so `from pipeline_stages.*` resolves
+# regardless of how this script is invoked (direct path, module, pytest).
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from pipeline_stages.dedupe import DedupeIndex  # noqa: E402
 
 
 def _save_atomic(path: Path, data: dict) -> None:
@@ -30,7 +37,7 @@ def _save_atomic(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
+def aggregate_one(problem_id: str, *, include_skips: bool = False, no_dedupe: bool = False) -> dict:
     runs_root = REPO_ROOT / "runs" / problem_id
     stage1_root = runs_root / "stage1"
 
@@ -46,7 +53,9 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
             f"Stage 1 may not have produced any output for id={problem_id!r}."
         )
 
-    seen: set[str] = set()
+    dedupe_enabled = not no_dedupe
+    dedupe = DedupeIndex() if dedupe_enabled else None
+    seen_fallback: set[str] | None = None if dedupe_enabled else set()
     aggregated: list[dict] = []
     per_run_counts: list[dict] = []
     source_problem: str | None = None
@@ -69,10 +78,15 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
             text = p.get("problem", "")
             if not text:
                 continue
-            if text in seen:
-                dup += 1
-                continue
-            seen.add(text)
+            if dedupe_enabled:
+                if not dedupe.add(text):
+                    dup += 1
+                    continue
+            else:
+                if text in seen_fallback:
+                    dup += 1
+                    continue
+                seen_fallback.add(text)
             aggregated.append(p)
             added += 1
 
@@ -93,6 +107,17 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False) -> dict:
         "per_run": per_run_counts,
         "problems": aggregated,
     }
+    if dedupe_enabled:
+        summary["dedupe"] = {
+            "n_kept": dedupe.n_kept,
+            "n_exact_dropped": dedupe.n_exact_dropped,
+            "n_fuzzy_dropped": dedupe.n_fuzzy_dropped,
+        }
+        print(
+            f"  dedupe: kept {dedupe.n_kept}, "
+            f"dropped {dedupe.n_exact_dropped + dedupe.n_fuzzy_dropped} "
+            f"(exact={dedupe.n_exact_dropped}, fuzzy={dedupe.n_fuzzy_dropped})"
+        )
     _save_atomic(out_path, summary)
     print(f"\nWrote {out_path}  ({len(aggregated)} unique problems from {len(keeps_files)} runs)")
 
@@ -129,8 +154,10 @@ def main():
     parser.add_argument("--id", type=str, required=True)
     parser.add_argument("--include-skips", action="store_true",
                         help="Also union skips.json across runs into aggregated_skips.json")
+    parser.add_argument("--no-dedupe", action="store_true",
+                        help="Disable near-duplicate dedup (use exact-string only, for ablation)")
     args = parser.parse_args()
-    aggregate_one(args.id, include_skips=args.include_skips)
+    aggregate_one(args.id, include_skips=args.include_skips, no_dedupe=args.no_dedupe)
 
 
 if __name__ == "__main__":
