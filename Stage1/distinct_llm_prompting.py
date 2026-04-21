@@ -680,6 +680,10 @@ def build_dataset(
         except (json.JSONDecodeError, TypeError, KeyError):
             pass
 
+    # Snapshot counters after any resume pre-seed so the final summary reports
+    # only this run's adds/drops, not the ones re-hydrated from disk.
+    dedupe_baseline_kept = dedupe.n_kept if dedupe is not None else 0
+
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
     else:
@@ -896,14 +900,14 @@ def build_dataset(
         else 0
     )
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
-    print(f"{'=' * 70}\n")
-
-    if use_dedupe and dedupe is not None:
+    if dedupe is not None:
+        kept_this_run = dedupe.n_kept - dedupe_baseline_kept
         print(
-            f"  dedupe: kept {dedupe.n_kept}, "
+            f"  dedupe: kept {kept_this_run}, "
             f"dropped {dedupe.n_exact_dropped + dedupe.n_fuzzy_dropped} "
             f"(exact={dedupe.n_exact_dropped}, fuzzy={dedupe.n_fuzzy_dropped})"
         )
+    print(f"{'=' * 70}\n")
 
     return dataset
 
@@ -1130,7 +1134,7 @@ def main():
         ),
     )
     parser.add_argument("--no-dedupe", action="store_true",
-                        help="Disable near-duplicate dedup (use exact-string only, for ablation)")
+                        help="Disable fuzzy dedup; fall back to exact-string equality only (for ablation)")
     args = parser.parse_args()
 
     problem_text = load_problem_from_txt(args.problem_path)
