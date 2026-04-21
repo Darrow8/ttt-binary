@@ -135,7 +135,7 @@ class TestDedupeIndex:
 
 
 class TestStage2Integration:
-    def test_aggregate_drops_fuzzy_duplicates(self, tmp_path):
+    def test_aggregate_drops_fuzzy_duplicates(self, tmp_path, monkeypatch):
         """Stage 2 aggregate should drop near-duplicate problems across runs."""
         import json
 
@@ -173,7 +173,7 @@ class TestStage2Integration:
         }))
 
         from pipeline_stages import stage2_aggregate
-        stage2_aggregate.REPO_ROOT = tmp_path
+        monkeypatch.setattr(stage2_aggregate, "REPO_ROOT", tmp_path)
 
         summary = stage2_aggregate.aggregate_one("testid", include_skips=False)
         assert summary["n_problems"] == 2  # dup_a/dup_b collapsed

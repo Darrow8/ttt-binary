@@ -2,9 +2,10 @@
 Stage 2 — aggregate all Stage 1 timestamped runs for one hard problem.
 
 Walks runs/<id>/stage1/*/keeps.json, unions the kept candidates, dedupes by
-problem text (Stage 1 dedupes within a single run via `seen_problems`, but
-across runs duplicates can re-appear), writes runs/<id>/aggregated_keeps.json
-atomically.
+normalized text hash and near-duplicate k-gram Jaccard similarity (see
+`pipeline_stages.dedupe.DedupeIndex`), writes runs/<id>/aggregated_keeps.json
+atomically. Pass --no-dedupe to fall back to the historical exact-string
+dedup behavior (useful for ablation comparisons).
 
 Skipped problems (skips.json) are left in place per-run for debugging — only
 the kept side is unioned here. If you want a unioned skips file, pass
@@ -50,7 +51,7 @@ def aggregate_one(problem_id: str, *, include_skips: bool = False, no_dedupe: bo
 
     dedupe_enabled = not no_dedupe
     dedupe = DedupeIndex() if dedupe_enabled else None
-    seen_fallback: set[str] = set()
+    seen_fallback: set[str] | None = None if dedupe_enabled else set()
     aggregated: list[dict] = []
     per_run_counts: list[dict] = []
     source_problem: str | None = None
