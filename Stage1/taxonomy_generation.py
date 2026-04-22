@@ -97,13 +97,33 @@ Quality requirements (apply ALL):
    ignoring the hard insight produce a curriculum that does not
    actually teach the target.
 
-4. Difficulty spread, not flat. The skills must span a real range:
+4. Name the technique (load-bearing). For the hardest 2-3 skills
+   (the ones covering the hard insight from requirement 3), the
+   name AND description must name a SPECIFIC technique, named
+   theorem, or named mathematical object -- not a goal or a
+   paraphrase. Examples of OK: "Chebotarev density theorem",
+   "Veronese embedding", "Chasles' characteristic numbers (mu, nu)
+   on the space of complete conics", "Lang-Weil estimate". Examples
+   of NOT OK: "compute the correction term", "find the count",
+   "handle the excess locus". A skill described only by its goal
+   without naming the tool is hand-waving and will produce
+   subproblems that cannot actually isolate the skill.
+
+5. Anti-padding. If you find yourself listing the same technique
+   applied to n=2, n=3, n=4, ... (or any other parametric sweep of
+   the same underlying reasoning), that is ONE skill, not several.
+   Difficulty progression must come from genuinely DIFFERENT
+   reasoning, not from incrementing a parameter. Near-duplicates
+   like "codimension of tangency-to-X" and "degree of the
+   tangency-to-X divisor" are also one skill, not two.
+
+6. Difficulty spread, not flat. The skills must span a real range:
    skill 1 should be doable by a strong undergraduate in the relevant
    field; skill {n_skills} should be doable only by someone close to
    mastering the target. If skills in the middle all feel like the
    same difficulty, the decomposition is too flat.
 
-5. Numerical answerability. Each skill's natural subproblem must admit
+7. Numerical answerability. Each skill's natural subproblem must admit
    a single-number answer. Exclude skills that are about formulating,
    proving, classifying, or constructing -- those do not fit the
    pipeline.
@@ -113,13 +133,21 @@ Self-audit before output:
     reasoning? If yes, fix.
 (b) Restatement: does any skill's subproblem require solving the
     target? If yes, replace it.
-(c) Coverage: is THE hardest insight represented in at least 2 skills?
-    If not, add them.
-(d) Difficulty spread: is there real progression from skill 1 to
-    skill {n_skills}? If not, widen it.
-(e) Numerical answerability: does every skill admit a numeric
+(c) Coverage: is THE hardest insight represented in at least 2
+    skills? If not, add them.
+(d) Named techniques on hard skills: do the 2-3 hardest skills each
+    name a specific technique / theorem / object? If not, rewrite
+    them -- goal-only descriptions are disallowed.
+(e) Anti-padding: is any pair of skills the same technique at
+    different parameter values (n=2 vs n=3) or paired facts about
+    the same object? Collapse them into one, fill the slot with
+    a different skill.
+(f) Difficulty spread: is there real progression from skill 1 to
+    skill {n_skills} in terms of REASONING, not just parameter size?
+    If not, widen it.
+(g) Numerical answerability: does every skill admit a numeric
     subproblem? If not, drop it.
-Revise internally until all five pass, then output the JSON.
+Revise internally until all seven pass, then output the JSON.
 
 Respond with JSON only, no prose, exactly this shape:
 {{
