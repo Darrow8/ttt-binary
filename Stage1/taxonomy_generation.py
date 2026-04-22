@@ -65,31 +65,74 @@ class Skill:
 
 DECOMPOSE_PROMPT = """\
 You are designing a curriculum to help a student learn to solve a hard
-target problem by mastering its component reasoning skills first.
+target problem by mastering its component reasoning skills first. Each
+skill will be used to generate subproblems with a single NUMERICAL
+answer (integer or decimal) so downstream agreement checking is
+mechanical. Skills whose natural subproblems don't admit a single
+numerical answer are not usable here -- do not include them.
 
 Target problem:
 {target}
 
-Decompose this target into EXACTLY {n_skills} distinct reasoning skills. Each skill:
-- Must be a component of the target -- a specific reasoning step or tool,
-  not a rephrasing of the whole problem.
-- Must be DISTINCT from the others: no two skills should test the same
-  underlying reasoning.
-- Must be testable in a self-contained subproblem that can be solved
-  without requiring the other skills.
-- Should fall roughly in difficulty order, prerequisite to advanced.
+Decompose this target into EXACTLY {n_skills} distinct reasoning skills.
+
+Quality requirements (apply ALL):
+
+1. Orthogonality. For every pair of skills (A, B), a student could
+   plausibly be strong at A but weak at B, or vice versa. If not, the
+   pair is too coupled -- merge and pick a different skill to fill
+   the slot.
+
+2. No restatement. A skill is INVALID if solving a subproblem that
+   tests it requires the same insight as the target problem itself.
+   Skills are *components used in service of* the target, not *the
+   target restated at smaller scale*. If a skill's subproblem would
+   essentially be the target with smaller numbers or a simpler case,
+   it is a restatement, not a component -- replace it.
+
+3. Coverage of the hard part. Before finalizing, identify THE SINGLE
+   HARDEST INSIGHT required to solve the target. At least 2 of the
+   {n_skills} skills must build directly toward that insight. Skills
+   that only cover setup, formalism, or routine machinery while
+   ignoring the hard insight produce a curriculum that does not
+   actually teach the target.
+
+4. Difficulty spread, not flat. The skills must span a real range:
+   skill 1 should be doable by a strong undergraduate in the relevant
+   field; skill {n_skills} should be doable only by someone close to
+   mastering the target. If skills in the middle all feel like the
+   same difficulty, the decomposition is too flat.
+
+5. Numerical answerability. Each skill's natural subproblem must admit
+   a single-number answer. Exclude skills that are about formulating,
+   proving, classifying, or constructing -- those do not fit the
+   pipeline.
+
+Self-audit before output:
+(a) Pairwise orthogonality: are any two skills testing the same
+    reasoning? If yes, fix.
+(b) Restatement: does any skill's subproblem require solving the
+    target? If yes, replace it.
+(c) Coverage: is THE hardest insight represented in at least 2 skills?
+    If not, add them.
+(d) Difficulty spread: is there real progression from skill 1 to
+    skill {n_skills}? If not, widen it.
+(e) Numerical answerability: does every skill admit a numeric
+    subproblem? If not, drop it.
+Revise internally until all five pass, then output the JSON.
 
 Respond with JSON only, no prose, exactly this shape:
 {{
   "skills": [
     {{
       "name": "Short skill name (3-10 words)",
-      "description": "1-2 sentences explaining what the skill is."
+      "description": "1-2 sentences explaining what the skill is and why it is relevant to the target."
     }}
   ]
 }}
 
-There must be exactly {n_skills} entries in the skills array.
+There must be exactly {n_skills} entries in the skills array, ordered
+by difficulty (easiest first, hardest last).
 """
 
 
@@ -275,27 +318,52 @@ do NOT generate a variant of the target):
 
 {target}
 
-Skill to test:
+Skill to test (#{skill_index} of {n_skills}, ordered by difficulty):
 Name: {skill_name}
 Description: {skill_description}
 
+Other skills in the taxonomy -- your subproblem must NOT require any
+of these to solve:
+{other_skill_names_bulleted}
+
 Requirements:
-- The subproblem tests THIS SKILL SPECIFICALLY, in isolation.
-- A student who has mastered only this skill should be able to solve it.
-  The problem must not rely on the other skills from the taxonomy.
-- The answer MUST be a single number (integer or decimal). If a decimal,
-  ask the solver to round to 4 decimal places.
-- State the problem in 3-10 sentences.
-- ALL math must be written in LaTeX using \\(...\\) for inline and
-  \\[...\\] for display. No ASCII math ("x^2", "sqrt(5)", "sum from i=1 to n",
-  etc.) -- use proper LaTeX.
-- The problem statement MUST end with this exact sentence:
-  "Put your final answer inside \\boxed{{}}."
+
+1. Isolation. The subproblem tests the named skill ALONE. It must NOT
+   require any of the other skills listed above. If you cannot
+   construct a subproblem isolating this skill without invoking the
+   others, output the literal string
+   "UNISOLATABLE: <one sentence reason>"
+   inside the <problem> tags instead of a problem statement. This
+   signals the skill is not cleanly separable and the decomposition
+   needs revision -- do not fake an isolated problem in that case.
+
+2. No target leakage. Do not reproduce the target problem's setup,
+   notation, or specific numerical parameters. The subproblem must be
+   a fresh concrete instance so that solving it doesn't amount to
+   partially solving the target.
+
+3. Difficulty calibrated to position. This is skill #{skill_index}
+   of {n_skills}. Skill #1 should be doable in 5-10 minutes by
+   someone with the relevant background; skill #{n_skills} can
+   require 30+ minutes of nontrivial work. Calibrate accordingly --
+   do not make every subproblem the same difficulty.
+
+4. The answer MUST be a single number (integer or decimal). If a
+   decimal, ask the solver to round to 4 decimal places.
+
+5. State the problem in 3-10 sentences.
+
+6. ALL math must be written in LaTeX using \\(...\\) for inline and
+   \\[...\\] for display. No ASCII math ("x^2", "sqrt(5)",
+   "sum from i=1 to n", etc.) -- use proper LaTeX.
+
+7. The problem statement MUST end with this exact sentence:
+   "Put your final answer inside \\boxed{{}}."
 
 Output format:
-Begin your response with <problem> on its own line, then the full problem
-statement, then </problem> on its own line. No other text before, between,
-or after the tags.
+Begin your response with <problem> on its own line, then the full
+problem statement (or the UNISOLATABLE sentinel), then </problem> on
+its own line. No other text before, between, or after the tags.
 """
 
 
@@ -310,12 +378,31 @@ def _parse_problem(raw: str) -> str:
     return m.group(1).strip()
 
 
-def _generate_one_candidate(client, target: str, skill: Skill, _temperature: float = TEMPERATURE) -> str:
-    """Call the generator once, return the raw problem text (possibly empty)."""
+def _generate_one_candidate(
+    client,
+    target: str,
+    skill: Skill,
+    *,
+    skill_index: int,
+    n_skills: int,
+    other_skill_names: list[str],
+    _temperature: float = TEMPERATURE,
+) -> str:
+    """Call the generator once, return the raw problem text (possibly empty).
+
+    May also return the literal string "UNISOLATABLE: <reason>" if the
+    model cannot construct a subproblem isolating this skill from the
+    others -- this is a useful signal that the decomposition is
+    miscalibrated, not an error.
+    """
+    other_bulleted = "\n".join(f"- {name}" for name in other_skill_names) or "(none)"
     prompt = GENERATE_PROMPT.format(
         target=target,
+        skill_index=skill_index,
+        n_skills=n_skills,
         skill_name=skill.name,
         skill_description=skill.description,
+        other_skill_names_bulleted=other_bulleted,
     )
     resp = client.chat.completions.create(
         model=GENERATOR_MODEL,
@@ -331,6 +418,9 @@ def generate_for_skill(
     client,
     target: str,
     skill: Skill,
+    skill_index: int,
+    n_skills: int,
+    other_skill_names: list[str],
     n_target: int,
     n_samples: int,
     max_candidates: int,
@@ -341,6 +431,12 @@ def generate_for_skill(
     """Generate candidates for a single skill until n_target keeps or max_candidates attempts.
 
     Args:
+        skill_index: 1-based position of this skill in the difficulty
+            ordering (for the calibrate-difficulty-by-position prompt).
+        n_skills: total skills in the taxonomy.
+        other_skill_names: names of the OTHER skills, used in the prompt
+            to enforce that the generated subproblem doesn't require any
+            of them.
         solve_pool: concurrent.futures.ThreadPoolExecutor used by the
             real solve_and_check_agreement to fan out n_samples solve
             calls. Required at runtime (the real function unconditionally
@@ -357,7 +453,12 @@ def generate_for_skill(
 
     while len(keeps) < n_target and attempted < max_candidates:
         attempted += 1
-        problem_text = _generate_one_candidate(client, target, skill)
+        problem_text = _generate_one_candidate(
+            client, target, skill,
+            skill_index=skill_index,
+            n_skills=n_skills,
+            other_skill_names=other_skill_names,
+        )
         if not problem_text:
             skips.append({
                 "skill": skill.name,
@@ -366,6 +467,23 @@ def generate_for_skill(
             })
             print(
                 f"  attempt {attempted}: skip (no_tags)  "
+                f"[kept {len(keeps)}/{n_target}]",
+                flush=True,
+            )
+            continue
+
+        # UNISOLATABLE sentinel: the generator reports the skill cannot
+        # be separated from the others. Don't burn solve compute on it.
+        if problem_text.startswith("UNISOLATABLE"):
+            reason_text = problem_text[len("UNISOLATABLE"):].lstrip(": ").strip()
+            skips.append({
+                "skill": skill.name,
+                "problem": problem_text,
+                "reason": "unisolatable",
+                "reason_detail": reason_text,
+            })
+            print(
+                f"  attempt {attempted}: skip (unisolatable)  {reason_text[:80]!r}  "
                 f"[kept {len(keeps)}/{n_target}]",
                 flush=True,
             )
@@ -506,14 +624,19 @@ def build_taxonomy_dataset(
     # One pool shared across all skills; it fans out each candidate's
     # n_samples solve calls. solve_and_check_agreement requires pool=
     # (it unconditionally calls pool.submit).
+    skill_names = [s.name for s in skills]
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as solve_pool:
         print(f"\n=== Per-skill generation ===")
         for i, skill in enumerate(skills, start=1):
             print(f"\n[{i}/{len(skills)}] {skill.name}")
+            others = [name for j, name in enumerate(skill_names, start=1) if j != i]
             keeps, skips, stats = generate_for_skill(
                 client=client,
                 target=target_text,
                 skill=skill,
+                skill_index=i,
+                n_skills=len(skills),
+                other_skill_names=others,
                 n_target=problems_per_skill,
                 n_samples=n_samples,
                 max_candidates=max_candidates_per_skill,

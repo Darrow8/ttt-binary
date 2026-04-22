@@ -155,13 +155,26 @@ class TestParseProblem:
 
 
 class TestGenerateForSkill:
+    def _common_gen_args(self, skill):
+        return dict(
+            client=MagicMock(),
+            target="target",
+            skill=skill,
+            skill_index=1,
+            n_skills=10,
+            other_skill_names=[f"Other skill {i}" for i in range(9)],
+            n_samples=5,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+
     def test_stops_at_n_target_keeps(self, monkeypatch):
         # Mock: generator always returns a valid problem; solver always agrees at 0.70.
         from Stage1 import taxonomy_generation as tg
 
         gen_calls = {"n": 0}
 
-        def fake_gen_candidate(client, target, skill, _temperature=TEMPERATURE):
+        def fake_gen_candidate(client, target, skill, **_kw):
             gen_calls["n"] += 1
             return f"Find n. Put your final answer inside \\boxed{{}}. Candidate {gen_calls['n']}."
 
@@ -174,14 +187,9 @@ class TestGenerateForSkill:
 
         skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
-            client=MagicMock(),
-            target="target",
-            skill=skill,
+            **self._common_gen_args(skill),
             n_target=3,
-            n_samples=5,
             max_candidates=50,
-            agree_low=0.60,
-            agree_high=0.80,
         )
         assert len(keeps) == 3
         assert stats["n_passed"] == 3
@@ -191,7 +199,7 @@ class TestGenerateForSkill:
     def test_caps_at_max_candidates(self, monkeypatch):
         from Stage1 import taxonomy_generation as tg
 
-        def fake_gen(client, target, skill, _temperature=TEMPERATURE):
+        def fake_gen(client, target, skill, **_kw):
             return "Find n. \\boxed{}"
 
         def fake_solve(client, model, problem_text, n_samples, pool=None):
@@ -203,14 +211,9 @@ class TestGenerateForSkill:
 
         skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
-            client=MagicMock(),
-            target="target",
-            skill=skill,
+            **self._common_gen_args(skill),
             n_target=10,
-            n_samples=5,
             max_candidates=7,
-            agree_low=0.60,
-            agree_high=0.80,
         )
         assert len(keeps) == 0
         assert stats["n_attempted"] == 7
@@ -219,7 +222,7 @@ class TestGenerateForSkill:
     def test_rejects_non_numeric(self, monkeypatch):
         from Stage1 import taxonomy_generation as tg
 
-        def fake_gen(client, target, skill, _temperature=TEMPERATURE):
+        def fake_gen(client, target, skill, **_kw):
             return "Find n. \\boxed{}"
 
         def fake_solve(client, model, problem_text, n_samples, pool=None):
@@ -230,17 +233,42 @@ class TestGenerateForSkill:
 
         skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
-            client=MagicMock(),
-            target="target",
-            skill=skill,
+            **self._common_gen_args(skill),
             n_target=5,
-            n_samples=5,
             max_candidates=3,
-            agree_low=0.60,
-            agree_high=0.80,
         )
         assert len(keeps) == 0
         assert stats["status"] == "capped"
+
+    def test_unisolatable_sentinel_skips_without_solving(self, monkeypatch):
+        """Generator says the skill can't be isolated -> skip, don't call solve."""
+        from Stage1 import taxonomy_generation as tg
+
+        solve_calls = {"n": 0}
+
+        def fake_gen(client, target, skill, **_kw):
+            return "UNISOLATABLE: requires skill X as prerequisite"
+
+        def fake_solve(*a, **kw):
+            solve_calls["n"] += 1
+            return (1.0, "1", ["1"], ["r"])
+
+        monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen)
+        monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
+
+        skill = Skill("s", "d")
+        keeps, skips, stats = generate_for_skill(
+            **self._common_gen_args(skill),
+            n_target=5,
+            max_candidates=4,
+        )
+        assert len(keeps) == 0
+        assert stats["n_attempted"] == 4
+        assert stats["status"] == "capped"
+        assert all(s["reason"] == "unisolatable" for s in skips)
+        assert skips[0]["reason_detail"] == "requires skill X as prerequisite"
+        # Critically: the solver was never called on an unisolatable candidate.
+        assert solve_calls["n"] == 0
 
 
 class TestBuildTaxonomyDataset:
@@ -258,7 +286,7 @@ class TestBuildTaxonomyDataset:
             data = json.loads(skills_payload)
             return [Skill(**e) for e in data["skills"]]
 
-        def fake_generate_for_skill(*, client, target, skill, n_target, n_samples, max_candidates, agree_low, agree_high, solve_pool=None):
+        def fake_generate_for_skill(*, client, target, skill, n_target, n_samples, max_candidates, agree_low, agree_high, solve_pool=None, skill_index=None, n_skills=None, other_skill_names=None):
             keeps = [
                 {
                     "skill": skill.name,
