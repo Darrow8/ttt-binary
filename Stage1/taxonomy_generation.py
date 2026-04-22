@@ -57,7 +57,6 @@ MAX_WORKERS_DEFAULT = 16
 class Skill:
     name: str
     description: str
-    example_problem_hint: str
 
 
 # ---------------------------------------------------------------------------
@@ -85,8 +84,7 @@ Respond with JSON only, no prose, exactly this shape:
   "skills": [
     {{
       "name": "Short skill name (3-10 words)",
-      "description": "1-2 sentences explaining what the skill is.",
-      "example_problem_hint": "One sentence sketching what a problem testing this skill looks like."
+      "description": "1-2 sentences explaining what the skill is."
     }}
   ]
 }}
@@ -144,7 +142,7 @@ def decompose_target(
                 raise ValueError("'skills' key missing or not a list")
             if len(skills_list) != n_skills:
                 raise ValueError(f"expected {n_skills} skills, got {len(skills_list)}")
-            _required = ("name", "description", "example_problem_hint")
+            _required = ("name", "description")
             for i, entry in enumerate(skills_list):
                 if not isinstance(entry, dict):
                     raise ValueError(f"skill[{i}] is not an object")
@@ -156,7 +154,6 @@ def decompose_target(
                 Skill(
                     name=entry["name"],
                     description=entry["description"],
-                    example_problem_hint=entry["example_problem_hint"],
                 )
                 for entry in skills_list
             ]
@@ -193,13 +190,23 @@ def save_skills(
 
 
 def load_skills(path: str) -> list[Skill] | None:
-    """Load skills from `path`, or return None if the file doesn't exist or is malformed."""
+    """Load skills from `path`, or return None if the file doesn't exist or is malformed.
+
+    Tolerates extra keys (e.g. legacy `example_problem_hint` from old runs)
+    by extracting only the fields the current Skill dataclass defines.
+    """
     if not os.path.exists(path):
         return None
     try:
         with open(path) as f:
             data = json.load(f)
-        return [Skill(**entry) for entry in data.get("skills", [])]
+        skills = []
+        for entry in data.get("skills", []):
+            skills.append(Skill(
+                name=entry["name"],
+                description=entry["description"],
+            ))
+        return skills
     except (json.JSONDecodeError, KeyError, TypeError):
         return None
 
@@ -271,7 +278,6 @@ do NOT generate a variant of the target):
 Skill to test:
 Name: {skill_name}
 Description: {skill_description}
-Example hint: {skill_hint}
 
 Requirements:
 - The subproblem tests THIS SKILL SPECIFICALLY, in isolation.
@@ -310,7 +316,6 @@ def _generate_one_candidate(client, target: str, skill: Skill, _temperature: flo
         target=target,
         skill_name=skill.name,
         skill_description=skill.description,
-        skill_hint=skill.example_problem_hint,
     )
     resp = client.chat.completions.create(
         model=GENERATOR_MODEL,

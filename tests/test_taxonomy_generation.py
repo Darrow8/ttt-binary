@@ -28,14 +28,29 @@ class TestSkill:
         s = Skill(
             name="Bezout intersection count",
             description="Counting degrees of intersection on projective varieties.",
-            example_problem_hint="Compute the intersection number of two plane curves.",
         )
         assert s.name == "Bezout intersection count"
         assert asdict(s) == {
             "name": "Bezout intersection count",
             "description": "Counting degrees of intersection on projective varieties.",
-            "example_problem_hint": "Compute the intersection number of two plane curves.",
         }
+
+    def test_load_skills_tolerates_legacy_hint_field(self, tmp_path):
+        """Old skills.json files with example_problem_hint must still load."""
+        path = tmp_path / "skills.json"
+        path.write_text(json.dumps({
+            "skills": [
+                {"name": f"S{i}", "description": f"D{i}",
+                 "example_problem_hint": f"H{i} (legacy)"}
+                for i in range(3)
+            ]
+        }))
+        loaded = load_skills(str(path))
+        assert loaded is not None and len(loaded) == 3
+        assert loaded[0].name == "S0"
+        assert loaded[0].description == "D0"
+        # Old hint field is silently dropped.
+        assert not hasattr(loaded[0], "example_problem_hint")
 
 
 def _mock_client_returning(content: str) -> MagicMock:
@@ -51,8 +66,7 @@ def _mock_client_returning(content: str) -> MagicMock:
 _VALID_SKILLS_JSON = json.dumps({
     "skills": [
         {"name": f"Skill {i}",
-         "description": f"Description for skill {i}.",
-         "example_problem_hint": f"Hint for skill {i}."}
+         "description": f"Description for skill {i}."}
         for i in range(10)
     ]
 })
@@ -94,7 +108,7 @@ class TestDecompose:
         assert client.chat.completions.create.call_count == 3
 
     def test_wrong_skill_count_raises(self):
-        bad = json.dumps({"skills": [{"name": "only one", "description": "x", "example_problem_hint": "y"}]})
+        bad = json.dumps({"skills": [{"name": "only one", "description": "x"}]})
         client = _mock_client_returning(bad)
         with pytest.raises(ValueError, match="expected 10 skills"):
             decompose_target(client, "target", max_retries=1)
@@ -103,7 +117,7 @@ class TestDecompose:
 class TestSkillsPersistence:
     def test_round_trip(self, tmp_path):
         skills = [
-            Skill(name=f"S{i}", description=f"D{i}", example_problem_hint=f"H{i}")
+            Skill(name=f"S{i}", description=f"D{i}")
             for i in range(10)
         ]
         path = tmp_path / "skills.json"
@@ -158,7 +172,7 @@ class TestGenerateForSkill:
         monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen_candidate)
         monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
 
-        skill = Skill("s", "d", "h")
+        skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
             client=MagicMock(),
             target="target",
@@ -187,7 +201,7 @@ class TestGenerateForSkill:
         monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen)
         monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
 
-        skill = Skill("s", "d", "h")
+        skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
             client=MagicMock(),
             target="target",
@@ -214,7 +228,7 @@ class TestGenerateForSkill:
         monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen)
         monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
 
-        skill = Skill("s", "d", "h")
+        skill = Skill("s", "d")
         keeps, skips, stats = generate_for_skill(
             client=MagicMock(),
             target="target",
@@ -235,7 +249,7 @@ class TestBuildTaxonomyDataset:
 
         skills_payload = json.dumps({
             "skills": [
-                {"name": f"Skill {i}", "description": f"desc {i}", "example_problem_hint": f"hint {i}"}
+                {"name": f"Skill {i}", "description": f"desc {i}"}
                 for i in range(10)
             ]
         })
@@ -308,7 +322,7 @@ class TestBuildTaxonomyDataset:
         from Stage1 import taxonomy_generation as tg
 
         # Pre-seed skills.json
-        skills = [Skill(f"S{i}", f"d{i}", f"h{i}") for i in range(10)]
+        skills = [Skill(f"S{i}", f"d{i}") for i in range(10)]
         skills_path = tmp_path / "skills.json"
         tg.save_skills(str(skills_path), skills,
                        target_path="data/target-problems/fake.txt",
