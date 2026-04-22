@@ -117,13 +117,33 @@ Quality requirements (apply ALL):
    like "codimension of tangency-to-X" and "degree of the
    tangency-to-X divisor" are also one skill, not two.
 
-6. Difficulty spread, not flat. The skills must span a real range:
+6. No numbers in skill text. Skill names and descriptions must NOT
+   contain specific numerical answers, dimensions, degrees, or
+   counts (e.g. "= 6", "2^5", "dimension 5", "degree 3"). Describe
+   the TECHNIQUE or OBJECT the skill teaches, not the numerical
+   output. The subproblem-generation step instantiates concrete
+   numbers; the skill itself must be the transferable method.
+     Bad:  "Degree of the line-tangency divisor (= 2)"
+     Good: "Computing the divisor class of a tangency-to-fixed-
+            curve condition via contact-order analysis"
+     Bad:  "Naive Bezout count 6^5 for five tangency conditions"
+     Good: "Naive intersection number of repeated tangency
+            divisors via Bezout, prior to excess-intersection
+            correction"
+
+7. No arithmetic-only skills. A skill whose only content is
+   mechanical arithmetic on a quantity produced by another skill
+   ("compute floor(100 * L)", "subtract the correction from the
+   naive count") is not a skill -- it's a postprocessing step.
+   Exclude it; reuse the slot for a real reasoning component.
+
+8. Difficulty spread, not flat. The skills must span a real range:
    skill 1 should be doable by a strong undergraduate in the relevant
    field; skill {n_skills} should be doable only by someone close to
    mastering the target. If skills in the middle all feel like the
    same difficulty, the decomposition is too flat.
 
-7. Numerical answerability. Each skill's natural subproblem must admit
+9. Numerical answerability. Each skill's natural subproblem must admit
    a single-number answer. Exclude skills that are about formulating,
    proving, classifying, or constructing -- those do not fit the
    pipeline.
@@ -142,12 +162,18 @@ Self-audit before output:
     different parameter values (n=2 vs n=3) or paired facts about
     the same object? Collapse them into one, fill the slot with
     a different skill.
-(f) Difficulty spread: is there real progression from skill 1 to
-    skill {n_skills} in terms of REASONING, not just parameter size?
-    If not, widen it.
-(g) Numerical answerability: does every skill admit a numeric
+(f) No numbers in skill text: does any skill name or description
+    contain a specific numerical answer / dimension / degree?
+    If yes, rewrite to describe the technique, not the value.
+(g) No arithmetic-only skills: is any skill merely postprocessing
+    (e.g. "compute floor of...", "subtract correction from...")?
+    If yes, drop it and pick a real reasoning component.
+(h) Difficulty spread: is there real progression from skill 1 to
+    skill {n_skills} in terms of REASONING, not just parameter
+    size? If not, widen it.
+(i) Numerical answerability: does every skill admit a numeric
     subproblem? If not, drop it.
-Revise internally until all seven pass, then output the JSON.
+Revise internally until all nine pass, then output the JSON.
 
 Respond with JSON only, no prose, exactly this shape:
 {{
@@ -162,6 +188,57 @@ Respond with JSON only, no prose, exactly this shape:
 There must be exactly {n_skills} entries in the skills array, ordered
 by difficulty (easiest first, hardest last).
 """
+
+
+def _robust_completion(client, prompt: str, *, temperature: float = TEMPERATURE,
+                       max_retries: int = 8) -> str:
+    """Call client.chat.completions.create and return the content string.
+
+    Guards against two Vertex-MaaS quirks that the lower-level
+    distinct_llm_prompting.call_llm also handles (but with a 180s
+    timeout baked in, which we don't want here):
+      1. Occasional raw-string responses (returns a `str` instead of
+         a ChatCompletion object).
+      2. Empty `choices` or empty `content`.
+    Retries with exponential backoff up to `max_retries` attempts.
+    No max_tokens. No timeout.
+    Returns "" if all retries fail (matching call_llm's failure mode).
+    """
+    import random
+
+    last_err: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            resp = client.chat.completions.create(
+                model=GENERATOR_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+            )
+            if isinstance(resp, str):
+                raise ValueError(f"vertex returned raw string: {resp[:200]!r}")
+            if not getattr(resp, "choices", None):
+                raise ValueError("response has no choices")
+            content = resp.choices[0].message.content or ""
+            if not content:
+                raise ValueError("empty response content")
+            return content
+        except Exception as e:
+            last_err = e
+            # Jittered exponential backoff: 1s, 2s, 4s, ..., capped at 60s
+            delay = min(2 ** attempt, 60) + random.uniform(0, 1)
+            print(
+                f"  [warn] LLM call attempt {attempt + 1}/{max_retries} "
+                f"failed ({type(e).__name__}: {str(e)[:120]}); retrying in "
+                f"{delay:.1f}s",
+                flush=True,
+            )
+            time.sleep(delay)
+
+    print(
+        f"  [warn] LLM call failed after {max_retries} attempts: {last_err}",
+        flush=True,
+    )
+    return ""
 
 
 def _extract_json_block(text: str) -> str:
@@ -199,12 +276,10 @@ def decompose_target(
 
     last_err: Exception | None = None
     for attempt in range(max_retries):
-        resp = client.chat.completions.create(
-            model=GENERATOR_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=TEMPERATURE,
-        )
-        raw = (resp.choices[0].message.content or "").strip()
+        raw = _robust_completion(client, prompt).strip()
+        if not raw:
+            last_err = ValueError("decompose got empty completion after retries")
+            continue
         try:
             block = _extract_json_block(raw)
             parsed = json.loads(block)
@@ -432,12 +507,7 @@ def _generate_one_candidate(
         skill_description=skill.description,
         other_skill_names_bulleted=other_bulleted,
     )
-    resp = client.chat.completions.create(
-        model=GENERATOR_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=_temperature,
-    )
-    raw = (resp.choices[0].message.content or "")
+    raw = _robust_completion(client, prompt, temperature=_temperature)
     return _parse_problem(raw)
 
 
