@@ -1,20 +1,22 @@
 """
-TTT-Discover + Verify: subproblem generation with reasoning-trace verification.
+TTT-Discover + Verify + Judge: subproblem generation with LLM judge pre-filter
+and reasoning-trace verification.
 
-Drop-in replacement for distinct_llm_prompting.py that adds a verification
-gate after majority-vote labelling.  For each candidate that passes the
-agreement window, a reasoning trace from the majority answer is audited by
-gpt-oss-120b.  Only candidates whose reasoning is confirmed correct are kept,
-reducing bad ground-truth labels from correlated model errors.
+Extends verified_subproblem_gen.py with an early LLM judge gate that screens
+each candidate *before* the expensive solve step. The judge rejects candidates
+that are:
+  - Multi-part (asks the student to find A *then* B *then* C)
+  - Built on a false premise (contradictory or impossible setup)
+  - Intentionally confusing / trick questions
 
 Pipeline per candidate:
   1. Generate candidate subproblem  (same as Stage 1)
+  1b. **NEW** — LLM judge screens the problem statement for multi-part,
+      false-premise, or intentionally-confusing qualities.  Rejected candidates
+      are logged and skipped before any solve work.
   2. Sample N solutions, compute majority vote  (same as Stage 1)
   3. Filter by agreement window + numeric answer  (same as Stage 1)
-  4. **NEW** — Pick up to VERIFY_N_TRACES distinct majority-answer traces and
-     run two complementary audits on each: an approve pass and an adversarial
-     find-a-flaw pass.  Require >= VERIFY_ACCEPT_THRESHOLD approve votes across
-     all trace audits AND zero unanimous flaw findings to keep.
+  4. Verify reasoning traces  (same as verified_subproblem_gen)
   5. (Optional) Quality-score filter  (same as Stage 1)
 
 All heavy lifting (client setup, LLM calls, answer extraction, dedupe) is
@@ -59,6 +61,118 @@ VERIFY_ACCEPT_THRESHOLD = 4  # require 4/5 unanimous-ish agreement
 
 # How many distinct majority-answer traces to sample and audit.
 VERIFY_N_TRACES = 3
+
+# ---------------------------------------------------------------------------
+# LLM Judge: pre-filter for multi-part / false-premise / confusing problems
+# ---------------------------------------------------------------------------
+
+JUDGE_TRIES = 3  # majority vote across this many judge calls
+JUDGE_TEMPERATURE = 0.3
+
+JUDGE_PROMPT = """\
+You are a math-problem quality judge. You will be given a math problem \
+statement and must decide whether it should be REJECTED.
+
+Reject the problem if ANY of the following are true:
+1. **Multi-part**: The problem asks for more than one distinct quantity (e.g. \
+"find A, then find B, then find C" or "determine X and Y"). A single problem \
+that naturally requires intermediate steps is fine — reject only when the \
+problem explicitly requests multiple separate final answers.
+2. **False premise**: The problem contains contradictory, impossible, or \
+physically/mathematically nonsensical assumptions that make it unsolvable as \
+stated (e.g. a triangle with sides 1, 2, 10).
+3. **Intentionally confusing**: The problem uses deliberately misleading \
+wording, trick phrasing, or ambiguous notation designed to confuse rather \
+than test genuine mathematical skill.
+
+A well-posed, single-answer problem — even if hard — should be ACCEPTED.
+
+## Problem
+
+{problem}
+
+## Your Response
+
+Return **only** a JSON object — no other text, no markdown fences:
+{{
+  "verdict": "accept" | "reject",
+  "reason_code": "ok" | "multi_part" | "false_premise" | "confusing",
+  "explanation": "<1-2 sentence justification>"
+}}
+"""
+
+
+def _parse_judge_verdict(raw: str) -> tuple[str, str, str]:
+    """Parse a judge response.
+
+    Returns (verdict, reason_code, explanation).
+    verdict is 'accept' | 'reject' | 'parse_error'.
+    """
+    blob = _extract_outermost_json(raw or "")
+    if not blob:
+        return "parse_error", "", (raw or "")[:200]
+    try:
+        obj = json.loads(blob)
+    except json.JSONDecodeError:
+        return "parse_error", "", (raw or "")[:200]
+    v = str(obj.get("verdict", "")).strip().lower()
+    if v not in ("accept", "reject"):
+        return "parse_error", "", (raw or "")[:200]
+    reason_code = str(obj.get("reason_code", "")).strip().lower()
+    explanation = str(obj.get("explanation") or "")[:300]
+    return v, reason_code, explanation
+
+
+def judge_problem(
+    client,
+    model: str,
+    problem_text: str,
+) -> tuple[bool, dict]:
+    """Run the LLM judge on a problem statement.
+
+    Returns (accepted, details) where accepted=True means the problem
+    passed the judge (is NOT multi-part, false-premise, or confusing).
+    """
+    prompt = JUDGE_PROMPT.format(problem=problem_text)
+    votes: list[dict] = []
+    n_accept = 0
+    n_reject = 0
+
+    for attempt in range(JUDGE_TRIES):
+        raw = None
+        parsed = ("parse_error", "", "")
+        for _try in range(2):
+            raw = s1.call_llm(client, model, prompt, temperature=JUDGE_TEMPERATURE)
+            parsed = _parse_judge_verdict(raw)
+            if parsed[0] != "parse_error":
+                break
+        verdict, reason_code, explanation = parsed
+        if verdict == "accept":
+            n_accept += 1
+        else:
+            n_reject += 1
+        votes.append({
+            "attempt": attempt,
+            "verdict": verdict,
+            "reason_code": reason_code,
+            "explanation": explanation,
+        })
+
+    accepted = n_accept > n_reject
+    majority_reasons = [v["reason_code"] for v in votes if v["verdict"] == ("accept" if accepted else "reject")]
+    details = {
+        "accepted": accepted,
+        "n_accept": n_accept,
+        "n_reject": n_reject,
+        "majority_reason": majority_reasons[0] if majority_reasons else "",
+        "votes": votes,
+    }
+    return accepted, details
+
+
+# ---------------------------------------------------------------------------
+# Verification prompts & logic (same as verified_subproblem_gen)
+# ---------------------------------------------------------------------------
 
 # Approve-pass: model must cite concrete trace evidence, not re-solve.
 VERIFY_PROMPT_APPROVE = """\
@@ -377,6 +491,7 @@ def build_verified_dataset(
     quality_threshold: int | None = None,
     use_dedupe: bool = True,
     verify_model: str | None = None,
+    judge_model: str | None = None,
     problems_per_call: int = 2,
 ) -> Dataset:
     """Generate subproblems with integrated reasoning-trace verification.
@@ -385,10 +500,14 @@ def build_verified_dataset(
     agreement + numeric filters is also verified: a majority-answer trace is
     audited by the verifier model (default: same as gen model).  Only
     candidates confirmed correct are kept.
+
+    Additionally, an LLM judge pre-screens each candidate before solving to
+    reject multi-part, false-premise, or intentionally-confusing problems.
     """
     s_client = solve_client or client
     s_model = solve_model or model
     v_model = verify_model or model
+    j_model = judge_model or model
 
     dataset = Dataset(
         source_problem=hard_problem,
@@ -398,6 +517,7 @@ def build_verified_dataset(
 
     skipped_problems: list[GeneratedProblem] = []
     verify_log: list[dict] = []
+    judge_log: list[dict] = []
     dedupe = DedupeIndex() if use_dedupe else None
     seen_problems: set[str] = set()
 
@@ -429,9 +549,11 @@ def build_verified_dataset(
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
         verify_log_path = os.path.join(os.path.dirname(output_path), "verify_log.json")
+        judge_log_path = os.path.join(os.path.dirname(output_path), "judge_log.json")
     else:
         skips_path = None
         verify_log_path = None
+        judge_log_path = None
 
     def _flush() -> None:
         if not output_path:
@@ -466,12 +588,20 @@ def build_verified_dataset(
                 "records": list(verify_log),
             },
         )
+        s1._save_atomic(
+            judge_log_path,
+            {
+                "judge_model": j_model,
+                "judge_tries": JUDGE_TRIES,
+                "records": list(judge_log),
+            },
+        )
 
     gen_label = model
     solve_label = s_model if solve_client else "(same)"
 
     print(f"\n{'=' * 70}")
-    print(f"  TTT-Discover+Verify: Building verified dataset from hard problem")
+    print(f"  TTT-Discover+Verify+Judge: Building verified+judged dataset from hard problem")
     print(
         f"  Target: {n_target} problems with "
         f"{target_agreement_low:.0%}-{target_agreement_high:.0%} agreement"
@@ -482,6 +612,7 @@ def build_verified_dataset(
     print(f"  Generate model: {gen_label}")
     print(f"  Solve model:    {solve_label}")
     print(f"  Verify model:   {v_model}  ({VERIFY_N_TRACES} traces × {VERIFY_TRIES} votes, threshold {VERIFY_ACCEPT_THRESHOLD})")
+    print(f"  Judge model:    {j_model}  ({JUDGE_TRIES} votes, majority rule)")
     print(f"  Max parallel solve workers: {max_workers}")
     print(f"  Gen pipeline workers:       {gen_workers}")
     if quality_threshold is not None:
@@ -490,6 +621,7 @@ def build_verified_dataset(
         print(f"  Keeps file:  {output_path}")
         print(f"  Skips file:  {skips_path}")
         print(f"  Verify log:  {verify_log_path}")
+        print(f"  Judge log:   {judge_log_path}")
     print(f"{'=' * 70}\n")
 
     seen_lock = threading.Lock()
@@ -532,6 +664,40 @@ def build_verified_dataset(
                         results.append({"kind": "duplicate", "candidate_num": sub_label, "gen_time": gen_time})
                         continue
                     seen_problems.add(problem_text)
+
+            # ── Step 1b: LLM Judge pre-filter ────────────────────────────
+            t_judge = time.time()
+            judge_accepted, judge_details = judge_problem(
+                client, j_model, problem_text,
+            )
+            judge_time = time.time() - t_judge
+
+            if not judge_accepted:
+                reason_code = judge_details.get("majority_reason", "unknown")
+                explanation = ""
+                for v in judge_details.get("votes", []):
+                    if v["verdict"] == "reject" and v.get("explanation"):
+                        explanation = v["explanation"]
+                        break
+                entry = GeneratedProblem(
+                    problem=problem_text,
+                    ground_truth_answer="",
+                    agreement_rate=0.0,
+                    all_answers=[],
+                    all_solutions=[],
+                    n_samples=0,
+                )
+                results.append({
+                    "kind": "judge_rejected",
+                    "candidate_num": sub_label,
+                    "gen_time": gen_time,
+                    "judge_time": judge_time,
+                    "reason_code": reason_code,
+                    "explanation": explanation,
+                    "judge_details": judge_details,
+                    "entry": entry,
+                })
+                continue
 
             # ── Step 2: Solve N times + majority vote ────────────────────
             t1 = time.time()
@@ -654,6 +820,28 @@ def build_verified_dataset(
                         )
                     elif kind == "duplicate":
                         print(f"--- Candidate {cn} ---  duplicate, continuing")
+                    elif kind == "judge_rejected":
+                        entry = result["entry"]
+                        rc = result["reason_code"]
+                        expl = result.get("explanation", "")[:80]
+                        with state_lock:
+                            skipped_problems.append(entry)
+                            judge_log.append({
+                                "candidate_num": cn,
+                                "problem_snippet": entry.problem[:160],
+                                "accepted": False,
+                                "reason_code": rc,
+                                "explanation": expl,
+                                "details": result["judge_details"],
+                            })
+                            skipped_count = len(skipped_problems)
+                            _flush()
+                        print(
+                            f"--- Candidate {cn} ---  gen {result['gen_time']:.1f}s + "
+                            f"judge {result['judge_time']:.1f}s  "
+                            f"skip (judge: {rc}) {expl}"
+                        )
+                        print(f"    totals: {len(dataset.problems)} kept, {skipped_count} skipped")
                     elif kind == "evaluated":
                         entry = result["entry"]
                         with state_lock:
@@ -699,6 +887,8 @@ def build_verified_dataset(
     n_verified = sum(1 for r in verify_log if r.get("accepted"))
     n_rejected = sum(1 for r in verify_log if not r.get("accepted"))
     n_adv_vetoed = sum(1 for r in verify_log if r.get("adv_veto_triggered"))
+    n_judge_rejected = sum(1 for r in judge_log if not r.get("accepted"))
+    judge_reasons = Counter(r.get("reason_code", "unknown") for r in judge_log if not r.get("accepted"))
     print(f"{'=' * 70}")
     print(f"  Dataset complete: {len(dataset.problems)} kept, {len(skipped_problems)} skipped")
     avg_agreement = (
@@ -706,6 +896,12 @@ def build_verified_dataset(
         if dataset.problems else 0
     )
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
+    print(f"  Judge: {n_judge_rejected} rejected pre-solve", end="")
+    if judge_reasons:
+        breakdown = ", ".join(f"{k}={v}" for k, v in judge_reasons.most_common())
+        print(f" ({breakdown})")
+    else:
+        print()
     print(f"  Verify: {n_verified} confirmed, {n_rejected} rejected ({n_adv_vetoed} adversarial-vetoed)")
     if dedupe is not None:
         kept_this_run = dedupe.n_kept - dedupe_baseline_kept
@@ -742,6 +938,7 @@ def run(
     quality_threshold: int | None = None,
     use_dedupe: bool = True,
     verify_model: str | None = None,
+    judge_model: str | None = None,
     problems_per_call: int = 2,
 ) -> Dataset:
     if use_tinker:
@@ -782,6 +979,7 @@ def run(
         quality_threshold=quality_threshold,
         use_dedupe=use_dedupe,
         verify_model=verify_model or gen_model,
+        judge_model=judge_model or gen_model,
         problems_per_call=problems_per_call,
     )
 
@@ -796,7 +994,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="TTT-Discover+Verify: generate subproblems with reasoning verification"
+        description="TTT-Discover+Verify+Judge: generate subproblems with quality judge and reasoning verification"
     )
     parser.add_argument(
         "--problem-path", type=str, required=True,
@@ -827,6 +1025,11 @@ def main():
                         help=(
                             "Model for reasoning verification (default: same as --model). "
                             "Uses gpt-oss-120b by default."
+                        ))
+    parser.add_argument("--judge-model", type=str, default=None,
+                        help=(
+                            "Model for the problem-quality judge (default: same as --model). "
+                            "Screens out multi-part, false-premise, and confusing problems."
                         ))
     parser.add_argument("--quality-threshold", type=int, default=None,
                         help="Inline 0-10 quality judge; only keep scoring >= this (e.g. 9)")
@@ -895,6 +1098,7 @@ def main():
         max_workers=args.max_workers,
         use_dedupe=not args.no_dedupe,
         verify_model=args.verify_model,
+        judge_model=args.judge_model,
         problems_per_call=args.problems_per_call,
     )
 
