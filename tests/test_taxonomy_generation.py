@@ -227,3 +227,119 @@ class TestGenerateForSkill:
         )
         assert len(keeps) == 0
         assert stats["status"] == "capped"
+
+
+class TestBuildTaxonomyDataset:
+    def test_end_to_end_writes_expected_files(self, tmp_path, monkeypatch):
+        from Stage1 import taxonomy_generation as tg
+
+        skills_payload = json.dumps({
+            "skills": [
+                {"name": f"Skill {i}", "description": f"desc {i}", "example_problem_hint": f"hint {i}"}
+                for i in range(10)
+            ]
+        })
+
+        def fake_decompose(client, target, *, n_skills=10, max_retries=3):
+            data = json.loads(skills_payload)
+            return [Skill(**e) for e in data["skills"]]
+
+        def fake_generate_for_skill(*, client, target, skill, n_target, n_samples, max_candidates, agree_low, agree_high):
+            keeps = [
+                {
+                    "skill": skill.name,
+                    "problem": f"Problem {i} for {skill.name}. \\boxed{{}}",
+                    "ground_truth_answer": str(i),
+                    "agreement_rate": 0.70,
+                    "all_answers": [str(i)] * n_samples,
+                    "all_solutions": [f"reasoning {i}"] * n_samples,
+                    "n_samples": n_samples,
+                }
+                for i in range(n_target)
+            ]
+            stats = {
+                "name": skill.name,
+                "n_target": n_target,
+                "n_passed": len(keeps),
+                "n_attempted": n_target,
+                "status": "ok",
+            }
+            return keeps, [], stats
+
+        monkeypatch.setattr(tg, "decompose_target", fake_decompose)
+        monkeypatch.setattr(tg, "generate_for_skill", fake_generate_for_skill)
+        monkeypatch.setattr(tg, "get_client", lambda: (MagicMock(), GENERATOR_MODEL))
+
+        out_dir = tmp_path / "run1"
+        skills_path = tmp_path / "skills.json"
+
+        tg.build_taxonomy_dataset(
+            target_text="TARGET PROBLEM BODY",
+            target_path="data/target-problems/fake.txt",
+            out_dir=str(out_dir),
+            skills_path=str(skills_path),
+            n_skills=10,
+            problems_per_skill=3,
+            max_candidates_per_skill=20,
+            n_samples=5,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+
+        # Files exist
+        assert (out_dir / "keeps.json").exists()
+        assert (out_dir / "skips.json").exists()
+        assert (out_dir / "per_skill_stats.json").exists()
+        assert skills_path.exists()
+
+        keeps = json.load(open(out_dir / "keeps.json"))
+        assert keeps["n_problems"] == 30
+        assert keeps["generator_model"] == GENERATOR_MODEL
+        assert keeps["solve_model"] == GENERATOR_MODEL
+        assert all("skill" in p for p in keeps["problems"])
+
+        stats = json.load(open(out_dir / "per_skill_stats.json"))
+        assert stats["total_passed"] == 30
+        assert stats["total_target"] == 30
+        assert len(stats["skills"]) == 10
+
+    def test_reuses_cached_skills(self, tmp_path, monkeypatch):
+        """If skills.json exists, decompose_target is NOT called."""
+        from Stage1 import taxonomy_generation as tg
+
+        # Pre-seed skills.json
+        skills = [Skill(f"S{i}", f"d{i}", f"h{i}") for i in range(10)]
+        skills_path = tmp_path / "skills.json"
+        tg.save_skills(str(skills_path), skills,
+                       target_path="data/target-problems/fake.txt",
+                       target_hash=tg.target_text_hash("TARGET"),
+                       model=GENERATOR_MODEL)
+
+        decompose_was_called = {"flag": False}
+
+        def fake_decompose(*a, **kw):
+            decompose_was_called["flag"] = True
+            raise AssertionError("should not have been called")
+
+        def fake_generate_for_skill(*, skill, n_target, **_kw):
+            return ([], [], {"name": skill.name, "n_target": n_target,
+                             "n_passed": 0, "n_attempted": 0, "status": "capped"})
+
+        monkeypatch.setattr(tg, "decompose_target", fake_decompose)
+        monkeypatch.setattr(tg, "generate_for_skill", fake_generate_for_skill)
+        monkeypatch.setattr(tg, "get_client", lambda: (MagicMock(), GENERATOR_MODEL))
+
+        tg.build_taxonomy_dataset(
+            target_text="TARGET",
+            target_path="data/target-problems/fake.txt",
+            out_dir=str(tmp_path / "run1"),
+            skills_path=str(skills_path),
+            n_skills=10,
+            problems_per_skill=1,
+            max_candidates_per_skill=1,
+            n_samples=1,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+
+        assert decompose_was_called["flag"] is False

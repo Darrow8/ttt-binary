@@ -389,3 +389,201 @@ def generate_for_skill(
         "status": status,
     }
     return keeps, skips, stats
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+# Lazy-imported from distinct_llm_prompting (same rationale as solve_and_check_agreement).
+get_client = None  # type: ignore[assignment]
+load_problem_from_txt = None  # type: ignore[assignment]
+
+
+def _lazy_import_distinct_helpers():
+    global get_client, load_problem_from_txt
+    if get_client is None:
+        from Stage1.distinct_llm_prompting import get_client as _gc  # noqa: E402
+        get_client = _gc
+    if load_problem_from_txt is None:
+        from Stage1.distinct_llm_prompting import load_problem_from_txt as _lpft  # noqa: E402
+        load_problem_from_txt = _lpft
+
+
+def build_taxonomy_dataset(
+    *,
+    target_text: str,
+    target_path: str,
+    out_dir: str,
+    skills_path: str,
+    n_skills: int,
+    problems_per_skill: int,
+    max_candidates_per_skill: int,
+    n_samples: int,
+    agree_low: float,
+    agree_high: float,
+) -> None:
+    """Orchestrate Phase 1 + Phase 2. Write keeps/skips/stats to out_dir."""
+    os.makedirs(out_dir, exist_ok=True)
+    client, _ = get_client()
+
+    # Phase 1 — decomposition (cached on disk).
+    skills = load_skills(skills_path)
+    if skills is None or len(skills) != n_skills:
+        print(f"=== Taxonomy decomposition ===")
+        print(f"Model:   {GENERATOR_MODEL}")
+        print(f"Target:  {target_path} ({len(target_text)} chars)")
+        print(f"Decomposing into {n_skills} skills...")
+        skills = decompose_target(client, target_text, n_skills=n_skills)
+        save_skills(
+            skills_path, skills,
+            target_path=target_path,
+            target_hash=target_text_hash(target_text),
+            model=GENERATOR_MODEL,
+        )
+        print(f"  {len(skills)} skills written to {skills_path}")
+    else:
+        print(f"Reusing cached skills from {skills_path}")
+
+    # Phase 2 — per-skill generate-until.
+    all_keeps: list[dict] = []
+    all_skips: list[dict] = []
+    all_stats: list[dict] = []
+
+    print(f"\n=== Per-skill generation ===")
+    for i, skill in enumerate(skills, start=1):
+        print(f"\n[{i}/{len(skills)}] {skill.name}")
+        keeps, skips, stats = generate_for_skill(
+            client=client,
+            target=target_text,
+            skill=skill,
+            n_target=problems_per_skill,
+            n_samples=n_samples,
+            max_candidates=max_candidates_per_skill,
+            agree_low=agree_low,
+            agree_high=agree_high,
+        )
+        all_keeps.extend(keeps)
+        all_skips.extend(skips)
+        all_stats.append(stats)
+        print(f"  done: {stats['n_passed']}/{stats['n_target']} passed "
+              f"after {stats['n_attempted']} attempts ({stats['status']})")
+
+        # Persist incrementally after each skill so a crash doesn't lose progress.
+        _write_outputs(out_dir, target_text, agree_low, agree_high,
+                       all_keeps, all_skips, all_stats,
+                       problems_per_skill * n_skills)
+
+    total_passed = sum(s["n_passed"] for s in all_stats)
+    total_attempted = sum(s["n_attempted"] for s in all_stats)
+    ok_count = sum(1 for s in all_stats if s["status"] == "ok")
+    target_total = problems_per_skill * n_skills
+    print(f"\n{'=' * 70}")
+    print(f"  Taxonomy dataset complete: {total_passed}/{target_total}")
+    print(f"  Skills ok: {ok_count}/{len(all_stats)}")
+    print(f"  Total attempted: {total_attempted}")
+    print(f"{'=' * 70}")
+
+
+def _write_outputs(
+    out_dir: str,
+    target_text: str,
+    agree_low: float,
+    agree_high: float,
+    keeps: list[dict],
+    skips: list[dict],
+    stats: list[dict],
+    target_total: int,
+) -> None:
+    keeps_payload = {
+        "source_problem": target_text,
+        "target_agreement_low": agree_low,
+        "target_agreement_high": agree_high,
+        "n_problems": len(keeps),
+        "generator_model": GENERATOR_MODEL,
+        "solve_model": GENERATOR_MODEL,
+        "problems": keeps,
+    }
+    skips_payload = {
+        "source_problem": target_text,
+        "target_agreement_low": agree_low,
+        "target_agreement_high": agree_high,
+        "n_problems": len(skips),
+        "problems": skips,
+    }
+    stats_payload = {
+        "skills": stats,
+        "total_passed": sum(s["n_passed"] for s in stats),
+        "total_attempted": sum(s["n_attempted"] for s in stats),
+        "total_target": target_total,
+    }
+    _save_json_atomic(os.path.join(out_dir, "keeps.json"), keeps_payload)
+    _save_json_atomic(os.path.join(out_dir, "skips.json"), skips_payload)
+    _save_json_atomic(os.path.join(out_dir, "per_skill_stats.json"), stats_payload)
+
+
+def _save_json_atomic(path: str, data: dict) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
+def main():
+    _lazy_import_distinct_helpers()
+
+    parser = argparse.ArgumentParser(
+        description="Taxonomy-first subproblem generation (Stage 1 variant)."
+    )
+    parser.add_argument("--problem-path", type=str, required=True,
+                        help="Path to .txt target problem.")
+    parser.add_argument("--runs-subdir", type=str, default=None,
+                        help="Run id (default: problem stem).")
+    parser.add_argument("--n-skills", type=int, default=N_SKILLS_DEFAULT)
+    parser.add_argument("--problems-per-skill", type=int, default=PROBLEMS_PER_SKILL_DEFAULT)
+    parser.add_argument("--max-candidates-per-skill", type=int, default=MAX_CANDIDATES_PER_SKILL_DEFAULT)
+    parser.add_argument("--n-samples", type=int, default=N_SAMPLES_DEFAULT)
+    parser.add_argument("--agree-low", type=float, default=AGREE_LOW_DEFAULT)
+    parser.add_argument("--agree-high", type=float, default=AGREE_HIGH_DEFAULT)
+    parser.add_argument("--gen-workers", type=int, default=GEN_WORKERS_DEFAULT,
+                        help="(reserved for v2; skills run sequentially in v1)")
+    parser.add_argument("--max-workers", type=int, default=MAX_WORKERS_DEFAULT)
+    parser.add_argument("--output", type=str, default=None,
+                        help="Override run-directory path.")
+    parser.add_argument("--failed-solutions", type=str, default=None,
+                        help="Accepted for CLI symmetry; unused in v1.")
+    args = parser.parse_args()
+
+    target_text = load_problem_from_txt(args.problem_path)
+    problem_stem = os.path.splitext(os.path.basename(os.path.abspath(args.problem_path)))[0]
+    runs_subdir = (args.runs_subdir or "").strip() or problem_stem
+
+    repo_root = str(_REPO_ROOT)
+    runs_root = os.path.join(repo_root, "runs", runs_subdir)
+    skills_path = os.path.join(runs_root, "skills.json")
+
+    if args.output:
+        out_dir = args.output
+    else:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
+        out_dir = os.path.join(runs_root, "stage1_taxonomy", ts)
+
+    print(f"Loaded problem from {args.problem_path} "
+          f"(runs/{runs_subdir}/, {len(target_text)} chars)\n")
+
+    build_taxonomy_dataset(
+        target_text=target_text,
+        target_path=args.problem_path,
+        out_dir=out_dir,
+        skills_path=skills_path,
+        n_skills=args.n_skills,
+        problems_per_skill=args.problems_per_skill,
+        max_candidates_per_skill=args.max_candidates_per_skill,
+        n_samples=args.n_samples,
+        agree_low=args.agree_low,
+        agree_high=args.agree_high,
+    )
+
+
+if __name__ == "__main__":
+    main()
