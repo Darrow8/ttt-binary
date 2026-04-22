@@ -359,6 +359,11 @@ def generate_for_skill(
                 "problem": "",
                 "reason": "generator_no_tags_or_empty",
             })
+            print(
+                f"  attempt {attempted}: skip (no_tags)  "
+                f"[kept {len(keeps)}/{n_target}]",
+                flush=True,
+            )
             continue
 
         agreement, majority_ans, all_answers, all_solutions = _get_solve_fn()(
@@ -381,6 +386,12 @@ def generate_for_skill(
         }
         if kept:
             keeps.append(record)
+            print(
+                f"  attempt {attempted}: KEEP  agreement={agreement:.2f} "
+                f"answer={str(majority_ans)[:30]!r}  "
+                f"[kept {len(keeps)}/{n_target}]",
+                flush=True,
+            )
         else:
             if not majority_ans:
                 reason = "empty_answer"
@@ -391,6 +402,12 @@ def generate_for_skill(
             else:
                 reason = "too_easy"
             skips.append({**record, "reason": reason})
+            print(
+                f"  attempt {attempted}: skip ({reason})  agreement={agreement:.2f} "
+                f"answer={str(majority_ans)[:30]!r}  "
+                f"[kept {len(keeps)}/{n_target}]",
+                flush=True,
+            )
 
     status = "ok" if len(keeps) >= n_target else "capped"
     stats = {
