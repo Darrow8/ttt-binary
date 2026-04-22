@@ -122,24 +122,11 @@ def cmd_stage1(args):
     ids = _resolve_ids(args.ids)
     cmds = []
     for pid in ids:
-<<<<<<< Updated upstream
         problem_path = _stage1_problem_txt(pid)
-        cmds.append((
-            f"stage1:{pid}",
-            [
-                sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
-                "--problem-path", str(problem_path),
-                "--runs-subdir", pid,
-                "--n-problems", str(args.n_problems),
-                "--n-samples", str(args.n_samples),
-                "--gen-workers", str(args.gen_workers),
-                "--max-workers", str(args.max_workers),
-            ],
-        ))
-=======
         cmd = [
             sys.executable, str(REPO_ROOT / "Stage1" / "distinct_llm_prompting.py"),
-            "--id", pid,
+            "--problem-path", str(problem_path),
+            "--runs-subdir", pid,
             "--n-problems", str(args.n_problems),
             "--n-samples", str(args.n_samples),
             "--gen-workers", str(args.gen_workers),
@@ -148,7 +135,28 @@ def cmd_stage1(args):
         if args.quality_threshold is not None:
             cmd += ["--quality-threshold", str(args.quality_threshold)]
         cmds.append((f"stage1:{pid}", cmd))
->>>>>>> Stashed changes
+    return _fan_out(cmds, args.workers)
+
+
+def cmd_stage1_verified(args):
+    ids = _resolve_ids(args.ids)
+    cmds = []
+    for pid in ids:
+        problem_path = _stage1_problem_txt(pid)
+        cmd = [
+            sys.executable, str(REPO_ROOT / "Stage1" / "verified_subproblem_gen.py"),
+            "--problem-path", str(problem_path),
+            "--runs-subdir", pid,
+            "--n-problems", str(args.n_problems),
+            "--n-samples", str(args.n_samples),
+            "--gen-workers", str(args.gen_workers),
+            "--max-workers", str(args.max_workers),
+        ]
+        if args.quality_threshold is not None:
+            cmd += ["--quality-threshold", str(args.quality_threshold)]
+        if args.verify_model:
+            cmd += ["--verify-model", args.verify_model]
+        cmds.append((f"stage1-verified:{pid}", cmd))
     return _fan_out(cmds, args.workers)
 
 
@@ -469,6 +477,20 @@ def build_parser() -> argparse.ArgumentParser:
     s1.add_argument("--quality-threshold", type=int, default=None,
                     help="Inline 0-10 quality judge; only keeps scoring >= this (e.g. 9)")
     s1.set_defaults(func=cmd_stage1)
+
+    s1v = sub.add_parser("stage1-verified",
+                         help="Generate subproblems with reasoning-trace verification")
+    add_ids(s1v)
+    s1v.add_argument("--n-problems", type=int, default=20)
+    s1v.add_argument("--n-samples", type=int, default=10)
+    s1v.add_argument("--gen-workers", type=int, default=8,
+                     help="Concurrent gen+eval+verify candidates within one id")
+    s1v.add_argument("--max-workers", type=int, default=16)
+    s1v.add_argument("--quality-threshold", type=int, default=None,
+                     help="Inline 0-10 quality judge; only keeps scoring >= this (e.g. 9)")
+    s1v.add_argument("--verify-model", type=str, default=None,
+                     help="Model for reasoning verification (default: same as generation model)")
+    s1v.set_defaults(func=cmd_stage1_verified)
 
     s2 = sub.add_parser("stage2", help="Aggregate Stage 1 keeps")
     add_ids(s2)

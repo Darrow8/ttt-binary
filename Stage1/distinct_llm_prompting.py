@@ -264,7 +264,6 @@ def call_llm(
     model: str,
     prompt: str,
     temperature: float = 0.7,
-    timeout: float = 180.0,
 ) -> str:
     @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
     def _call():
@@ -272,7 +271,6 @@ def call_llm(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
-            timeout=timeout,
         )
         if isinstance(response, str):
             raise ValueError(f"vertex returned raw string: {response[:300]!r}")
