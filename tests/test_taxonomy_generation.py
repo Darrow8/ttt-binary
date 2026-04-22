@@ -116,3 +116,114 @@ class TestSkillsPersistence:
 
     def test_load_missing_returns_none(self, tmp_path):
         assert load_skills(str(tmp_path / "nope.json")) is None
+
+
+from Stage1.taxonomy_generation import (
+    GENERATE_PROMPT,
+    _parse_problem,
+    generate_for_skill,
+)
+
+from Stage1.taxonomy_generation import TEMPERATURE
+
+
+class TestParseProblem:
+    def test_extracts_between_tags(self):
+        raw = "<problem>\nFind the value of \\(x\\). Put your final answer inside \\boxed{}.\n</problem>"
+        assert _parse_problem(raw) == "Find the value of \\(x\\). Put your final answer inside \\boxed{}."
+
+    def test_returns_empty_when_no_tags(self):
+        assert _parse_problem("no tags here") == ""
+
+    def test_strips_surrounding_whitespace(self):
+        raw = "\n\n<problem>   hi   </problem>\n"
+        assert _parse_problem(raw) == "hi"
+
+
+class TestGenerateForSkill:
+    def test_stops_at_n_target_keeps(self, monkeypatch):
+        # Mock: generator always returns a valid problem; solver always agrees at 0.70.
+        from Stage1 import taxonomy_generation as tg
+
+        gen_calls = {"n": 0}
+
+        def fake_gen_candidate(client, target, skill, _temperature=TEMPERATURE):
+            gen_calls["n"] += 1
+            return f"Find n. Put your final answer inside \\boxed{{}}. Candidate {gen_calls['n']}."
+
+        def fake_solve(client, model, problem_text, n_samples, pool=None):
+            # Return (agreement, majority, all_answers, all_solutions)
+            return (0.70, "42", ["42"] * n_samples, ["reasoning"] * n_samples)
+
+        monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen_candidate)
+        monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
+
+        skill = Skill("s", "d", "h")
+        keeps, skips, stats = generate_for_skill(
+            client=MagicMock(),
+            target="target",
+            skill=skill,
+            n_target=3,
+            n_samples=5,
+            max_candidates=50,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+        assert len(keeps) == 3
+        assert stats["n_passed"] == 3
+        assert stats["n_attempted"] == 3  # every candidate was a keep
+        assert stats["status"] == "ok"
+
+    def test_caps_at_max_candidates(self, monkeypatch):
+        from Stage1 import taxonomy_generation as tg
+
+        def fake_gen(client, target, skill, _temperature=TEMPERATURE):
+            return "Find n. \\boxed{}"
+
+        def fake_solve(client, model, problem_text, n_samples, pool=None):
+            # All candidates fail the agreement window (too high -> skip)
+            return (0.95, "42", ["42"] * n_samples, ["r"] * n_samples)
+
+        monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen)
+        monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
+
+        skill = Skill("s", "d", "h")
+        keeps, skips, stats = generate_for_skill(
+            client=MagicMock(),
+            target="target",
+            skill=skill,
+            n_target=10,
+            n_samples=5,
+            max_candidates=7,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+        assert len(keeps) == 0
+        assert stats["n_attempted"] == 7
+        assert stats["status"] == "capped"
+
+    def test_rejects_non_numeric(self, monkeypatch):
+        from Stage1 import taxonomy_generation as tg
+
+        def fake_gen(client, target, skill, _temperature=TEMPERATURE):
+            return "Find n. \\boxed{}"
+
+        def fake_solve(client, model, problem_text, n_samples, pool=None):
+            return (0.70, "does not exist", ["does not exist"] * n_samples, ["r"] * n_samples)
+
+        monkeypatch.setattr(tg, "_generate_one_candidate", fake_gen)
+        monkeypatch.setattr(tg, "solve_and_check_agreement", fake_solve)
+
+        skill = Skill("s", "d", "h")
+        keeps, skips, stats = generate_for_skill(
+            client=MagicMock(),
+            target="target",
+            skill=skill,
+            n_target=5,
+            n_samples=5,
+            max_candidates=3,
+            agree_low=0.60,
+            agree_high=0.80,
+        )
+        assert len(keeps) == 0
+        assert stats["status"] == "capped"

@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass, asdict
@@ -205,3 +206,186 @@ def load_skills(path: str) -> list[Skill] | None:
 
 def target_text_hash(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — per-skill generation
+# ---------------------------------------------------------------------------
+
+# Pure answer-checking helpers (duplicated from distinct_llm_prompting so this
+# module has no hard dependency on the openai package at import time).
+
+_NUMERIC_ANSWER_RE = re.compile(r"^[+-]?\d+([.,]\d+)?(/\d+)?$")
+
+
+def _is_numeric_answer(answer: str) -> bool:
+    return bool(_NUMERIC_ANSWER_RE.match(answer))
+
+
+def normalize_answer(answer: str) -> str:
+    a = answer.strip().lower()
+    a = re.sub(r"[\\${}]", "", a)
+    a = re.sub(r"\s+", "", a)
+    a = a.replace(",", ".")
+    try:
+        from fractions import Fraction
+
+        if "/" in a and a.replace("/", "").replace("-", "").replace(".", "").isdigit():
+            val = float(Fraction(a))
+            a = f"{val:.10g}"
+        elif a.replace(".", "").replace("-", "").isdigit():
+            val = float(a)
+            a = f"{val:.10g}"
+    except (ValueError, ZeroDivisionError):
+        pass
+    return a
+
+
+# solve_and_check_agreement is imported lazily to avoid pulling in the openai
+# package at module load time (the installed version may be incompatible).
+# At runtime the real function is loaded on first call; in tests it is
+# replaced via monkeypatch before generate_for_skill is invoked.
+solve_and_check_agreement = None  # type: ignore[assignment]
+
+
+def _get_solve_fn():
+    """Return solve_and_check_agreement, importing it lazily if needed."""
+    global solve_and_check_agreement
+    if solve_and_check_agreement is None:
+        from Stage1.distinct_llm_prompting import (  # noqa: E402
+            solve_and_check_agreement as _sca,
+        )
+        solve_and_check_agreement = _sca
+    return solve_and_check_agreement
+
+
+GENERATE_PROMPT = """\
+You are designing one subproblem to help a student practice a specific
+reasoning skill.
+
+The end goal is mastery of this hard target problem (for context only --
+do NOT generate a variant of the target):
+
+{target}
+
+Skill to test:
+Name: {skill_name}
+Description: {skill_description}
+Example hint: {skill_hint}
+
+Requirements:
+- The subproblem tests THIS SKILL SPECIFICALLY, in isolation.
+- A student who has mastered only this skill should be able to solve it.
+  The problem must not rely on the other skills from the taxonomy.
+- The answer MUST be a single number (integer or decimal). If a decimal,
+  ask the solver to round to 4 decimal places.
+- State the problem in 3-10 sentences.
+- ALL math must be written in LaTeX using \\(...\\) for inline and
+  \\[...\\] for display. No ASCII math ("x^2", "sqrt(5)", "sum from i=1 to n",
+  etc.) -- use proper LaTeX.
+- The problem statement MUST end with this exact sentence:
+  "Put your final answer inside \\boxed{{}}."
+
+Output format:
+Begin your response with <problem> on its own line, then the full problem
+statement, then </problem> on its own line. No other text before, between,
+or after the tags.
+"""
+
+
+_PROBLEM_TAG_RE = re.compile(r"<problem>(.*?)</problem>", re.DOTALL)
+
+
+def _parse_problem(raw: str) -> str:
+    """Extract the <problem>...</problem> content. Return '' if tags missing."""
+    m = _PROBLEM_TAG_RE.search(raw)
+    if not m:
+        return ""
+    return m.group(1).strip()
+
+
+def _generate_one_candidate(client, target: str, skill: Skill, _temperature: float = TEMPERATURE) -> str:
+    """Call the generator once, return the raw problem text (possibly empty)."""
+    prompt = GENERATE_PROMPT.format(
+        target=target,
+        skill_name=skill.name,
+        skill_description=skill.description,
+        skill_hint=skill.example_problem_hint,
+    )
+    resp = client.chat.completions.create(
+        model=GENERATOR_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=_temperature,
+    )
+    raw = (resp.choices[0].message.content or "")
+    return _parse_problem(raw)
+
+
+def generate_for_skill(
+    *,
+    client,
+    target: str,
+    skill: Skill,
+    n_target: int,
+    n_samples: int,
+    max_candidates: int,
+    agree_low: float,
+    agree_high: float,
+) -> tuple[list[dict], list[dict], dict]:
+    """Generate candidates for a single skill until n_target keeps or max_candidates attempts.
+
+    Returns:
+        (keeps, skips, stats) where stats is
+        {"name": skill.name, "n_target", "n_passed", "n_attempted", "status"}.
+    """
+    keeps: list[dict] = []
+    skips: list[dict] = []
+    attempted = 0
+
+    while len(keeps) < n_target and attempted < max_candidates:
+        attempted += 1
+        problem_text = _generate_one_candidate(client, target, skill)
+        if not problem_text:
+            skips.append({
+                "skill": skill.name,
+                "problem": "",
+                "reason": "generator_no_tags_or_empty",
+            })
+            continue
+
+        agreement, majority_ans, all_answers, all_solutions = _get_solve_fn()(
+            client, GENERATOR_MODEL, problem_text, n_samples=n_samples,
+        )
+
+        numeric = _is_numeric_answer(normalize_answer(majority_ans))
+        in_range = agree_low <= agreement <= agree_high
+        kept = bool(majority_ans) and numeric and in_range
+
+        record = {
+            "skill": skill.name,
+            "problem": problem_text,
+            "ground_truth_answer": majority_ans,
+            "agreement_rate": agreement,
+            "all_answers": all_answers,
+            "all_solutions": all_solutions,
+            "n_samples": n_samples,
+        }
+        if kept:
+            keeps.append(record)
+        else:
+            reason = (
+                "empty_answer" if not majority_ans
+                else "non_numeric" if not numeric
+                else "out_of_window"
+            )
+            skips.append({**record, "reason": reason})
+
+    status = "ok" if len(keeps) >= n_target else "capped"
+    stats = {
+        "name": skill.name,
+        "n_target": n_target,
+        "n_passed": len(keeps),
+        "n_attempted": attempted,
+        "status": status,
+    }
+    return keeps, skips, stats
