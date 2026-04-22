@@ -331,8 +331,16 @@ def generate_for_skill(
     max_candidates: int,
     agree_low: float,
     agree_high: float,
+    solve_pool=None,
 ) -> tuple[list[dict], list[dict], dict]:
     """Generate candidates for a single skill until n_target keeps or max_candidates attempts.
+
+    Args:
+        solve_pool: concurrent.futures.ThreadPoolExecutor used by the
+            real solve_and_check_agreement to fan out n_samples solve
+            calls. Required at runtime (the real function unconditionally
+            calls pool.submit); left None for tests that monkeypatch the
+            solve function.
 
     Returns:
         (keeps, skips, stats) where stats is
@@ -354,7 +362,8 @@ def generate_for_skill(
             continue
 
         agreement, majority_ans, all_answers, all_solutions = _get_solve_fn()(
-            client, GENERATOR_MODEL, problem_text, n_samples=n_samples,
+            client, GENERATOR_MODEL, problem_text,
+            n_samples=n_samples, pool=solve_pool,
         )
 
         numeric = _is_numeric_answer(normalize_answer(majority_ans))
@@ -373,11 +382,14 @@ def generate_for_skill(
         if kept:
             keeps.append(record)
         else:
-            reason = (
-                "empty_answer" if not majority_ans
-                else "non_numeric" if not numeric
-                else "out_of_window"
-            )
+            if not majority_ans:
+                reason = "empty_answer"
+            elif not numeric:
+                reason = "non_numeric"
+            elif agreement < agree_low:
+                reason = "too_hard"
+            else:
+                reason = "too_easy"
             skips.append({**record, "reason": reason})
 
     status = "ok" if len(keeps) >= n_target else "capped"
@@ -400,14 +412,24 @@ get_client = None  # type: ignore[assignment]
 load_problem_from_txt = None  # type: ignore[assignment]
 
 
-def _lazy_import_distinct_helpers():
-    global get_client, load_problem_from_txt
+def _lazy_import_get_client():
+    global get_client
     if get_client is None:
         from Stage1.distinct_llm_prompting import get_client as _gc  # noqa: E402
         get_client = _gc
+
+
+def _lazy_import_load_problem_from_txt():
+    global load_problem_from_txt
     if load_problem_from_txt is None:
         from Stage1.distinct_llm_prompting import load_problem_from_txt as _lpft  # noqa: E402
         load_problem_from_txt = _lpft
+
+
+def _lazy_import_distinct_helpers():
+    """Import both helpers. Kept for main() which needs both."""
+    _lazy_import_get_client()
+    _lazy_import_load_problem_from_txt()
 
 
 def build_taxonomy_dataset(
@@ -422,8 +444,17 @@ def build_taxonomy_dataset(
     n_samples: int,
     agree_low: float,
     agree_high: float,
+    max_workers: int = MAX_WORKERS_DEFAULT,
 ) -> None:
-    """Orchestrate Phase 1 + Phase 2. Write keeps/skips/stats to out_dir."""
+    """Orchestrate Phase 1 + Phase 2. Write keeps/skips/stats to out_dir.
+
+    `max_workers` sizes the ThreadPoolExecutor used to fan out the
+    n_samples solve calls per candidate. Required at runtime; tests
+    that monkeypatch the solve function bypass the pool entirely.
+    """
+    import concurrent.futures
+
+    _lazy_import_get_client()
     os.makedirs(out_dir, exist_ok=True)
     client, _ = get_client()
 
@@ -450,29 +481,34 @@ def build_taxonomy_dataset(
     all_skips: list[dict] = []
     all_stats: list[dict] = []
 
-    print(f"\n=== Per-skill generation ===")
-    for i, skill in enumerate(skills, start=1):
-        print(f"\n[{i}/{len(skills)}] {skill.name}")
-        keeps, skips, stats = generate_for_skill(
-            client=client,
-            target=target_text,
-            skill=skill,
-            n_target=problems_per_skill,
-            n_samples=n_samples,
-            max_candidates=max_candidates_per_skill,
-            agree_low=agree_low,
-            agree_high=agree_high,
-        )
-        all_keeps.extend(keeps)
-        all_skips.extend(skips)
-        all_stats.append(stats)
-        print(f"  done: {stats['n_passed']}/{stats['n_target']} passed "
-              f"after {stats['n_attempted']} attempts ({stats['status']})")
+    # One pool shared across all skills; it fans out each candidate's
+    # n_samples solve calls. solve_and_check_agreement requires pool=
+    # (it unconditionally calls pool.submit).
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as solve_pool:
+        print(f"\n=== Per-skill generation ===")
+        for i, skill in enumerate(skills, start=1):
+            print(f"\n[{i}/{len(skills)}] {skill.name}")
+            keeps, skips, stats = generate_for_skill(
+                client=client,
+                target=target_text,
+                skill=skill,
+                n_target=problems_per_skill,
+                n_samples=n_samples,
+                max_candidates=max_candidates_per_skill,
+                agree_low=agree_low,
+                agree_high=agree_high,
+                solve_pool=solve_pool,
+            )
+            all_keeps.extend(keeps)
+            all_skips.extend(skips)
+            all_stats.append(stats)
+            print(f"  done: {stats['n_passed']}/{stats['n_target']} passed "
+                  f"after {stats['n_attempted']} attempts ({stats['status']})")
 
-        # Persist incrementally after each skill so a crash doesn't lose progress.
-        _write_outputs(out_dir, target_text, agree_low, agree_high,
-                       all_keeps, all_skips, all_stats,
-                       problems_per_skill * n_skills)
+            # Persist incrementally after each skill so a crash doesn't lose progress.
+            _write_outputs(out_dir, target_text, agree_low, agree_high,
+                           all_keeps, all_skips, all_stats,
+                           problems_per_skill * n_skills)
 
     total_passed = sum(s["n_passed"] for s in all_stats)
     total_attempted = sum(s["n_attempted"] for s in all_stats)
@@ -582,6 +618,7 @@ def main():
         n_samples=args.n_samples,
         agree_low=args.agree_low,
         agree_high=args.agree_high,
+        max_workers=args.max_workers,
     )
 
 

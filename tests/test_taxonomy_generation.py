@@ -244,7 +244,7 @@ class TestBuildTaxonomyDataset:
             data = json.loads(skills_payload)
             return [Skill(**e) for e in data["skills"]]
 
-        def fake_generate_for_skill(*, client, target, skill, n_target, n_samples, max_candidates, agree_low, agree_high):
+        def fake_generate_for_skill(*, client, target, skill, n_target, n_samples, max_candidates, agree_low, agree_high, solve_pool=None):
             keeps = [
                 {
                     "skill": skill.name,
