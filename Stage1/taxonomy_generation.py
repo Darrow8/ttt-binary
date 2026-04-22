@@ -16,6 +16,7 @@ Non-negotiable constraints (see design spec):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -142,6 +143,14 @@ def decompose_target(
                 raise ValueError("'skills' key missing or not a list")
             if len(skills_list) != n_skills:
                 raise ValueError(f"expected {n_skills} skills, got {len(skills_list)}")
+            _required = ("name", "description", "example_problem_hint")
+            for i, entry in enumerate(skills_list):
+                if not isinstance(entry, dict):
+                    raise ValueError(f"skill[{i}] is not an object")
+                for k in _required:
+                    v = entry.get(k)
+                    if not isinstance(v, str) or not v.strip():
+                        raise ValueError(f"skill[{i}].{k} must be a non-empty string")
             return [
                 Skill(
                     name=entry["name"],
@@ -150,7 +159,7 @@ def decompose_target(
                 )
                 for entry in skills_list
             ]
-        except (ValueError, KeyError, json.JSONDecodeError) as e:
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as e:
             last_err = e
             continue
 
@@ -173,7 +182,9 @@ def save_skills(
         "decomposed_at": datetime.now(timezone.utc).isoformat(),
         "skills": [asdict(s) for s in skills],
     }
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -193,5 +204,4 @@ def load_skills(path: str) -> list[Skill] | None:
 
 
 def target_text_hash(text: str) -> str:
-    import hashlib
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
