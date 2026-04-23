@@ -1160,6 +1160,10 @@ def build_taxonomy_dataset(
     start_from_skill: int = 1,
     min_per_skill: int = 0,
     max_topup_rounds: int = 6,
+    dedupe_threshold: float = 0.95,
+    dedupe_per_skill: bool = True,
+    dedupe_model: str = "BAAI/bge-large-en-v1.5",
+    dedupe_aware_topup: bool = True,
 ) -> None:
     """Run the six-step pipeline end to end.
 
@@ -1336,33 +1340,56 @@ def build_taxonomy_dataset(
                            all_keeps, all_skips, all_stats, target_total)
 
         # ---- Top-up loop: re-run any skill that fell below min_per_skill
-        #      until it reaches the threshold OR stalls out (no progress
-        #      across two consecutive rounds).
+        #      (counted AFTER dedupe when dedupe_aware_topup is True) until
+        #      it reaches the threshold OR stalls out (no progress across
+        #      two consecutive rounds).
+        def _per_skill_counts() -> dict[str, int]:
+            """Return either raw or dedupe-aware per-skill keep counts,
+            depending on dedupe_aware_topup."""
+            if dedupe_aware_topup:
+                return _dedupe_counts_by_skill(
+                    all_keeps,
+                    threshold=dedupe_threshold,
+                    per_skill=dedupe_per_skill,
+                    model_name=dedupe_model,
+                )
+            return {s.name: _count_keeps_for(all_keeps, s.name) for s in skills}
+
         if min_per_skill > 0:
-            print(f"\n=== Top-up: targeting min {min_per_skill} keeps per skill ===")
+            metric = "deduped" if dedupe_aware_topup else "raw"
+            print(f"\n=== Top-up: targeting min {min_per_skill} {metric} keeps per skill ===")
+            if dedupe_aware_topup:
+                print(f"    (dedupe: {dedupe_model}, threshold={dedupe_threshold}, "
+                      f"mode={'per-skill' if dedupe_per_skill else 'global'})")
             stalled: set[str] = set()
-            last_counts: dict[str, int] = {
-                s.name: _count_keeps_for(all_keeps, s.name) for s in skills
-            }
+            current_counts = _per_skill_counts()
+            for s in skills:
+                current_counts.setdefault(s.name, 0)
             no_progress_streak: dict[str, int] = {s.name: 0 for s in skills}
             for round_num in range(1, max_topup_rounds + 1):
                 below = [
                     s for s in skills
-                    if _count_keeps_for(all_keeps, s.name) < min_per_skill
+                    if current_counts.get(s.name, 0) < min_per_skill
                     and s.name not in stalled
                 ]
                 if not below:
-                    print(f"  all skills >= {min_per_skill} keeps; top-up done")
+                    print(f"  all skills >= {min_per_skill} {metric} keeps; top-up done")
                     break
                 print(f"\n  --- top-up round {round_num} "
                       f"({len(below)} skills below threshold) ---")
                 for skill in below:
-                    cur = _count_keeps_for(all_keeps, skill.name)
-                    need = min_per_skill - cur
+                    cur = current_counts.get(skill.name, 0)
+                    need = max(1, min_per_skill - cur)
+                    # When top-up is dedupe-aware, we may need extra raw
+                    # keeps because some will collide with existing ones.
+                    # Request need + buffer raw keeps; the generator stops
+                    # once it hits that target or exhausts max_candidates.
+                    raw_target = need + (3 if dedupe_aware_topup else 0)
                     others = [s.name for s in skills if s.name != skill.name]
                     seed_p, seed_a = skill_memory.get(skill.name, ([], []))
                     print(f"\n  [top-up r{round_num}] {skill.name}: "
-                          f"{cur}/{min_per_skill}, need {need} more")
+                          f"{cur}/{min_per_skill} {metric}, "
+                          f"requesting up to {raw_target} more raw keeps")
                     _k, _s, stats = generate_for_skill(
                         client=client,
                         target=target_text,
@@ -1370,7 +1397,7 @@ def build_taxonomy_dataset(
                         other_skill_names=others,
                         all_interpretations=interpretations,
                         all_features=features,
-                        n_target=need,  # generate only what's missing this round
+                        n_target=raw_target,
                         n_samples=n_samples,
                         max_candidates=max_candidates_per_skill,
                         agree_low=agree_low,
@@ -1382,48 +1409,209 @@ def build_taxonomy_dataset(
                         seed_prior_answers=seed_a,
                     )
                     del _k, _s
-                    # Merge the top-up stats into all_stats (append a
-                    # top-up entry rather than mutate the original so the
-                    # audit trail shows per-round progress).
                     stats["name"] = f"{skill.name} (top-up r{round_num})"
                     all_stats.append(stats)
-                    # Refresh memory + stall tracking.
                     skill_memory[skill.name] = _collect_prior_for_skill(
                         all_keeps, all_skips, skill.name,
                     )
-                    new_count = _count_keeps_for(all_keeps, skill.name)
-                    if new_count <= last_counts[skill.name]:
-                        no_progress_streak[skill.name] += 1
-                    else:
-                        no_progress_streak[skill.name] = 0
-                    last_counts[skill.name] = new_count
-                    if no_progress_streak[skill.name] >= 2:
-                        print(f"  [top-up] {skill.name}: no progress in "
-                              f"2 consecutive rounds -- stalled, skipping")
-                        stalled.add(skill.name)
                     _write_outputs(out_dir, target_text, agree_low, agree_high,
                                    all_keeps, all_skips, all_stats, target_total)
 
+                # End-of-round: re-dedupe and re-check counts for stall
+                # detection and next-round continuation.
+                new_counts = _per_skill_counts()
+                for s in skills:
+                    prev = current_counts.get(s.name, 0)
+                    new = new_counts.get(s.name, 0)
+                    if new <= prev:
+                        no_progress_streak[s.name] += 1
+                    else:
+                        no_progress_streak[s.name] = 0
+                    if no_progress_streak[s.name] >= 2 and s.name not in stalled:
+                        stalled.add(s.name)
+                        print(f"  [top-up] {s.name}: no {metric}-keep progress in "
+                              f"2 consecutive rounds -- stalled, skipping further rounds")
+                current_counts = new_counts
+                # Optional: flush deduped output so the user can inspect
+                # progress mid-loop without waiting for the final write.
+                if dedupe_aware_topup:
+                    try:
+                        _write_deduped_output(
+                            out_dir, all_keeps,
+                            threshold=dedupe_threshold,
+                            per_skill=dedupe_per_skill,
+                            model_name=dedupe_model,
+                            source_problem=target_text,
+                        )
+                    except Exception as e:
+                        print(f"  [warn] mid-loop dedupe write failed: {e!r}",
+                              flush=True)
+
     # ---- Final report
     total_attempted = sum(s["n_attempted"] for s in all_stats)
-    per_skill_final = {s.name: _count_keeps_for(all_keeps, s.name) for s in skills}
+    raw_counts = {s.name: _count_keeps_for(all_keeps, s.name) for s in skills}
+    dedup_counts: dict[str, int] = {}
+    if min_per_skill > 0 and dedupe_aware_topup:
+        try:
+            dedup_counts = _dedupe_counts_by_skill(
+                all_keeps,
+                threshold=dedupe_threshold,
+                per_skill=dedupe_per_skill,
+                model_name=dedupe_model,
+            )
+        except Exception as e:
+            print(f"  [warn] final dedupe count failed: {e!r}", flush=True)
+
     print(f"\n{'=' * 70}")
     print(f"  Taxonomy dataset complete")
     print(f"  Total attempts (incl. top-up): {total_attempted}")
-    for name, n in per_skill_final.items():
-        mark = "✓" if (min_per_skill == 0 or n >= min_per_skill) else "✗"
-        print(f"    {mark} {n:3d}  {name}")
+    header = "raw" if not dedup_counts else "raw / deduped"
+    print(f"  Per-skill counts ({header}):")
+    for s in skills:
+        raw = raw_counts.get(s.name, 0)
+        if dedup_counts:
+            d = dedup_counts.get(s.name, 0)
+            mark = "✓" if (min_per_skill == 0 or d >= min_per_skill) else "✗"
+            print(f"    {mark} raw={raw:3d}  dedup={d:3d}  {s.name}")
+        else:
+            mark = "✓" if (min_per_skill == 0 or raw >= min_per_skill) else "✗"
+            print(f"    {mark} {raw:3d}  {s.name}")
     if min_per_skill > 0:
-        below = [n for n in per_skill_final.values() if n < min_per_skill]
+        check = dedup_counts if dedup_counts else raw_counts
+        below = [n for n in check.values() if n < min_per_skill]
         if below:
             print(f"  WARNING: {len(below)} skill(s) below min_per_skill={min_per_skill}")
         else:
-            print(f"  All {len(per_skill_final)} skills reached >= {min_per_skill}")
+            print(f"  All {len(check)} skills reached >= {min_per_skill}")
     print(f"{'=' * 70}")
+
+    # ---- Final deduped output
+    if min_per_skill > 0 or dedupe_aware_topup:
+        try:
+            out_path = _write_deduped_output(
+                out_dir, all_keeps,
+                threshold=dedupe_threshold,
+                per_skill=dedupe_per_skill,
+                model_name=dedupe_model,
+                source_problem=target_text,
+            )
+            print(f"  keeps_deduped.json written to {out_path}")
+        except Exception as e:
+            print(f"  [warn] final dedupe write failed: {e!r}", flush=True)
 
 
 def _count_keeps_for(all_keeps: list[dict], skill_name: str) -> int:
     return sum(1 for r in all_keeps if r.get("skill") == skill_name)
+
+
+# Module-level cache of the sentence-transformer model so repeated top-up
+# rounds don't reload it. Lazy-imported to keep the dependency optional
+# when dedupe-aware top-up isn't in use.
+_dedupe_model = None
+
+
+def _ensure_dedupe_model(model_name: str):
+    """Load the embedding model once; reuse across top-up rounds."""
+    global _dedupe_model
+    if _dedupe_model is None:
+        from Stage1.dedupe_subproblems import _load_st  # noqa: E402
+        _dedupe_model = _load_st(model_name)
+    return _dedupe_model
+
+
+def _dedupe_keeps(
+    all_keeps: list[dict],
+    *,
+    threshold: float,
+    per_skill: bool,
+    model_name: str,
+) -> dict[str, list[int]]:
+    """Run embedding-based dedupe over current keeps. Returns a dict mapping
+    skill name -> list of indices (into all_keeps) that survive dedupe.
+
+    Mode:
+      - per_skill=True: dedupe within each skill independently (default for
+        skill-isolated training data; surface similarity across skills is
+        irrelevant for that use case).
+      - per_skill=False: dedupe globally across all skills.
+    """
+    from collections import defaultdict
+    from Stage1.dedupe_subproblems import _embed, _greedy_dedupe  # noqa: E402
+
+    if not all_keeps:
+        return {}
+
+    model = _ensure_dedupe_model(model_name)
+
+    if per_skill:
+        by_skill: dict[str, list[int]] = defaultdict(list)
+        for i, r in enumerate(all_keeps):
+            by_skill[r.get("skill", "__unknown__")].append(i)
+        survivors: dict[str, list[int]] = {}
+        for skill, idxs in by_skill.items():
+            texts = [all_keeps[i].get("problem", "") for i in idxs]
+            if len(texts) == 1:
+                survivors[skill] = [idxs[0]]
+                continue
+            embs = _embed(model, texts)
+            local_keep = _greedy_dedupe(embs, threshold)
+            survivors[skill] = [idxs[k] for k in local_keep]
+        return survivors
+    else:
+        texts = [r.get("problem", "") for r in all_keeps]
+        embs = _embed(model, texts)
+        kept_idx = _greedy_dedupe(embs, threshold)
+        by_skill = defaultdict(list)
+        for i in kept_idx:
+            by_skill[all_keeps[i].get("skill", "__unknown__")].append(i)
+        return dict(by_skill)
+
+
+def _dedupe_counts_by_skill(
+    all_keeps: list[dict],
+    *,
+    threshold: float,
+    per_skill: bool,
+    model_name: str,
+) -> dict[str, int]:
+    """Thin wrapper: return {skill_name: deduped_count}."""
+    survivors = _dedupe_keeps(
+        all_keeps, threshold=threshold, per_skill=per_skill, model_name=model_name,
+    )
+    return {skill: len(idxs) for skill, idxs in survivors.items()}
+
+
+def _write_deduped_output(
+    out_dir: str,
+    all_keeps: list[dict],
+    *,
+    threshold: float,
+    per_skill: bool,
+    model_name: str,
+    source_problem: str,
+) -> str:
+    """Run final dedupe and write keeps_deduped.json into out_dir."""
+    survivors = _dedupe_keeps(
+        all_keeps, threshold=threshold, per_skill=per_skill, model_name=model_name,
+    )
+    kept_idx = sorted({i for idxs in survivors.values() for i in idxs})
+    kept = [all_keeps[i] for i in kept_idx]
+    payload = {
+        "source_problem": source_problem,
+        "n_problems": len(kept),
+        "problems": kept,
+        "_dedupe": {
+            "model": model_name,
+            "threshold": threshold,
+            "mode": "per_skill" if per_skill else "global",
+            "n_in": len(all_keeps),
+            "n_out": len(kept),
+            "n_dropped": len(all_keeps) - len(kept),
+        },
+    }
+    out_path = os.path.join(out_dir, "keeps_deduped.json")
+    _save_json_side(out_path, payload)
+    return out_path
 
 
 def _collect_prior_for_skill(
@@ -1531,6 +1719,20 @@ def main():
                         help="Outer cap on top-up rounds (default 6). A stalled "
                              "skill (no progress across 2 consecutive rounds) is "
                              "skipped automatically regardless of this cap.")
+    parser.add_argument("--dedupe-threshold", type=float, default=0.95,
+                        help="Cosine similarity threshold for BGE dedupe "
+                             "(default 0.95; tuned for math-dense text).")
+    parser.add_argument("--dedupe-mode", choices=("per-skill", "global"),
+                        default="per-skill",
+                        help="Dedupe within each skill (default) or across "
+                             "all skills globally.")
+    parser.add_argument("--dedupe-model", type=str, default="BAAI/bge-large-en-v1.5",
+                        help="Sentence-transformer model for dedupe embeddings.")
+    parser.add_argument("--raw-topup", action="store_true",
+                        help="Count RAW keeps for the top-up loop instead of "
+                             "deduped keeps. Faster (no BGE), but may leave "
+                             "post-dedupe counts below --min-per-skill. "
+                             "Default: dedupe-aware top-up.")
     args = parser.parse_args()
 
     target_text = load_problem_from_txt(args.problem_path)
@@ -1565,6 +1767,10 @@ def main():
         start_from_skill=args.start_from_skill,
         min_per_skill=args.min_per_skill,
         max_topup_rounds=args.max_topup_rounds,
+        dedupe_threshold=args.dedupe_threshold,
+        dedupe_per_skill=(args.dedupe_mode == "per-skill"),
+        dedupe_model=args.dedupe_model,
+        dedupe_aware_topup=not args.raw_topup,
     )
 
 
