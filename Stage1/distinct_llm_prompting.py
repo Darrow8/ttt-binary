@@ -226,6 +226,25 @@ def load_problem_from_txt(path: str) -> str:
     return text
 
 
+def _is_auth_error(exc: Exception) -> bool:
+    """Cheap classification: does this exception look like a Vertex 401?
+
+    Long-running jobs outlive the initial ADC token. Callers use this to
+    decide whether to refresh the token and retry. We don't import the
+    OpenAI exception type here to avoid coupling; substring matching is
+    fine because the relevant patterns are distinctive.
+    """
+    name = type(exc).__name__
+    if name in ("AuthenticationError", "PermissionDeniedError"):
+        return True
+    msg = str(exc)
+    return (
+        "401" in msg
+        or "UNAUTHENTICATED" in msg
+        or "invalid authentication credentials" in msg.lower()
+    )
+
+
 def _get_vertex_access_token() -> str:
     from google.auth import default
     from google.auth.transport.requests import Request
@@ -269,11 +288,23 @@ def call_llm(
 ) -> str:
     @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
     def _call():
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-        )
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+            )
+        except Exception as e:
+            # Auth-token refresh: long-running jobs outlive the initial ADC
+            # token. On 401 UNAUTHENTICATED we re-read the token from ADC and
+            # update the client in place, then re-raise so tenacity retries
+            # with the refreshed token.
+            if _is_auth_error(e):
+                try:
+                    client.api_key = _get_vertex_access_token()
+                except Exception:
+                    pass
+            raise
         if isinstance(response, str):
             raise ValueError(f"vertex returned raw string: {response[:300]!r}")
         if not response.choices:
