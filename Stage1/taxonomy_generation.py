@@ -131,6 +131,31 @@ Quality requirements (apply ALL):
             divisors via Bezout, prior to excess-intersection
             correction"
 
+6b. Parametric family (load-bearing). Each skill MUST admit a
+    parametric family of subproblems -- i.e. the description must
+    be broad enough that the subproblem-generator can pick multiple
+    DIFFERENT concrete instances that all test the same technique
+    but produce DIFFERENT numerical answers. A skill pinned to one
+    specific instance (one degree, one dimension, one configuration)
+    produces identical subproblems with identical answers and is
+    useless downstream. Every description must either (a) name an
+    explicit parameter the generator can vary (e.g. "degree d",
+    "dimension n", "number of conditions k"), or (b) refer to a
+    technique that naturally applies to many configurations.
+      Bad:  "Compute the dimension of the space of homogeneous
+             degree-two polynomials in three variables" -- pinned
+             to one instance, answer is always 5.
+      Good: "Compute the dimension of the linear system of plane
+             curves of degree d (equivalently, of hypersurfaces of
+             degree d in P^n) using the binomial coefficient
+             count." -- d and n are free, the generator can pick
+             many pairs.
+      Bad:  "Degree of the discriminant hypersurface of singular
+             plane conics" -- one number.
+      Good: "Degree of the discriminant hypersurface of singular
+             degree-d plane curves (or hypersurfaces) as a
+             function of d and the ambient dimension."
+
 7. No arithmetic-only skills. A skill whose only content is
    mechanical arithmetic on a quantity produced by another skill
    ("compute floor(100 * L)", "subtract the correction from the
@@ -165,6 +190,11 @@ Self-audit before output:
 (f) No numbers in skill text: does any skill name or description
     contain a specific numerical answer / dimension / degree?
     If yes, rewrite to describe the technique, not the value.
+(f2) Parametric family: for each skill, could a subproblem-generator
+    produce 10+ NON-IDENTICAL subproblems with DIFFERENT numerical
+    answers that all test this skill? If not (the skill is pinned
+    to one instance), broaden the description to name at least one
+    parameter that can vary.
 (g) No arithmetic-only skills: is any skill merely postprocessing
     (e.g. "compute floor of...", "subtract correction from...")?
     If yes, drop it and pick a real reasoning component.
@@ -224,6 +254,22 @@ def _robust_completion(client, prompt: str, *, temperature: float = TEMPERATURE,
             return content
         except Exception as e:
             last_err = e
+            # Auth-token refresh: long-running jobs outlive the initial ADC
+            # token. On 401 we re-read the token from ADC and update the
+            # client in place so the next retry uses fresh credentials.
+            from Stage1.distinct_llm_prompting import (
+                _is_auth_error, _get_vertex_access_token,
+            )
+            if _is_auth_error(e):
+                try:
+                    client.api_key = _get_vertex_access_token()
+                    print("  [info] refreshed Vertex ADC token", flush=True)
+                except Exception as refresh_err:
+                    print(
+                        f"  [warn] token refresh failed: "
+                        f"{type(refresh_err).__name__}: {str(refresh_err)[:120]}",
+                        flush=True,
+                    )
             # Jittered exponential backoff: 1s, 2s, 4s, ..., capped at 60s
             delay = min(2 ** attempt, 60) + random.uniform(0, 1)
             print(
@@ -429,6 +475,35 @@ Other skills in the taxonomy -- your subproblem must NOT require any
 of these to solve:
 {other_skill_names_bulleted}
 
+Previously generated subproblems for THIS skill and their final
+numerical answers -- you MUST produce a subproblem that is neither a
+paraphrase of any of these NOR has the same numerical answer as any
+of them. If the skill admits a parametric family (varying degree,
+dimension, number of conditions, configuration, etc.), pick a
+DIFFERENT point in that family than any shown below. Do not default
+to the simplest textbook case if it has already been used.
+
+Structural diversity (load-bearing). Varying only a numerical
+parameter while keeping the same sentence template is NOT enough.
+If your problem reads as a find-and-replace of a previous problem
+(same phrasing, same sentence order, same objects, just a different
+number), you have failed. Instead, vary the STRUCTURE across
+attempts. For a given skill, cycle through its equivalent
+formulations, alternative framings, and distinct concrete
+instantiations. Examples of structural variation (applied generally
+to any skill, not just geometry): recast the same computation in a
+different geometric object (curves -> hypersurfaces -> complete
+intersections), use a different algebraic incarnation (polynomial
+coefficient count vs cohomology vs Hilbert polynomial value), swap
+the direction of the question (given degree, find dimension vs
+given dimension, find degree), change the ambient setting (affine
+vs projective vs weighted projective), or combine the skill with a
+small non-leaky twist (a nonstandard basis, a non-obvious
+identification) that doesn't cross into another skill. At minimum
+the sentence pattern of the new problem must NOT be a substring
+rewrite of any prior one.
+{prior_attempts_bulleted}
+
 Requirements:
 
 1. Isolation. The subproblem tests the named skill ALONE. It must NOT
@@ -440,28 +515,69 @@ Requirements:
    signals the skill is not cleanly separable and the decomposition
    needs revision -- do not fake an isolated problem in that case.
 
-2. No target leakage. Do not reproduce the target problem's setup,
+2. No answer leakage. The problem statement must not state, imply, or
+   walk the solver up to the numerical answer. In particular:
+   - Do NOT include phrases like "which gives X", "therefore ... = X",
+     "this equals X", "so the class is X * H", "note that the degree is X".
+     These turn the problem into reading comprehension, not reasoning.
+   - Do NOT include the final numerical answer -- as a digit, as a
+     word, or as a closed-form expression that trivially evaluates to
+     it -- anywhere in the setup.
+   - Present only the givens; the solver must derive every computed
+     quantity, including any intermediate quantity that determines the
+     final answer.
+
+3. Unambiguous answer. Exactly one conventional reading of the problem
+   statement must yield exactly one answer. In particular:
+   - If a term has multiple standard conventions in the field
+     (e.g., "dimension of a projective space" is 11 vs 12 depending on
+     whether you mean projective dim or vector-space dim; "degree of a
+     map" can mean topological vs algebraic; indexing starting from 0
+     vs 1), either disambiguate explicitly in-line or avoid the term.
+   - The expected answer must NOT depend on which convention a competent
+     solver adopts. If you cannot ensure this without leaking the
+     answer, pick a different concrete instantiation of the skill.
+
+4. No target leakage. Do not reproduce the target problem's setup,
    notation, or specific numerical parameters. The subproblem must be
    a fresh concrete instance so that solving it doesn't amount to
    partially solving the target.
 
-3. Difficulty calibrated to position. This is skill #{skill_index}
+5. Difficulty calibrated to position. This is skill #{skill_index}
    of {n_skills}. Skill #1 should be doable in 5-10 minutes by
    someone with the relevant background; skill #{n_skills} can
    require 30+ minutes of nontrivial work. Calibrate accordingly --
    do not make every subproblem the same difficulty.
 
-4. The answer MUST be a single number (integer or decimal). If a
+6. The answer MUST be a single number (integer or decimal). If a
    decimal, ask the solver to round to 4 decimal places.
 
-5. State the problem in 3-10 sentences.
+7. State the problem in 3-10 sentences.
 
-6. ALL math must be written in LaTeX using \\(...\\) for inline and
+8. ALL math must be written in LaTeX using \\(...\\) for inline and
    \\[...\\] for display. No ASCII math ("x^2", "sqrt(5)",
    "sum from i=1 to n", etc.) -- use proper LaTeX.
 
-7. The problem statement MUST end with this exact sentence:
+9. The problem statement MUST end with this exact sentence:
    "Put your final answer inside \\boxed{{}}."
+
+Self-audit before output (do this internally, do not print):
+(a) Answer-leak grep. Mentally solve the problem and note the final
+    numerical answer N. Scan the problem statement. Does N appear
+    anywhere -- as digit, word, or trivially-evaluatable expression?
+    If yes, rewrite to remove it.
+(b) Convention check. For every named quantity the solver must
+    compute, is there a single standard convention in the field?
+    If a term has multiple conventions, disambiguate or reformulate.
+(c) Intermediate-leak grep. Does the statement hand the solver any
+    computed quantity that determines N via routine arithmetic
+    (e.g., giving the degree of each factor when the problem asks
+    for the product of degrees)? If yes, remove or rephrase.
+(d) Novelty check. Is the answer N equal to any of the prior answers
+    listed above? Is the problem a paraphrase of any prior problem?
+    If either, pick a different instance of the skill (different
+    parameter, different configuration) and redo.
+Revise internally until all four pass, then emit the problem.
 
 Output format:
 Begin your response with <problem> on its own line, then the full
@@ -481,6 +597,42 @@ def _parse_problem(raw: str) -> str:
     return m.group(1).strip()
 
 
+# How many prior attempts (problem + answer) to feed back into the
+# generator as "avoid these." Bumped from 12 -> 50 after observing cycling:
+# once the window scrolled past 12 the generator happily regenerated
+# shapes it had already made. At 50 entries x ~250 tokens each the memory
+# block is ~12K tokens, well within context.
+_PRIOR_ATTEMPTS_MEMORY = 50
+# Truncation for each prior problem text in the memory bullet (chars).
+# 220 is enough to capture the sentence template so the generator can
+# detect "I'm just swapping a parameter and re-using the same shape."
+_PRIOR_PROBLEM_SNIPPET_CHARS = 220
+
+
+def _format_prior_attempts(
+    prior_problems: list[str],
+    prior_answers: list[str],
+) -> str:
+    """Render the memory block for GENERATE_PROMPT.
+
+    Pairs prior_problems[i] with prior_answers[i]. Keeps only the last
+    _PRIOR_ATTEMPTS_MEMORY entries so the prompt stays bounded.
+    Each problem is truncated to _PRIOR_PROBLEM_SNIPPET_CHARS.
+    """
+    if not prior_problems:
+        return "(none yet -- this is the first attempt for this skill.)"
+    probs = prior_problems[-_PRIOR_ATTEMPTS_MEMORY:]
+    answers = prior_answers[-_PRIOR_ATTEMPTS_MEMORY:]
+    lines = []
+    for i, (p, a) in enumerate(zip(probs, answers), start=1):
+        snippet = (p or "").strip().replace("\n", " ")
+        if len(snippet) > _PRIOR_PROBLEM_SNIPPET_CHARS:
+            snippet = snippet[:_PRIOR_PROBLEM_SNIPPET_CHARS] + "..."
+        ans = a if a else "(no answer)"
+        lines.append(f"- [prior #{i}] answer={ans!r}: {snippet}")
+    return "\n".join(lines)
+
+
 def _generate_one_candidate(
     client,
     target: str,
@@ -489,6 +641,8 @@ def _generate_one_candidate(
     skill_index: int,
     n_skills: int,
     other_skill_names: list[str],
+    prior_problems: list[str] | None = None,
+    prior_answers: list[str] | None = None,
     _temperature: float = TEMPERATURE,
 ) -> str:
     """Call the generator once, return the raw problem text (possibly empty).
@@ -499,6 +653,9 @@ def _generate_one_candidate(
     miscalibrated, not an error.
     """
     other_bulleted = "\n".join(f"- {name}" for name in other_skill_names) or "(none)"
+    prior_bulleted = _format_prior_attempts(
+        prior_problems or [], prior_answers or [],
+    )
     prompt = GENERATE_PROMPT.format(
         target=target,
         skill_index=skill_index,
@@ -506,6 +663,7 @@ def _generate_one_candidate(
         skill_name=skill.name,
         skill_description=skill.description,
         other_skill_names_bulleted=other_bulleted,
+        prior_attempts_bulleted=prior_bulleted,
     )
     raw = _robust_completion(client, prompt, temperature=_temperature)
     return _parse_problem(raw)
@@ -525,6 +683,8 @@ def generate_for_skill(
     agree_low: float,
     agree_high: float,
     solve_pool=None,
+    on_keep=None,
+    on_skip=None,
 ) -> tuple[list[dict], list[dict], dict]:
     """Generate candidates for a single skill until n_target keeps or max_candidates attempts.
 
@@ -548,6 +708,10 @@ def generate_for_skill(
     keeps: list[dict] = []
     skips: list[dict] = []
     attempted = 0
+    # Memory of past candidates for THIS skill (problem text + majority answer)
+    # fed back into the generator so it actively diversifies.
+    prior_problems: list[str] = []
+    prior_answers: list[str] = []
 
     while len(keeps) < n_target and attempted < max_candidates:
         attempted += 1
@@ -556,13 +720,21 @@ def generate_for_skill(
             skill_index=skill_index,
             n_skills=n_skills,
             other_skill_names=other_skill_names,
+            prior_problems=prior_problems,
+            prior_answers=prior_answers,
         )
         if not problem_text:
-            skips.append({
+            skip_record = {
                 "skill": skill.name,
                 "problem": "",
                 "reason": "generator_no_tags_or_empty",
-            })
+            }
+            skips.append(skip_record)
+            if on_skip is not None:
+                try:
+                    on_skip(skip_record)
+                except Exception as e:
+                    print(f"  [warn] on_skip callback raised: {e!r}", flush=True)
             print(
                 f"  attempt {attempted}: skip (no_tags)  "
                 f"[kept {len(keeps)}/{n_target}]",
@@ -574,12 +746,18 @@ def generate_for_skill(
         # be separated from the others. Don't burn solve compute on it.
         if problem_text.startswith("UNISOLATABLE"):
             reason_text = problem_text[len("UNISOLATABLE"):].lstrip(": ").strip()
-            skips.append({
+            skip_record = {
                 "skill": skill.name,
                 "problem": problem_text,
                 "reason": "unisolatable",
                 "reason_detail": reason_text,
-            })
+            }
+            skips.append(skip_record)
+            if on_skip is not None:
+                try:
+                    on_skip(skip_record)
+                except Exception as e:
+                    print(f"  [warn] on_skip callback raised: {e!r}", flush=True)
             print(
                 f"  attempt {attempted}: skip (unisolatable)  {reason_text[:80]!r}  "
                 f"[kept {len(keeps)}/{n_target}]",
@@ -596,6 +774,12 @@ def generate_for_skill(
         in_range = agree_low <= agreement <= agree_high
         kept = bool(majority_ans) and numeric and in_range
 
+        # Feed every scored candidate back into the memory the next
+        # generator call sees -- especially the too-easy ones, since
+        # those are the duplicates the generator needs to escape.
+        prior_problems.append(problem_text)
+        prior_answers.append(str(majority_ans) if majority_ans else "")
+
         record = {
             "skill": skill.name,
             "problem": problem_text,
@@ -607,6 +791,11 @@ def generate_for_skill(
         }
         if kept:
             keeps.append(record)
+            if on_keep is not None:
+                try:
+                    on_keep(record)
+                except Exception as e:
+                    print(f"  [warn] on_keep callback raised: {e!r}", flush=True)
             print(
                 f"  attempt {attempted}: KEEP  agreement={agreement:.2f} "
                 f"answer={str(majority_ans)[:30]!r}  "
@@ -622,7 +811,13 @@ def generate_for_skill(
                 reason = "too_hard"
             else:
                 reason = "too_easy"
-            skips.append({**record, "reason": reason})
+            skip_record = {**record, "reason": reason}
+            skips.append(skip_record)
+            if on_skip is not None:
+                try:
+                    on_skip(skip_record)
+                except Exception as e:
+                    print(f"  [warn] on_skip callback raised: {e!r}", flush=True)
             print(
                 f"  attempt {attempted}: skip ({reason})  agreement={agreement:.2f} "
                 f"answer={str(majority_ans)[:30]!r}  "
@@ -683,6 +878,7 @@ def build_taxonomy_dataset(
     agree_low: float,
     agree_high: float,
     max_workers: int = MAX_WORKERS_DEFAULT,
+    start_from_skill: int = 1,
 ) -> None:
     """Orchestrate Phase 1 + Phase 2. Write keeps/skips/stats to out_dir.
 
@@ -718,17 +914,41 @@ def build_taxonomy_dataset(
     all_keeps: list[dict] = []
     all_skips: list[dict] = []
     all_stats: list[dict] = []
+    target_total = problems_per_skill * n_skills
+
+    # Incremental-write callbacks: every time generate_for_skill accepts or
+    # rejects a candidate, append it to the appropriate list and re-flush
+    # keeps.json / skips.json so both files grow one entry at a time while
+    # the run is in progress.
+    def _on_keep(record: dict) -> None:
+        all_keeps.append(record)
+        _write_outputs(out_dir, target_text, agree_low, agree_high,
+                       all_keeps, all_skips, all_stats, target_total)
+
+    def _on_skip(record: dict) -> None:
+        all_skips.append(record)
+        _write_outputs(out_dir, target_text, agree_low, agree_high,
+                       all_keeps, all_skips, all_stats, target_total)
 
     # One pool shared across all skills; it fans out each candidate's
     # n_samples solve calls. solve_and_check_agreement requires pool=
     # (it unconditionally calls pool.submit).
     skill_names = [s.name for s in skills]
+    if start_from_skill > 1:
+        print(f"\n(resume mode: skipping skills 1..{start_from_skill - 1}, "
+              f"starting at skill {start_from_skill})")
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as solve_pool:
         print(f"\n=== Per-skill generation ===")
         for i, skill in enumerate(skills, start=1):
+            if i < start_from_skill:
+                print(f"\n[{i}/{len(skills)}] {skill.name}  -- skipped (resume)")
+                continue
             print(f"\n[{i}/{len(skills)}] {skill.name}")
             others = [name for j, name in enumerate(skill_names, start=1) if j != i]
-            keeps, skips, stats = generate_for_skill(
+            # on_keep / on_skip populate all_keeps / all_skips as each
+            # candidate lands, so the returned lists are intentionally
+            # ignored to avoid double-appending.
+            _keeps, _skips, stats = generate_for_skill(
                 client=client,
                 target=target_text,
                 skill=skill,
@@ -741,17 +961,19 @@ def build_taxonomy_dataset(
                 agree_low=agree_low,
                 agree_high=agree_high,
                 solve_pool=solve_pool,
+                on_keep=_on_keep,
+                on_skip=_on_skip,
             )
-            all_keeps.extend(keeps)
-            all_skips.extend(skips)
+            del _keeps, _skips
             all_stats.append(stats)
             print(f"  done: {stats['n_passed']}/{stats['n_target']} passed "
                   f"after {stats['n_attempted']} attempts ({stats['status']})")
 
-            # Persist incrementally after each skill so a crash doesn't lose progress.
+            # End-of-skill flush: captures the updated stats + any skips
+            # accumulated during this skill (skips aren't incrementally
+            # written; keeps.json is the real-time view).
             _write_outputs(out_dir, target_text, agree_low, agree_high,
-                           all_keeps, all_skips, all_stats,
-                           problems_per_skill * n_skills)
+                           all_keeps, all_skips, all_stats, target_total)
 
     total_passed = sum(s["n_passed"] for s in all_stats)
     total_attempted = sum(s["n_attempted"] for s in all_stats)
@@ -831,6 +1053,10 @@ def main():
                         help="Override run-directory path.")
     parser.add_argument("--failed-solutions", type=str, default=None,
                         help="Accepted for CLI symmetry; unused in v1.")
+    parser.add_argument("--start-from-skill", type=int, default=1,
+                        help="1-based index of the first skill to generate for. "
+                             "Earlier skills are skipped (useful to resume mid-run "
+                             "after a crash). Default 1 = generate all.")
     args = parser.parse_args()
 
     target_text = load_problem_from_txt(args.problem_path)
@@ -862,6 +1088,7 @@ def main():
         agree_low=args.agree_low,
         agree_high=args.agree_high,
         max_workers=args.max_workers,
+        start_from_skill=args.start_from_skill,
     )
 
 
