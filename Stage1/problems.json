@@ -1,0 +1,42 @@
+[
+  {
+    "prompt": "Let \\(X\\) be a smooth, geometrically irreducible variety defined over \\(\\mathbb Q\\).  \nSuppose there exists a finite \u00e9tale morphism  \n\n\\[\n\\pi : Y \\longrightarrow X\n\\]\n\nof degree \\(d=12\\) whose geometric monodromy group (the Galois group of the Galois closure of the function field extension) is the dihedral group  \n\n\\[\nG = D_{12}= \\langle r,s\\mid r^{6}=s^{2}=1,\\;srs=r^{-1}\\rangle .\n\\]\n\nThe action of \\(G\\) on the geometric fibre \\(\\pi^{-1}(\\bar x)\\) (a set of 12 points) has **exactly two** orbits, each of size \\(6\\).\n\nFor a prime \\(p\\) of good reduction, let \\(X(\\mathbb F_p)\\) and \\(Y(\\mathbb F_p)\\) denote the sets of \\(\\mathbb F_p\\)-rational points.  Define  \n\n\\[\nL \\;=\\; \\lim_{p\\to\\infty}\\;\n        \\frac{1}{\\# X(\\mathbb F_p)}\\,\n        \\sum_{x\\in X(\\mathbb F_p)} \\#\\pi^{-1}(x)\\; .\n\\]\n\nCompute \\(L\\).  Give the answer as a decimal number rounded to four decimal places.",
+    "reference": "2",
+    "id": 1
+  },
+  {
+    "prompt": "Let \\(G=\\operatorname{PSL}(2,7)\\), a group of order \\(168\\).  \nVia its natural action on the projective line \\(\\mathbf P^{1}(\\mathbf F_{7})\\) it acts faithfully and transitively on the set \\(\\Omega\\) of \\(7\\) points.\n\nFor a random element \\(g\\in G\\) (chosen uniformly), let \\(f(g)\\) be the number of points of \\(\\Omega\\) fixed by \\(g\\).\nDefine the limiting probability  \n\n\\[\nP=\\lim_{p\\to\\infty}\\frac{1}{\\#\\Omega(\\mathbf F_{p})}\\sum_{x\\in\\Omega(\\mathbf F_{p})}\\mathbf 1_{\\{\\,\\text{Frobenius at }p\\text{ fixes }x\\,\\}},\n\\]\n\nwhich, by the Chebotarev/Burnside principle, equals the proportion of elements of \\(G\\) that fix at least one point of \\(\\Omega\\).\n\nCompute \\(100\\,P\\) and give the answer rounded to four decimal places.",
+    "reference": "71.4286",
+    "id": 2
+  },
+  {
+    "prompt": "Consider the projective space \\(\\mathbf{P}^{14}\\) whose points correspond to homogeneous degree\u20114 polynomials in three variables, i.e. to plane quartic curves in \\(\\mathbf{P}^{2}\\).  \nLet \\(\\Delta\\subset\\mathbf{P}^{14}\\) be the discriminant locus, consisting of all singular quartic curves.\n\nThe degree of \\(\\Delta\\) can be computed as the top Chern class of a suitable vector bundle on the Grassmannian of lines in \\(\\mathbf{P}^{2}\\); the result is the integer \\(d\\).\n\nDetermine this degree \\(d\\).  \nGive your answer as a decimal number with exactly four digits after the decimal point (for example, write \u201c27.0000\u201d).",
+    "reference": "27",
+    "id": 3
+  },
+  {
+    "prompt": "Let \\( \\mathbb P^{5} \\) be the projective space whose points correspond to plane conics\n\\(C\\subset\\mathbf P^{2}\\) (coefficients of a homogeneous quadratic form, up to scaling).\nFix five smooth conics \\(C_{1},\\dots ,C_{5}\\) in \\(\\mathbf P^{2}\\).\nFor a variable conic \\(C\\) denote by \\(\\Delta_{i}(C)\\) the discriminant of the pair\n\\((C,C_{i})\\); it is a homogeneous polynomial of degree\u202f2 in the coordinates of\n\\(\\mathbb P^{5}\\) and vanishes exactly when \\(C\\) is tangent to \\(C_{i}\\).\n\nAssume the five conics \\(C_{1},\\dots ,C_{5}\\) are generic, so that the five\nquadrics\n\\[\nQ_{i}=\\{\\,\\Delta_{i}=0\\,\\}\\subset\\mathbb P^{5}\\qquad(i=1,\\dots ,5)\n\\]\nintersect transversely.\n\n**Question.**  \nHow many points does the intersection \\(Q_{1}\\cap Q_{2}\\cap Q_{3}\\cap Q_{4}\\cap Q_{5}\\) contain?\nGive the answer as a decimal number rounded to four decimal places.",
+    "reference": "32",
+    "id": 4
+  },
+  {
+    "prompt": "Let  \n\n\\[\nf(x)=x^{4}-2\\in\\mathbb{Q}[x].\n\\]\n\nFor a prime \\(p\\neq 2\\) let  \n\n\\[\nN(p)=\\#\\{\\,a\\in\\mathbb{F}_{p}\\mid f(a)\\equiv 0\\pmod p\\,\\}.\n\\]\n\nDefine  \n\n\\[\nL=\\lim_{X\\to\\infty}\\frac{1}{\\pi(X)}\\sum_{\\substack{p\\le X\\\\ p\\ \\text{prime}\\\\ p\\neq2}} N(p),\n\\]\n\nwhere \\(\\pi(X)\\) is the number of primes \\(\\le X\\).  \nCompute \\(L\\) and give your answer rounded to **four decimal places**.  \n\n(Assume standard conjectures guaranteeing the existence of the limit; you may use that the Galois group of \\(f\\) over \\(\\mathbb{Q}\\) is the dihedral group \\(D_{4}\\) of order\u202f8.)",
+    "reference": "1",
+    "id": 5
+  },
+  {
+    "prompt": "Let \\(X=\\mathbb A^{1}_{\\mathbb F_{p}}\\setminus\\{0,1\\}\\).  \nFor each \\(t\\in X(\\mathbb F_{p})\\) consider the sextic polynomial\n\n\\[\nf_{t}(x)=x^{6}-t\\,x^{3}+1\\in\\mathbb F_{p}[x].\n\\]\n\nLet \\(Y\\) be the scheme over \\(X\\) whose fibre over \\(t\\) is the set of unordered\npairs \\(\\{\\,\\alpha,\\beta\\,\\}\\) of distinct roots of \\(f_{t}(x)\\) in \\(\\overline{\\mathbb F}_{p}\\).\nFor a generic value of \\(t\\) the Galois group of \\(f_{t}\\) over \\(\\mathbb F_{p}(t)\\) is the\ndihedral group \\(D_{6}\\) (order\u202f12), acting in the natural way on the six roots;\nconsequently \\(D_{6}\\) acts on the 15 unordered pairs of roots.\n\nDefine  \n\n\\[\nL=\\lim_{p\\to\\infty}\\frac{1}{\\#X(\\mathbb F_{p})}\n      \\sum_{t\\in X(\\mathbb F_{p})}\\#Y_{t}(\\mathbb F_{p}),\n\\]\n\nthe average number of \\(\\mathbb F_{p}\\)-rational unordered pairs of roots of\n\\(f_{t}\\).  \n\nCompute \\(L\\) and give the answer rounded to four decimal places.",
+    "reference": "3",
+    "id": 6
+  },
+  {
+    "prompt": "Let  \n\n\\[\n\\mathbb P^{5}=\\mathbf P\\bigl(H^{0}(\\mathbf P^{2},\\mathcal O_{\\mathbf P^{2}}(2))\\bigr)\n\\]\n\nbe the projective space whose points correspond to (possibly singular) plane conics.\nFix a smooth conic \\(C_{0}\\subset\\mathbf P^{2}\\).\n\nDefine  \n\n\\[\nT_{C_{0}}=\\{\\,C\\in\\mathbb P^{5}\\mid C\\text{ is tangent to }C_{0}\\,\\}.\n\\]\n\nThe set \\(T_{C_{0}}\\) is a closed subvariety of \\(\\mathbb P^{5}\\).\nDetermine the **degree** of \\(T_{C_{0}}\\) (the number of intersection points with a\ngeneral linear subspace of complementary dimension).  \nGive your answer as a decimal number rounded to four decimal places.",
+    "reference": "6",
+    "id": 7
+  },
+  {
+    "prompt": "Let  \n\n\\[\nf(x)=x^{5}+x+1\\in\\mathbb{Z}[x].\n\\]\n\nFor each prime \\(p\\) at which \\(f\\) remains separable modulo \\(p\\) (i.e. \\(p\\neq 5\\) and \\(f\\) has no repeated root in \\(\\mathbb{F}_{p}\\)), let  \n\n\\[\nN(p)=\\#\\{\\,a\\in\\mathbb{F}_{p}\\mid f(a)\\equiv 0 \\pmod p\\,\\}\n\\]\n\nbe the number of roots of \\(f\\) in the field \\(\\mathbb{F}_{p}\\).\n\nDefine  \n\n\\[\nL=\\lim_{X\\to\\infty}\\frac{1}{\\pi(X)}\\sum_{\\substack{p\\le X\\\\ p\\text{ prime}}} N(p),\n\\]\n\nwhere \\(\\pi(X)\\) is the number of primes \\(\\le X\\) (the sum is taken only over those primes for which \\(f\\) is separable modulo \\(p\\)).\n\nCompute \\(\\displaystyle \\bigl\\lfloor 100\\,L \\bigr\\rfloor\\).  Give the answer as a decimal number with four digits after the decimal point.",
+    "reference": "100",
+    "id": 8
+  }
+]

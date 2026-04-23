@@ -12,3 +12,4 @@ matplotlib
 wandb
 python-dotenv
 orjson
+pytest>=7

@@ -1,9 +1,11 @@
 """
 TTT-Discover: Dataset generation via LLM self-consistency.
 
-Generates subproblems one at a time, evaluates each by sampling N solutions
-in parallel, and accumulates problems that hit a target self-consistency
-(agreement rate) window.
+Generates subproblems in small batches (default 2 per call), evaluates each by
+sampling N solutions in parallel, and accumulates problems that hit a target
+self-consistency (agreement rate) window. Each generation call sees all available
+failed solution traces for richer context and asks the LLM to target a different
+technique per problem.
 """
 
 import concurrent.futures
@@ -11,6 +13,7 @@ import json
 import os
 import random
 import re
+import sys
 import threading
 import time
 from collections import Counter
@@ -18,7 +21,16 @@ from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import asdict, dataclass, field
 
 from openai import OpenAI
+from pathlib import Path
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+
+# Ensure the repo root is on sys.path so `from pipeline_stages.*` resolves
+# regardless of how this script is invoked.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from pipeline_stages.dedupe import DedupeIndex  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # .env loader
@@ -120,7 +132,7 @@ class _TinkerCompletions:
         *,
         model: str = "",
         messages: list | None = None,
-        temperature: float = 0.7,
+        temperature: float = 1.2,
         **_kwargs,
     ) -> _FakeResponse:
         from tinker import types
@@ -272,8 +284,7 @@ def call_llm(
     client: OpenAI,
     model: str,
     prompt: str,
-    temperature: float = 0.7,
-    timeout: float = 180.0,
+    temperature: float = 1.2,
 ) -> str:
     @retry(wait=wait_random_exponential(multiplier=1, max=60), stop=stop_after_attempt(8))
     def _call():
@@ -282,13 +293,12 @@ def call_llm(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
-                timeout=timeout,
             )
         except Exception as e:
             # Auth-token refresh: long-running jobs outlive the initial ADC
-            # token. On 401 UNAUTHENTICATED we try to re-read the token from
-            # ADC and update the client in place, then re-raise so tenacity
-            # retries with the refreshed token.
+            # token. On 401 UNAUTHENTICATED we re-read the token from ADC and
+            # update the client in place, then re-raise so tenacity retries
+            # with the refreshed token.
             if _is_auth_error(e):
                 try:
                     client.api_key = _get_vertex_access_token()
@@ -336,11 +346,12 @@ class Dataset:
 # Prompt templates
 # ---------------------------------------------------------------------------
 GENERATE_PROBLEMS_PROMPT = """\
-You are designing a math problem for helping a student learn to solve ONE hard source problem.
-Your job is to create a related math problem that is similar in difficulty to the source problem and is related in content to the source problem.
+You are designing training problems for test-time training on ONE hard source problem.
+Your job is to create problems that preserve the same mathematical bottleneck as the
+source problem, while being smaller, cleaner, and self-contained.
 
-Your goal is NOT to create a random "similar-looking" problem or a parametric variant
-(e.g. changing the number of variables). Your goal is to create a problem whose solution
+Your goal is NOT to create random "similar-looking" problems or parametric variants
+(e.g. changing the number of variables). Your goal is to create problems whose solution
 would train the model on a reusable subskill needed for the original problem.
 You should also not create a problem with a flawed or confusing premise.
 
@@ -359,11 +370,16 @@ to determine the correct answer.
 ## Instructions
 
 1. Read the attempted solutions above and identify the DISTINCT mathematical techniques
-   they use
-2. Pick ONE technique or subskill and design a single problem that would teach
-   EXACTLY that technique. The problem must be structurally distinct from the source.
+   they use (e.g. Dirichlet series, CRT, Euler products, divisor sums, asymptotic
+   estimates, Tauberian theorems, algebraic geometry, intersection theory, etc.)
+2. For each technique, consider: what is a simpler, self-contained problem that would
+   teach EXACTLY that technique? Write out a set of techniques and concepts that are
+   needed to solve the problem.
+3. Generate {batch_size} problems, each targeting a DIFFERENT technique or subskill.
+   DO NOT generate multiple problems that only differ in a parameter (like the number
+   of factors in a product). Each problem must be structurally distinct.
 
-The generated problem MUST satisfy all of the following:
+Each generated problem MUST satisfy all of the following:
 - It has a SINGLE numerical final answer that is a DECIMAL NUMBER (not a symbolic
   expression like 1/π², 6/π², √2, ln 2, etc.). If the exact answer is irrational
   or a fraction, the problem must ask the solver to ROUND to 4 decimal places.
@@ -371,23 +387,28 @@ The generated problem MUST satisfy all of the following:
   "Find the value of C, rounded to 4 decimal places" (answer: 0.6079).
 - It is self-contained.
 - It isolates one real bottleneck or subskill from the source problem.
-- It is NOT a parametric variant of the source problem.
+- It is NOT a parametric variant of the source problem (e.g. changing ab+1=cde to
+  ab+1=cdef is NOT acceptable — that tests the same skill at the same difficulty).
 - It avoids fake complexity and decorative algebraic clutter.
 - The problem cannot have subparts, it must be a single problem with a single answer.
 - The problem must not have a confusing or contradictory premise.
 - CRITICAL: The problem must be HARD — comparable to a research-level or competition
   math problem. A strong LLM should get it WRONG 20-40% of the time.
-  DO NOT generate textbook exercises, definitions, or routine calculations.
+  DO NOT generate textbook exercises, definitions, or routine calculations like
+  "compute ζ(2)", "count divisors of 60", "evaluate a standard limit", or
+  "state a well-known asymptotic formula". These are TOO EASY.
   The problem should require COMBINING techniques or applying them in a non-obvious way.
 
 ## Output
 
-First briefly state which technique/subskill you are targeting and why.
+For EACH problem, first briefly state which technique/subskill you are targeting and why.
 Then write the problem statement between these exact delimiters:
 
 ===PROBLEM START===
 <the problem text>
 ===PROBLEM END===
+
+You must produce exactly {batch_size} delimited problem blocks.
 """
 
 
@@ -426,24 +447,28 @@ def generate_similar_problems(
     model: str,
     hard_problem: str,
     failed_solutions: list[str] | None = None,
+    batch_size: int = 2,
 ) -> list[dict]:
-    """Prompt the LLM to generate one similar problem.
+    """Prompt the LLM to generate a small batch of similar problems.
 
-    To stay within context limits, only one randomly-chosen failed solution
-    is included per call. Across many calls this still exposes the generator
-    to all attempted techniques.
+    All available failed solutions are included so the generator sees the
+    full range of attempted techniques. Use ``_load_failed_solutions(…,
+    k_top=N)`` upstream to cap how many traces are fed in.
     """
     if failed_solutions:
-        pick = random.choice(failed_solutions)
-        solutions_block = f"### Attempt 1\n\n{pick}"
+        solutions_block = "\n\n---\n\n".join(
+            f"### Attempt {i + 1}\n\n{sol}"
+            for i, sol in enumerate(failed_solutions)
+        )
     else:
         solutions_block = "(No attempted solutions available.)"
 
     prompt = GENERATE_PROBLEMS_PROMPT.format(
         problem=hard_problem,
         failed_solutions=solutions_block,
+        batch_size=batch_size,
     )
-    raw = call_llm(client, model, prompt, temperature=0.8)
+    raw = call_llm(client, model, prompt, temperature=1.2)
 
     problems = [
         m.group(1).strip()
@@ -522,7 +547,7 @@ def _regex_extract(solution: str) -> str:
 
 
 def extract_answer(solution: str) -> str:
-    """Extract the answer from a solution using regex only (no LLM)."""
+    """Extract the answer from a solution using regex."""
     ans = _regex_extract(solution)
     if ans and "<" in ans and ">" in ans:
         return ""
@@ -560,7 +585,7 @@ def _solve_one(
 ) -> tuple[str, str]:
     prompt = SOLVE_PROMPT.format(problem=problem)
     for attempt in range(_SOLVE_MAX_RETRIES):
-        solution = call_llm(client, model, prompt, temperature=0.7)
+        solution = call_llm(client, model, prompt, temperature=1.0)
         if not solution:
             continue
         answer = extract_answer(solution)
@@ -580,7 +605,8 @@ def solve_and_check_agreement(
     pool: concurrent.futures.ThreadPoolExecutor | None = None,
 ) -> tuple[float, str, list[str], list[str]]:
     futures = [
-        pool.submit(_solve_one, client, model, problem) for _ in range(n_samples)
+        pool.submit(_solve_one, client, model, problem)
+        for _ in range(n_samples)
     ]
     results = [f.result() for f in futures]
     answers = [r[0] for r in results]
@@ -661,6 +687,8 @@ def build_dataset(
     solve_client: OpenAI | None = None,
     solve_model: str | None = None,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
+    problems_per_call: int = 2,
 ) -> Dataset:
     """Build a dataset of problems with calibrated difficulty.
 
@@ -688,7 +716,8 @@ def build_dataset(
     )
 
     skipped_problems: list[GeneratedProblem] = []
-    seen_problems: set[str] = set()
+    dedupe = DedupeIndex() if use_dedupe else None
+    seen_problems: set[str] = set()  # used only when use_dedupe=False
 
     if output_path and os.path.exists(output_path):
         try:
@@ -697,13 +726,27 @@ def build_dataset(
             for p in existing.get("problems", []):
                 entry = GeneratedProblem(**p)
                 dataset.problems.append(entry)
-                seen_problems.add(entry.problem)
+                if use_dedupe:
+                    dedupe.add(entry.problem)
+                else:
+                    seen_problems.add(entry.problem)
             if dataset.problems:
                 print(
                     f"  Resumed {len(dataset.problems)} existing problems from {output_path}"
                 )
         except (json.JSONDecodeError, TypeError, KeyError):
             pass
+
+    # Snapshot counters after any resume pre-seed so the final summary reports
+    # only this run's adds/drops, not the ones re-hydrated from disk.
+    if dedupe is not None:
+        dedupe_baseline_kept = dedupe.n_kept
+        dedupe_baseline_exact = dedupe.n_exact_dropped
+        dedupe_baseline_fuzzy = dedupe.n_fuzzy_dropped
+    else:
+        dedupe_baseline_kept = 0
+        dedupe_baseline_exact = 0
+        dedupe_baseline_fuzzy = 0
 
     if output_path:
         skips_path = os.path.join(os.path.dirname(output_path), "skips.json")
@@ -743,6 +786,7 @@ def build_dataset(
         f"  Target: {n_target} problems with {target_agreement_low:.0%}-{target_agreement_high:.0%} agreement"
     )
     print(f"  Samples per problem: {n_samples_per_problem}")
+    print(f"  Problems per gen call:      {problems_per_call}")
     print(f"  Failed solution attempts for context: {len(failed_solutions or [])}")
     print(f"  Generate model: {gen_label}")
     print(f"  Solve model:    {solve_label}")
@@ -760,6 +804,10 @@ def build_dataset(
     candidate_counter = {"n": 0}
 
     def _gen_and_eval_one(solve_pool: concurrent.futures.ThreadPoolExecutor):
+        """Generate a batch of candidates and evaluate each one.
+
+        Returns a list of result dicts (one per candidate in the batch).
+        """
         with state_lock:
             candidate_counter["n"] += 1
             cn = candidate_counter["n"]
@@ -770,73 +818,86 @@ def build_dataset(
             model,
             hard_problem,
             failed_solutions=failed_solutions,
+            batch_size=problems_per_call,
         )
         gen_time = time.time() - t0
 
         if not candidates:
-            return {"kind": "gen_failed", "candidate_num": cn, "gen_time": gen_time}
+            return [{"kind": "gen_failed", "candidate_num": cn, "gen_time": gen_time}]
 
-        problem_text = candidates[0]["problem"]
-        with seen_lock:
-            if problem_text in seen_problems:
-                return {"kind": "duplicate", "candidate_num": cn, "gen_time": gen_time}
-            seen_problems.add(problem_text)
+        results = []
+        for ci, cand in enumerate(candidates):
+            problem_text = cand["problem"]
+            sub_label = f"{cn}.{ci + 1}"
 
-        t1 = time.time()
-        agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
-            s_client,
-            s_model,
-            problem_text,
-            n_samples=n_samples_per_problem,
-            pool=solve_pool,
-        )
-        eval_time = time.time() - t1
+            with seen_lock:
+                if use_dedupe:
+                    if not dedupe.add(problem_text):
+                        results.append({"kind": "duplicate", "candidate_num": sub_label, "gen_time": gen_time})
+                        continue
+                else:
+                    if problem_text in seen_problems:
+                        results.append({"kind": "duplicate", "candidate_num": sub_label, "gen_time": gen_time})
+                        continue
+                    seen_problems.add(problem_text)
 
-        in_range = target_agreement_low <= agreement <= target_agreement_high
-        numeric = _is_numeric_answer(normalize_answer(majority_ans))
-        kept = in_range and bool(majority_ans) and numeric
-        if not bool(majority_ans):
-            status = "skip (empty answer)"
-        elif not numeric:
-            status = f"skip (non-numeric: {majority_ans[:40]})"
-        elif in_range:
-            status = "KEEP"
-        else:
-            status = "skip"
-
-        quality_score = None
-        if kept and quality_threshold is not None:
-            prompt = QUALITY_SCORE_PROMPT.format(
-                target=hard_problem, candidate=problem_text,
+            t1 = time.time()
+            agreement, majority_ans, all_answers, all_solutions = solve_and_check_agreement(
+                s_client,
+                s_model,
+                problem_text,
+                n_samples=n_samples_per_problem,
+                pool=solve_pool,
             )
-            raw = call_llm(client, model, prompt, temperature=0.3)
-            quality_score = _parse_quality_score(raw)
-            if quality_score < quality_threshold:
-                kept = False
-                status = f"skip (quality {quality_score}/10 < {quality_threshold})"
-            else:
-                status = f"KEEP (quality {quality_score}/10)"
+            eval_time = time.time() - t1
 
-        entry = GeneratedProblem(
-            problem=problem_text,
-            ground_truth_answer=majority_ans,
-            agreement_rate=agreement,
-            all_answers=all_answers,
-            all_solutions=all_solutions,
-            n_samples=n_samples_per_problem,
-        )
-        return {
-            "kind": "evaluated",
-            "candidate_num": cn,
-            "gen_time": gen_time,
-            "eval_time": eval_time,
-            "kept": kept,
-            "status": status,
-            "agreement": agreement,
-            "majority_ans": majority_ans,
-            "quality_score": quality_score,
-            "entry": entry,
-        }
+            in_range = target_agreement_low <= agreement <= target_agreement_high
+            numeric = _is_numeric_answer(normalize_answer(majority_ans))
+            kept = in_range and bool(majority_ans) and numeric
+            if not bool(majority_ans):
+                status = "skip (empty answer)"
+            elif not numeric:
+                status = f"skip (non-numeric: {majority_ans[:40]})"
+            elif in_range:
+                status = "KEEP"
+            else:
+                status = "skip"
+
+            quality_score = None
+            if kept and quality_threshold is not None:
+                qprompt = QUALITY_SCORE_PROMPT.format(
+                    target=hard_problem, candidate=problem_text,
+                )
+                raw = call_llm(client, model, qprompt, temperature=0.4)
+                quality_score = _parse_quality_score(raw)
+                if quality_score < quality_threshold:
+                    kept = False
+                    status = f"skip (quality {quality_score}/10 < {quality_threshold})"
+                else:
+                    status = f"KEEP (quality {quality_score}/10)"
+
+            entry = GeneratedProblem(
+                problem=problem_text,
+                ground_truth_answer=majority_ans,
+                agreement_rate=agreement,
+                all_answers=all_answers,
+                all_solutions=all_solutions,
+                n_samples=n_samples_per_problem,
+            )
+            results.append({
+                "kind": "evaluated",
+                "candidate_num": sub_label,
+                "gen_time": gen_time,
+                "eval_time": eval_time,
+                "kept": kept,
+                "status": status,
+                "agreement": agreement,
+                "majority_ans": majority_ans,
+                "quality_score": quality_score,
+                "entry": entry,
+            })
+
+        return results
 
     # Two pools: outer pool runs gen+eval workers, inner pool runs the
     # parallel solve samples for whichever candidate is currently evaluating.
@@ -866,39 +927,40 @@ def build_dataset(
             for fut in done:
                 in_flight.discard(fut)
                 try:
-                    result = fut.result()
+                    batch_results = fut.result()
                 except Exception as e:
                     print(f"  [error] worker raised: {e}")
                     continue
 
-                cn = result["candidate_num"]
-                kind = result["kind"]
+                for result in batch_results:
+                    cn = result["candidate_num"]
+                    kind = result["kind"]
 
-                if kind == "gen_failed":
-                    print(
-                        f"--- Candidate {cn} ---  generation failed "
-                        f"({result['gen_time']:.1f}s), continuing"
-                    )
-                elif kind == "duplicate":
-                    print(f"--- Candidate {cn} ---  duplicate, continuing")
-                elif kind == "evaluated":
-                    entry = result["entry"]
-                    with state_lock:
+                    if kind == "gen_failed":
+                        print(
+                            f"--- Candidate {cn} ---  generation failed "
+                            f"({result['gen_time']:.1f}s), continuing"
+                        )
+                    elif kind == "duplicate":
+                        print(f"--- Candidate {cn} ---  duplicate, continuing")
+                    elif kind == "evaluated":
+                        entry = result["entry"]
+                        with state_lock:
+                            if result["kept"]:
+                                dataset.problems.append(entry)
+                            else:
+                                skipped_problems.append(entry)
+                            kept_count = len(dataset.problems)
+                            skipped_count = len(skipped_problems)
+                            _flush()
+                        print(
+                            f"--- Candidate {cn} ---  gen {result['gen_time']:.1f}s "
+                            f"+ eval {result['eval_time']:.1f}s  "
+                            f"{result['agreement']:.0%} -> {result['status']}"
+                        )
                         if result["kept"]:
-                            dataset.problems.append(entry)
-                        else:
-                            skipped_problems.append(entry)
-                        kept_count = len(dataset.problems)
-                        skipped_count = len(skipped_problems)
-                        _flush()
-                    print(
-                        f"--- Candidate {cn} ---  gen {result['gen_time']:.1f}s "
-                        f"+ eval {result['eval_time']:.1f}s  "
-                        f"{result['agreement']:.0%} -> {result['status']}"
-                    )
-                    if result["kept"]:
-                        print(f"    majority answer: {result['majority_ans'][:80]}")
-                    print(f"    totals: {kept_count} kept, {skipped_count} skipped")
+                            print(f"    majority answer: {result['majority_ans'][:80]}")
+                        print(f"    totals: {kept_count} kept, {skipped_count} skipped")
 
             with state_lock:
                 done_yet = len(dataset.problems) >= n_target
@@ -915,6 +977,15 @@ def build_dataset(
         else 0
     )
     print(f"  Average agreement rate (kept): {avg_agreement:.1%}")
+    if dedupe is not None:
+        kept_this_run = dedupe.n_kept - dedupe_baseline_kept
+        exact_this_run = dedupe.n_exact_dropped - dedupe_baseline_exact
+        fuzzy_this_run = dedupe.n_fuzzy_dropped - dedupe_baseline_fuzzy
+        print(
+            f"  dedupe: kept {kept_this_run}, "
+            f"dropped {exact_this_run + fuzzy_this_run} "
+            f"(exact={exact_this_run}, fuzzy={fuzzy_this_run})"
+        )
     print(f"{'=' * 70}\n")
 
     return dataset
@@ -962,6 +1033,8 @@ def run(
     tinker_checkpoint: str | None = None,
     tinker_checkpoint_step: int = 50,
     quality_threshold: int | None = None,
+    use_dedupe: bool = True,
+    problems_per_call: int = 2,
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = get_tinker_client(
@@ -999,6 +1072,8 @@ def run(
         solve_client=solve_client,
         solve_model=solve_model,
         quality_threshold=quality_threshold,
+        use_dedupe=use_dedupe,
+        problems_per_call=problems_per_call,
     )
 
     save_dataset(dataset, out_path)
@@ -1139,6 +1214,24 @@ def main():
             "(see --runs-subdir)."
         ),
     )
+    parser.add_argument("--no-dedupe", action="store_true",
+                        help="Disable fuzzy dedup; fall back to exact-string equality only (for ablation)")
+    parser.add_argument(
+        "--max-traces",
+        type=int,
+        default=None,
+        help=(
+            "Max number of failed-solution traces to include in each generation "
+            "prompt (default: all). Lower values reduce prompt length at the cost "
+            "of less context per call."
+        ),
+    )
+    parser.add_argument(
+        "--problems-per-call",
+        type=int,
+        default=2,
+        help="Number of problems to request per generation LLM call (default 2)",
+    )
     args = parser.parse_args()
 
     problem_text = load_problem_from_txt(args.problem_path)
@@ -1155,7 +1248,8 @@ def main():
     runs_root = os.path.join(repo_root, "runs", runs_subdir)
 
     failed_path = args.failed_solutions or os.path.join(repo_root, "data", "reasoning-traces", f"{runs_subdir}.json")
-    failed_solutions = _load_failed_solutions(failed_path)
+    k_top = args.max_traces if args.max_traces is not None else 5
+    failed_solutions = _load_failed_solutions(failed_path, k_top=k_top)
     if not failed_solutions:
         print(
             f"No failed solutions at {failed_path}. "
@@ -1183,6 +1277,8 @@ def main():
         gen_workers=args.gen_workers,
         quality_threshold=args.quality_threshold,
         max_workers=args.max_workers,
+        use_dedupe=not args.no_dedupe,
+        problems_per_call=args.problems_per_call,
     )
 
 

@@ -1,0 +1,613 @@
+
+They differ in both algorithm/design and engineering details.
+
+At a high level:
+
+First script = round-based batch generator
+
+Second script = streaming pipeline generator
+
+Here is the concrete difference.
+
+1. How they generate candidates
+First script
+It generates problems in rounds.
+
+In each round it does:
+
+launch n_generators independent generation calls
+
+each call returns problems_per_generator problems
+
+merge and dedupe them
+
+then evaluate all new candidates
+
+So with defaults it does:
+
+5 generators × 2 problems = 10 candidates per round
+
+This is why the header says it prefers quality over quantity: each generation call only asks for 2 problems, so the model can focus more per problem.
+
+Second script
+It generates one problem per generation call.
+
+Each worker does:
+
+generate 1 candidate
+
+immediately evaluate it
+
+return keep/skip
+
+then the pipeline submits another one
+
+So instead of “generate 10, then evaluate 10,” it behaves more like:
+
+“keep a conveyor belt of candidate generation/evaluation running continuously.”
+
+2. Prompt/output format for generation
+First script
+Generation prompt asks for:
+
+a JSON array
+
+exactly batch_size problems
+
+each problem targeting a different technique
+
+Output expected:
+
+[
+  {"problem": "..."}
+]
+It then tries to parse JSON, including some cleanup for malformed escaping.
+
+Second script
+Generation prompt asks for:
+
+first a brief explanation of the targeted technique
+
+then exactly one problem between delimiters
+
+Output expected:
+
+===PROBLEM START===
+...
+===PROBLEM END===
+It extracts with regex instead of JSON parsing.
+
+Practical effect
+First script is stricter / more structured but more fragile if JSON formatting breaks.
+
+Second script is looser and often easier for LLMs to obey.
+
+3. Use of failed solutions
+First script
+It includes all failed solutions in each generation prompt.
+
+So every generation call sees the whole bank of attempts.
+
+Second script
+It includes only one randomly chosen failed solution per generation call.
+
+Reason given in code:
+
+stay within context limits
+
+over many calls, different failed traces still get exposed
+
+Practical effect
+First script gives richer context per call.
+
+Second script gives less context per call, but more variety across calls and lower prompt length.
+
+4. Parallelism structure
+First script
+Uses one shared thread pool and does this in phases:
+
+parallel generation
+
+parallel evaluation of all candidates
+
+So it is batch synchronous.
+
+Second script
+Uses two pools:
+
+gen_pool: concurrent candidate pipelines
+
+solve_pool: parallel self-consistency solves inside each candidate evaluation
+
+This is fully pipelined / asynchronous.
+
+Practical effect
+Second script is usually better at keeping workers busy and may have better throughput.
+
+5. Dedupe
+First script
+Only uses exact string dedupe:
+
+seen: set[str]
+So if two problems are semantically the same but phrased differently, both may be kept.
+
+Second script
+Uses:
+
+from pipeline_stages.dedupe import DedupeIndex
+So it can do fuzzy dedupe unless --no-dedupe is passed.
+
+Practical effect
+Second script is better at removing near-duplicates.
+
+6. Answer extraction
+First script
+Can do either:
+
+regex extraction
+
+or optional LLM-based extraction (llm_extract=True)
+
+It looks for:
+
+**ANSWER: ...**
+
+\boxed{...}
+
+fallback text patterns
+
+optional extra LLM extraction prompt
+
+Second script
+Uses regex only, centered around:
+
+\boxed{...}
+
+No LLM-based answer extraction.
+
+Practical effect
+First script is more robust when answer formatting is messy.
+
+Second script is cheaper/simpler/faster, but more brittle if the solver ignores formatting.
+
+7. Retry logic / robustness
+First script
+Manual retry loop:
+
+up to 3 attempts
+
+exponential sleep 2**attempt
+
+Second script
+Uses tenacity:
+
+up to 8 attempts
+
+random exponential backoff
+
+timeout support
+
+Practical effect
+Second script is more production-grade for flaky APIs.
+
+8. Quality filtering
+First script
+Keeps a candidate if:
+
+majority answer exists
+
+answer is numeric
+
+agreement is in the target window
+
+That is it.
+
+Second script
+Can optionally do extra inline quality judging with:
+
+--quality-threshold
+If enabled, even candidates that pass the agreement window must also get a high enough usefulness score from another LLM pass.
+
+Practical effect
+Second script has an additional semantic quality filter.
+
+9. Resume behavior
+First script
+Writes keeps.json and skips.json, but does not seem to resume from existing keeps.json.
+
+Second script
+If output_path already exists, it loads existing problems and resumes from them.
+
+Practical effect
+Second script is better for long interrupted runs.
+
+10. Tinker checkpoint support
+First script
+Only uses Vertex/OpenAI-compatible API calls.
+
+Second script
+Can use either:
+
+Vertex API
+
+or a Tinker checkpoint via --tinker
+
+It builds a fake OpenAI-compatible client around Tinker sampling.
+
+Practical effect
+Second script supports evaluating/generated from a fine-tuned checkpoint, not just the base API model.
+
+11. CLI / project integration
+First script
+More self-contained and simpler:
+
+hard-coded PROBLEM_STATEMENT
+
+loads failed_solutions.json
+
+runs directly
+
+Second script
+More integrated into a larger pipeline:
+
+loads problem from --problem-path
+
+loads reasoning traces from project data folders
+
+supports run subdirs, stage1 outputs, checkpoint selection, ablations, dedupe toggles
+
+Practical effect
+First script feels like a standalone experiment.
+Second script feels like the more mature pipeline version.
+
+12. Generation philosophy
+First script
+The generation prompt explicitly says:
+
+generate a set of techniques
+
+produce multiple problems, each targeting a different technique
+
+quality over quantity
+
+So it is trying to get diverse batches every round.
+
+Second script
+The generation prompt says:
+
+pick one technique/subskill
+
+make one problem
+
+Because it runs many times, diversity comes from repeated independent calls rather than from a single batch prompt.
+
+In one sentence
+First script = simpler, batch-oriented, high-context, multi-problem-per-call generator.
+
+Second script = more scalable, resumable, pipeline-oriented, deduped, quality-filtered, checkpoint-compatible generator.
+
+Biggest conceptual difference
+The biggest real difference is this:
+
+First script optimizes per-call generation quality by asking for a small batch from each independent generator.
+
+Second script optimizes system throughput and control by turning generation/evaluation into a streaming pipeline with dedupe, resume, quality filtering, and checkpoint support.
+
+Which is likely better for what
+Use the first script if you want:
+
+quick experimentation
+
+simpler code
+
+richer failed-solution context in each prompt
+
+batch diversity per generation round
+
+Use the second script if you want:
+
+a production pipeline
+
+resume support
+
+fuzzy dedupe
+
+optional quality judging
+
+Tinker checkpoint support
+
+better throughput on long runs
+
+If you want, I can also give you a side-by-side table of differences or tell you which parts of the second script are genuine improvements versus just engineering complexity.
+
+
+the problem that was generated for code 2 is much worse. investigate why? is it becasue we have a timeout somewhere? max token limit? 
+
+Probably not a max-token cap in the code you showed.
+
+I do not see any explicit max_tokens limit in either script’s generation call, so there is no obvious truncation cap being set by your code. A provider-side default could still exist, but from these scripts alone, that is not the main thing that jumps out.
+
+The biggest reasons code 2 can generate worse problems are these:
+
+1. Code 2 gives the generator much less context per call
+In code 1, every generation call sees:
+
+the full hard problem
+
+all failed solutions
+
+a request to generate multiple problems targeting different techniques
+
+In code 2, each generation call sees:
+
+the hard problem
+
+only one randomly chosen failed solution
+
+That is a major downgrade. If the randomly chosen failed solution is weak, narrow, or confused, the generator may anchor on the wrong subskill and produce a worse problem.
+
+This line is especially important:
+
+pick = random.choice(failed_solutions)
+solutions_block = f"### Attempt 1\n\n{pick}"
+So yes: code 2 is feeding the model less signal and also higher-variance signal.
+
+2. Code 2’s generation prompt is weaker / less constrained
+Code 1’s prompt is much sharper. It says things like:
+
+identify distinct mathematical techniques
+
+generate {batch_size} problems
+
+each targets a different technique
+
+explicitly avoid easy textbook exercises
+
+explicitly write out techniques and concepts needed
+
+Code 2’s prompt is looser:
+
+“create a related math problem”
+
+“similar in difficulty”
+
+pick one technique
+
+give a brief explanation, then the problem
+
+That sounds harmless, but it gives the model more room to drift into vague “related” problems rather than precise bottleneck-isolating ones.
+
+In particular, this phrase in code 2 is risky:
+
+“similar in difficulty to the source problem”
+
+That can push the model toward problems that are just hard-looking, not pedagogically targeted.
+
+By contrast, code 1 is more curriculum-focused.
+
+3. Code 2 extracts only one problem from a freer-form response
+Code 1 forces JSON:
+
+[{"problem": "..."}]
+Code 2 asks for prose plus delimiters:
+
+First briefly state which technique/subskill you are targeting and why.
+Then write the problem statement between ...
+That means code 2 encourages the model to spend generation budget on explanation, and also gives it more freedom in style. In practice, freer output formats often correlate with noisier generations.
+
+So even if timeout is not the issue, prompt/output format quality likely is.
+
+4. Code 2 removes LLM-based answer extraction and relies on regex only
+This affects evaluation quality, not raw generation quality, but it can still make the final kept set worse.
+
+In code 1:
+
+answers can be extracted by regex
+
+or with a fallback LLM extractor
+
+In code 2:
+
+answer extraction is regex only
+
+solver must obey \boxed{...} formatting
+
+So code 2 may:
+
+mis-extract answers more often
+
+miscompute agreement
+
+keep the wrong candidates
+
+skip good ones
+
+That can make the dataset look worse even if generation itself is only somewhat worse.
+
+5. Code 2 may be using a different model path when --tinker is on
+If you ran code 2 with --tinker, then generation is no longer coming from the same serving path as code 1.
+
+Code 2 can swap to:
+
+Tinker checkpoint
+
+different tokenizer / template application
+
+different underlying weights
+
+That could absolutely worsen generation quality.
+
+So one key diagnostic is:
+
+Did code 2 run with plain Vertex API?
+
+Or with --tinker / checkpoint?
+
+If it used Tinker and code 1 used Vertex base model, then this may be the main cause.
+
+6. Code 2’s pipeline structure can increase variance in what gets kept
+Code 1 works in rounds:
+
+generate a batch
+
+dedupe
+
+evaluate all
+
+Code 2 is streaming:
+
+generate one
+
+dedupe
+
+evaluate
+
+continue
+
+This itself is not inherently worse, but paired with random failed-solution selection, it means you can get unlucky streaks where many candidates are generated from weak context.
+
+So code 2 is more sensitive to prompt variance.
+
+7. There is a timeout, but it is probably not the main culprit
+Yes, code 2 has:
+
+timeout: float = 180.0
+...
+client.chat.completions.create(..., timeout=timeout)
+Code 1 does not pass a timeout.
+
+So timeout is a real difference.
+
+But if timeout were the main issue, I would expect to see:
+
+many warnings like “LLM call failed after all retries”
+
+empty responses
+
+a lot of generation failures
+
+Instead, your complaint is that the generated problems are worse, not that generation is failing. That points more toward prompt/context differences than hard timeout truncation.
+
+Also, timeout is request timeout, not output-length truncation. It does not directly act like max_tokens.
+
+8. I do not see an explicit max token limit
+I do not see any of:
+
+max_tokens=...
+
+max_completion_tokens=...
+
+custom sampling limit in the Vertex path
+
+So from the code alone, I would not blame max-token limit first.
+
+Caveat: provider defaults may still limit output length. But if that were the problem, I’d expect:
+
+truncated delimiter blocks
+
+malformed generations
+
+missing ===PROBLEM END===
+
+That is not the first thing I’d suspect from these scripts alone.
+
+Most likely causes, ranked
+Most likely
+Only one random failed solution in code 2
+
+Weaker / looser generation prompt in code 2
+
+Freer output format in code 2
+
+Regex-only answer extraction causing worse keep/skip decisions
+
+Less likely but possible
+Using Tinker/checkpoint in code 2
+
+Timeout causing retries / degraded generations
+
+Least likely from what I see
+Explicit max token limit — I do not see one
+
+What I would test first
+Test 1: make code 2 use all failed solutions
+Replace:
+
+pick = random.choice(failed_solutions)
+solutions_block = f"### Attempt 1\n\n{pick}"
+with something like:
+
+solutions_block = "\n\n---\n\n".join(
+    f"### Attempt {i+1}\n\n{sol}"
+    for i, sol in enumerate(failed_solutions[:3])
+)
+If quality jumps, that was a major cause.
+
+Test 2: copy code 1’s generation prompt into code 2
+Keep the streaming pipeline, but use code 1’s stricter generation prompt.
+
+That isolates whether the issue is:
+
+pipeline architecture
+or
+
+prompt quality
+
+My guess: it is mostly the prompt.
+
+Test 3: log the raw generated responses
+For code 2, save:
+
+chosen failed solution
+
+raw generator output
+
+extracted problem
+
+Then inspect a few bad cases. I suspect you will see one of:
+
+anchoring on a bad failed trace
+
+vague “related” problems
+
+incorrect technique selection
+
+malformed or weak problem statements
+
+Test 4: disable Tinker if you used it
+Run code 2 on the same exact serving path/model as code 1.
+
+Test 5: compare generation-only, before evaluation
+Generate 50 candidates from each script and inspect them before solve/agreement filtering.
+
+That tells you whether the problem is:
+
+bad generation
+or
+
+bad downstream filtering
+
+My best diagnosis
+The main reason code 2 is worse is not timeout or max token limit.
+
+It is much more likely due to this combination:
+
+code 2 gives only one randomly selected failed solution
+
+code 2 has a weaker, looser prompt
+
+code 2 uses a less rigid output format
+
+code 2’s downstream filtering is a bit noisier because extraction is stricter and simpler
+
+So the regression is probably prompt/context quality, not token budget.
+
+If you want, I can rewrite code 2’s generation part so it keeps the good engineering improvements but matches code 1’s stronger prompting behavior.
+
+
+hi
+
+hi
+
+
+
