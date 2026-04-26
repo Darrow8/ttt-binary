@@ -60,9 +60,10 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(key.strip(), val)
 
 # ---------------------------------------------------------------------------
-# Vertex AI client configuration
+# LLM backend client configuration
 # ---------------------------------------------------------------------------
-DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
+VERTEX_DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
+AZURE_DEFAULT_MODEL = os.environ.get("AZURE_AI_FOUNDRY_MODEL", "FW-GPT-OSS-120B")
 
 
 def _get_vertex_access_token() -> str:
@@ -92,12 +93,35 @@ def _build_vertex_base_url() -> str:
     )
 
 
-def get_client() -> tuple[OpenAI, str]:
+def _get_vertex_client() -> tuple[OpenAI, str]:
     """Create OpenAI client configured for Vertex AI."""
     token = _get_vertex_access_token()
     base_url = _build_vertex_base_url()
     client = OpenAI(api_key=token, base_url=base_url)
-    return client, DEFAULT_MODEL
+    return client, VERTEX_DEFAULT_MODEL
+
+
+def _get_azure_client() -> tuple[OpenAI, str]:
+    """Create OpenAI client configured for Azure AI Foundry."""
+    endpoint = os.environ.get("AZURE_AI_FOUNDRY_ENDPOINT")
+    api_key = os.environ.get("AZURE_AI_FOUNDRY_API_KEY")
+    if not endpoint or not api_key:
+        raise RuntimeError(
+            "Set AZURE_AI_FOUNDRY_ENDPOINT and AZURE_AI_FOUNDRY_API_KEY "
+            "environment variables for Azure AI Foundry."
+        )
+    client = OpenAI(api_key=api_key, base_url=endpoint)
+    return client, AZURE_DEFAULT_MODEL
+
+
+def get_client(backend: str = "azure") -> tuple[OpenAI, str]:
+    """Create OpenAI client for the requested backend ('azure' or 'vertex')."""
+    backend = backend.lower()
+    if backend == "azure":
+        return _get_azure_client()
+    if backend == "vertex":
+        return _get_vertex_client()
+    raise ValueError(f"Unknown backend: {backend!r} (expected 'azure' or 'vertex')")
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +263,7 @@ def process_json_file(
     verbose: bool = False,
     limit: Optional[int] = None,
     workers: int = 8,
+    backend: str = "azure",
 ) -> list[dict]:
     """Process JSON file of lemmas and add relevance, redundancy, and complexity rankings."""
     # Get target problem from file if specified
@@ -277,9 +302,9 @@ def process_json_file(
     if limit is not None:
         problems = problems[:limit]
 
-    # Get Vertex client (shared across threads — OpenAI client is thread-safe)
-    print("Initializing Vertex AI client...")
-    client, model = get_client()
+    # Get client (shared across threads — OpenAI client is thread-safe)
+    print(f"Initializing {backend} client...")
+    client, model = get_client(backend=backend)
     print(f"Using model: {model}")
     print(f"Workers: {workers}")
     print(f"\nTarget problem: {target_problem[:100]}...")
@@ -364,6 +389,12 @@ def main():
         "-w", "--workers", type=int, default=8,
         help="Number of parallel worker threads (default: 8)",
     )
+    parser.add_argument(
+        "--backend",
+        choices=["azure", "vertex"],
+        default="azure",
+        help="LLM backend to use (default: azure)",
+    )
 
     args = parser.parse_args()
 
@@ -383,6 +414,7 @@ def main():
             verbose=args.verbose,
             limit=args.limit,
             workers=args.workers,
+            backend=args.backend,
         )
 
         # Print summary statistics

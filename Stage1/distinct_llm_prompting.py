@@ -57,9 +57,11 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(key.strip(), val)
 
 # ---------------------------------------------------------------------------
-# Vertex AI client
+# Model identifiers
 # ---------------------------------------------------------------------------
-DEFAULT_MODEL = "openai/gpt-oss-120b-maas"
+DEFAULT_VERTEX_MODEL = "openai/gpt-oss-120b-maas"
+DEFAULT_AZURE_MODEL = os.environ.get("AZURE_AI_FOUNDRY_MODEL", "FW-GPT-OSS-120B")
+DEFAULT_MODEL = DEFAULT_AZURE_MODEL
 
 # ---------------------------------------------------------------------------
 # Tinker checkpoint client (adapter over tinker sampling API)
@@ -226,15 +228,6 @@ def load_problem_from_txt(path: str) -> str:
     return text
 
 
-def _get_vertex_access_token() -> str:
-    from google.auth import default
-    from google.auth.transport.requests import Request
-
-    credentials, _ = default()
-    credentials.refresh(Request())
-    return credentials.token
-
-
 def _build_vertex_base_url() -> str:
     project = os.environ.get("GOOGLE_CLOUD_PROJECT")
     if not project:
@@ -251,11 +244,87 @@ def _build_vertex_base_url() -> str:
     )
 
 
-def get_client() -> tuple[OpenAI, str]:
-    token = _get_vertex_access_token()
+class _VertexClient:
+    """OpenAI-compatible client that auto-refreshes Vertex AI access tokens.
+
+    Vertex tokens expire after ~60 minutes.  This wrapper checks validity
+    (with a 5-minute buffer) every time ``.chat`` is accessed — which happens
+    once per ``call_llm`` invocation — and transparently refreshes when needed.
+    """
+
+    def __init__(self, base_url: str):
+        import datetime
+        from google.auth import default
+        from google.auth.transport.requests import Request
+
+        self._credentials, _ = default()
+        self._request = Request()
+        self._credentials.refresh(self._request)
+        self._client = OpenAI(api_key=self._credentials.token, base_url=base_url)
+        self._lock = threading.Lock()
+        self._TOKEN_BUFFER = datetime.timedelta(minutes=5)
+
+    def _ensure_fresh_token(self):
+        import datetime
+
+        with self._lock:
+            now = datetime.datetime.utcnow()
+            needs_refresh = (
+                not self._credentials.valid
+                or (self._credentials.expiry is not None
+                    and self._credentials.expiry - now < self._TOKEN_BUFFER)
+            )
+            if needs_refresh:
+                self._credentials.refresh(self._request)
+                self._client.api_key = self._credentials.token
+
+    @property
+    def chat(self):
+        self._ensure_fresh_token()
+        return self._client.chat
+
+
+def get_vertex_client() -> tuple[_VertexClient, str]:
     base_url = _build_vertex_base_url()
-    client = OpenAI(api_key=token, base_url=base_url)
-    return client, DEFAULT_MODEL
+    client = _VertexClient(base_url)
+    return client, DEFAULT_VERTEX_MODEL
+
+
+# ---------------------------------------------------------------------------
+# Azure AI Foundry client
+# ---------------------------------------------------------------------------
+class _AzureClient:
+    """OpenAI-compatible client backed by Azure AI Foundry."""
+
+    def __init__(self, endpoint: str, api_key: str):
+        self._client = OpenAI(api_key=api_key, base_url=endpoint)
+
+    @property
+    def chat(self):
+        return self._client.chat
+
+
+def _build_azure_client() -> _AzureClient:
+    endpoint = os.environ.get("AZURE_AI_FOUNDRY_ENDPOINT")
+    api_key = os.environ.get("AZURE_AI_FOUNDRY_API_KEY")
+    if not endpoint or not api_key:
+        raise RuntimeError(
+            "Set AZURE_AI_FOUNDRY_ENDPOINT and AZURE_AI_FOUNDRY_API_KEY "
+            "environment variables for Azure AI Foundry."
+        )
+    return _AzureClient(endpoint=endpoint, api_key=api_key)
+
+
+def get_azure_client() -> tuple[_AzureClient, str]:
+    client = _build_azure_client()
+    return client, DEFAULT_AZURE_MODEL
+
+
+def get_client(backend: str = "azure") -> tuple[_VertexClient | _AzureClient, str]:
+    """Return an LLM client for the requested backend (default: azure)."""
+    if backend == "vertex":
+        return get_vertex_client()
+    return get_azure_client()
 
 
 # ---------------------------------------------------------------------------
@@ -1004,6 +1073,7 @@ def run(
     quality_threshold: int | None = None,
     use_dedupe: bool = True,
     problems_per_call: int = 2,
+    backend: str = "azure",
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = get_tinker_client(
@@ -1012,7 +1082,7 @@ def run(
         gen_client, gen_model = tinker_client, model or tinker_model
         solve_client, solve_model = tinker_client, tinker_model
     else:
-        gen_client, gen_default_model = get_client()
+        gen_client, gen_default_model = get_client(backend)
         gen_model = model or gen_default_model
         solve_client, solve_model = None, None
 
@@ -1132,7 +1202,12 @@ def main():
     parser.add_argument(
         "--tinker",
         action="store_true",
-        help="Use a tinker checkpoint instead of the Vertex AI API",
+        help="Use a tinker checkpoint instead of the default API",
+    )
+    parser.add_argument(
+        "--vertex",
+        action="store_true",
+        help="Use Vertex AI backend instead of the default Azure AI Foundry",
     )
     parser.add_argument(
         "--checkpoint",
@@ -1233,11 +1308,13 @@ def main():
         ts = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
         run_dir = os.path.join(runs_root, "stage1", ts)
 
+    backend = "vertex" if args.vertex else "azure"
+
     run(
         problem=problem_text,
         n_problems=args.n_problems,
         n_samples=args.n_samples,
-        model=args.model or "openai/gpt-oss-120b-maas",
+        model=args.model,
         failed_solutions=failed_solutions,
         use_tinker=args.tinker,
         tinker_checkpoint=args.checkpoint,
@@ -1248,6 +1325,7 @@ def main():
         max_workers=args.max_workers,
         use_dedupe=not args.no_dedupe,
         problems_per_call=args.problems_per_call,
+        backend=backend,
     )
 
 

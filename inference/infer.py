@@ -1,7 +1,8 @@
-"""Solve a math problem using the remote Vertex AI API or a local GRPO checkpoint.
+"""Solve a math problem using Azure AI Foundry (default), Vertex AI, or a local GRPO checkpoint.
 
 Usage:
-    python Inference/infer.py                  # remote Vertex AI (needs GCP credentials)
+    python Inference/infer.py                  # Azure AI Foundry (default)
+    python Inference/infer.py --vertex         # remote Vertex AI (needs GCP credentials)
     python Inference/infer.py --local          # local tinker checkpoint
     python Inference/infer.py --n-samples 50   # override sample count
 """
@@ -61,8 +62,20 @@ Put your final answer inside \\boxed{{}}.
 
 TEMPERATURE = 0.7
 
+# Max tokens per sample. GPT-OSS-120B's reasoning traces for hard problems can
+# easily run ~8-10k tokens before it emits a final \boxed{...}. Without this the
+# tinker default truncates ~80% of samples mid-reasoning, and we end up voting
+# on scraped-from-reasoning fragments instead of real final answers.
+MAX_TOKENS = 16384
+
 # Remote (Vertex AI) model identifier — not a HuggingFace repo.
-MODEL = "openai/gpt-oss-120b-maas"
+VERTEX_MODEL = "openai/gpt-oss-120b-maas"
+
+# Azure AI Foundry model identifier.
+AZURE_MODEL = os.environ.get("AZURE_AI_FOUNDRY_MODEL", "FW-GPT-OSS-120B")
+
+# Default model — Azure is the default backend.
+MODEL = AZURE_MODEL
 
 # Base model on HuggingFace — used only for the local/tinker tokenizer.
 LOCAL_TOKENIZER_MODEL = "openai/gpt-oss-120b"
@@ -127,27 +140,55 @@ def _clean_boxed(raw: str) -> str:
     return cleaned
 
 
+_LEADING_NUMBER = re.compile(r"^-?\d+(?:\.\d+)?")
+
+
+def _normalize_answer(answer: str) -> str:
+    """Collapse trivially-different forms of the same answer into one bucket.
+
+    Keeps the leading numeric token when present, so e.g.
+    "3264 (counted with multiplicities)" and "3264." all bucket as "3264".
+    """
+    if not answer:
+        return ""
+    answer = answer.strip()
+    answer = answer.replace(",", "").replace(" ", "")
+    m = _LEADING_NUMBER.match(answer)
+    if m:
+        try:
+            num = float(m.group(0))
+            if num == int(num):
+                return str(int(num))
+            return str(num)
+        except (ValueError, OverflowError):
+            pass
+    return answer
+
+
 def _regex_extract(solution: str) -> str:
+    """Extract an answer from a solution using only the last \\boxed{...}.
+
+    We deliberately do NOT fall back to scraping "the answer is ..." out of the
+    reasoning: when the chain of thought gets truncated before the final boxed
+    answer, that heuristic grabs arbitrary mid-reasoning sentences like
+    "the answer 3264 is the degree of ..." and turns them into unique vote
+    buckets, which destroys majority voting. If there is no \\boxed{...} we
+    return "" so the caller can defer to the LLM extractor.
+    """
     if not solution:
         return ""
     raw = _extract_boxed_raw(solution)
-    if raw:
-        return _clean_boxed(raw) or raw
-    m = re.search(
-        r"(?:final answer|the answer)(?:\s+is)?[:\s]+([^\n.]+)",
-        solution,
-        re.IGNORECASE,
-    )
-    if m:
-        return m.group(1).strip()
-    return ""
+    if not raw:
+        return ""
+    cleaned = _clean_boxed(raw)
+    return cleaned or raw
 
 
 def extract_answer(solution: str, *, client=None, model: str = "") -> str:
     """Extract the answer: regex first, LLM fallback if a client is provided."""
     answer = _regex_extract(solution)
     if answer:
-        return answer
+        return _normalize_answer(answer)
     if not solution or client is None:
         return ""
     prompt = EXTRACT_ANSWER_PROMPT.format(solution=solution)
@@ -167,7 +208,7 @@ def extract_answer(solution: str, *, client=None, model: str = "") -> str:
         return ""
     if answer.upper() == "NONE":
         return ""
-    return answer
+    return _normalize_answer(answer)
 
 
 def _save_atomic(path: str, data: dict) -> None:
@@ -239,7 +280,20 @@ def _get_remote_client():
     return OpenAI(api_key=token, base_url=base_url)
 
 
-def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
+def _get_azure_client():
+    from openai import OpenAI
+
+    endpoint = os.environ.get("AZURE_AI_FOUNDRY_ENDPOINT")
+    api_key = os.environ.get("AZURE_AI_FOUNDRY_API_KEY")
+    if not endpoint or not api_key:
+        sys.exit(
+            "Set AZURE_AI_FOUNDRY_ENDPOINT and AZURE_AI_FOUNDRY_API_KEY "
+            "environment variables for Azure AI Foundry."
+        )
+    return OpenAI(api_key=api_key, base_url=endpoint)
+
+
+def _solve_once_remote(client, problem: str, sample_idx: int, model: str = VERTEX_MODEL) -> dict:
     prompt = SOLVE_PROMPT.format(problem=problem)
 
     @retry(
@@ -247,9 +301,10 @@ def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
     )
     def _call():
         return client.chat.completions.create(
-            model=MODEL,
+            model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=TEMPERATURE,
+            max_tokens=MAX_TOKENS,
         )
 
     try:
@@ -270,7 +325,7 @@ def _solve_once_remote(client, problem: str, sample_idx: int) -> dict:
         solution = (
             (reasoning_content + "\n\n" + content) if reasoning_content else content
         )
-        answer = extract_answer(solution, client=client, model=MODEL)
+        answer = extract_answer(solution, client=client, model=model)
         result = {
             "sample_idx": sample_idx,
             "answer": answer,
@@ -300,9 +355,10 @@ def run_remote(problem: str, n_samples: int) -> None:
     out_path = os.path.join(out_dir, "results.json")
 
     client = _get_remote_client()
+    model = VERTEX_MODEL
 
     print(f"Mode:    remote (vertex)")
-    print(f"Model:   {MODEL}")
+    print(f"Model:   {model}")
     print(f"Samples: {n_samples}")
     print(f"Workers: {MAX_WORKERS}")
     print(f"Output:  {out_path}\n")
@@ -312,7 +368,7 @@ def run_remote(problem: str, n_samples: int) -> None:
 
     output_data = {
         "mode": "remote",
-        "model": MODEL,
+        "model": model,
         "n_samples": n_samples,
         "problem": problem.strip(),
         "started_at": datetime.now().isoformat(),
@@ -344,7 +400,76 @@ def run_remote(problem: str, n_samples: int) -> None:
     t_start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         for i in range(n_samples):
-            fut = pool.submit(_solve_once_remote, client, problem, i)
+            fut = pool.submit(_solve_once_remote, client, problem, i, model)
+            fut.add_done_callback(_on_complete)
+    total_time = time.time() - t_start
+
+    output_data["completed"] = True
+    output_data["finished_at"] = datetime.now().isoformat()
+    output_data["total_time_s"] = round(total_time, 2)
+
+    answers = [r.get("answer", "") for r in results if r.get("answer")]
+    if answers:
+        output_data["summary"] = _print_summary(answers, n_samples, total_time)
+
+    _save_atomic(out_path, output_data)
+    print(f"\nResults saved to {out_path}")
+
+
+def run_azure(problem: str, n_samples: int) -> None:
+    out_dir = os.path.join(
+        "runs", "base_model_inference", datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "results.json")
+
+    client = _get_azure_client()
+    model = AZURE_MODEL
+
+    print(f"Mode:    remote (azure)")
+    print(f"Model:   {model}")
+    print(f"Samples: {n_samples}")
+    print(f"Workers: {MAX_WORKERS}")
+    print(f"Output:  {out_path}\n")
+
+    results: list[dict] = []
+    lock = threading.Lock()
+
+    output_data = {
+        "mode": "azure",
+        "model": model,
+        "n_samples": n_samples,
+        "problem": problem.strip(),
+        "started_at": datetime.now().isoformat(),
+        "completed": False,
+        "results": results,
+    }
+    _save_atomic(out_path, output_data)
+
+    def _on_complete(future: concurrent.futures.Future) -> None:
+        try:
+            result = future.result()
+        except Exception as e:
+            result = {"error": str(e)}
+        with lock:
+            results.append(result)
+            output_data["results"] = sorted(
+                results,
+                key=lambda r: r.get("sample_idx", 0),
+            )
+            _save_atomic(out_path, output_data)
+        idx = result.get("sample_idx", "?")
+        ans = result.get("answer", "")
+        t = result.get("elapsed_s", 0)
+        print(
+            f"  [sample {idx + 1}/{n_samples}] answer={ans!r}  ({t:.1f}s)  "
+            f"[{len(results)}/{n_samples} done]"
+        )
+
+    t_start = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        for i in range(n_samples):
+            fut = pool.submit(_solve_once_remote, client, problem, i, model)
             fut.add_done_callback(_on_complete)
     total_time = time.time() - t_start
 
@@ -412,8 +537,8 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
     tinker_path = checkpoint or _find_latest_checkpoint(service)
     sampling_client, tokenizer = _build_local_clients(service, tinker_path)
 
-    print(f"Mode:       local")
-    print(f"Model:      {MODEL}")
+    print(f"Mode:       local (tinker)")
+    print(f"Model:      {LOCAL_TOKENIZER_MODEL}")
     print(f"Checkpoint: {tinker_path}")
     print(f"Samples:    {n_samples}\n")
 
@@ -427,7 +552,7 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
     ids = tokenizer.encode(text, add_special_tokens=False)
     prompt = types.ModelInput.from_ints(ids)
 
-    params = types.SamplingParams(temperature=TEMPERATURE)
+    params = types.SamplingParams(temperature=TEMPERATURE, max_tokens=MAX_TOKENS)
     result = sampling_client.sample(
         prompt=prompt,
         num_samples=n_samples,
@@ -439,10 +564,10 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
         for seq in result.sequences
     ]
 
-    extract_client = _get_remote_client()
+    extract_client = _get_azure_client()
     results = []
     for i, resp in enumerate(responses):
-        answer = extract_answer(resp, client=extract_client, model=MODEL)
+        answer = extract_answer(resp, client=extract_client, model=AZURE_MODEL)
         results.append(
             {
                 "sample_idx": i,
@@ -453,7 +578,7 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
 
     output = {
         "mode": "local",
-        "model": MODEL,
+        "model": LOCAL_TOKENIZER_MODEL,
         "checkpoint": tinker_path,
         "n_samples": n_samples,
         "problem": problem.strip(),
@@ -484,12 +609,17 @@ def run_local(problem: str, n_samples: int, checkpoint: str | None = None) -> No
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Solve a math problem with the remote API or a local GRPO checkpoint.",
+        description="Solve a math problem with Azure AI Foundry (default), Vertex AI, or a local GRPO checkpoint.",
     )
     parser.add_argument(
         "--local",
         action="store_true",
-        help="Use local tinker checkpoint instead of remote Vertex AI API",
+        help="Use local tinker checkpoint instead of remote API",
+    )
+    parser.add_argument(
+        "--vertex",
+        action="store_true",
+        help="Use Vertex AI backend instead of the default Azure AI Foundry",
     )
     parser.add_argument(
         "--n-samples",
@@ -507,8 +637,10 @@ def main():
 
     if args.local:
         run_local(DEFAULT_PROBLEM, args.n_samples or 100, checkpoint=args.checkpoint)
-    else:
+    elif args.vertex:
         run_remote(DEFAULT_PROBLEM, args.n_samples or 100)
+    else:
+        run_azure(DEFAULT_PROBLEM, args.n_samples or 100)
 
 
 if __name__ == "__main__":

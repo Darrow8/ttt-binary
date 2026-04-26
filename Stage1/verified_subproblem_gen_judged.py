@@ -940,6 +940,7 @@ def run(
     verify_model: str | None = None,
     judge_model: str | None = None,
     problems_per_call: int = 2,
+    backend: str = "azure",
 ) -> Dataset:
     if use_tinker:
         tinker_client, tinker_model = s1.get_tinker_client(
@@ -948,7 +949,7 @@ def run(
         gen_client, gen_model = tinker_client, model or tinker_model
         solve_client, solve_model = tinker_client, tinker_model
     else:
-        gen_client, gen_default_model = s1.get_client()
+        gen_client, gen_default_model = s1.get_client(backend)
         gen_model = model or gen_default_model
         solve_client, solve_model = None, None
 
@@ -1009,7 +1010,9 @@ def main():
         help="Path to failed-attempts JSON (default: data/reasoning-traces/<runs-subdir>.json)",
     )
     parser.add_argument("--tinker", action="store_true",
-                        help="Use a tinker checkpoint instead of Vertex AI")
+                        help="Use a tinker checkpoint instead of the default API")
+    parser.add_argument("--vertex", action="store_true",
+                        help="Use Vertex AI backend instead of the default Azure AI Foundry")
     parser.add_argument("--checkpoint", type=str, default=None,
                         help="Tinker checkpoint tinker://… path")
     parser.add_argument("--tinker-step", type=int, default=50,
@@ -1083,11 +1086,13 @@ def main():
         ts = datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
         run_dir = os.path.join(runs_root, "stage1", ts)
 
+    backend = "vertex" if args.vertex else "azure"
+
     run(
         problem=problem_text,
         n_problems=args.n_problems,
         n_samples=args.n_samples,
-        model=args.model or "openai/gpt-oss-120b-maas",
+        model=args.model,
         failed_solutions=failed_solutions,
         use_tinker=args.tinker,
         tinker_checkpoint=args.checkpoint,
@@ -1100,6 +1105,7 @@ def main():
         verify_model=args.verify_model,
         judge_model=args.judge_model,
         problems_per_call=args.problems_per_call,
+        backend=backend,
     )
 
 

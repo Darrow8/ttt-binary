@@ -1,0 +1,731 @@
+nohup: ignoring input
+2026-04-23 19:30:32,667 INFO Loaded 100 problems from /home/ec2-user/ttt-binary/problems/conics-l2-100.json
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from WANDB_API_KEY.
+wandb: Currently logged in as: darrowrh (darrowrh-stanford-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.26.0
+wandb: Run data is saved locally in /home/ec2-user/ttt-binary/grpo-pipeline/wandb/run-20260423_193033-jq91qbh5
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run subproblems-resume-from-step50
+wandb: ⭐️ View project at https://wandb.ai/darrowrh-stanford-university/conics-l2-100-from-base
+wandb: 🚀 View run at https://wandb.ai/darrowrh-stanford-university/conics-l2-100-from-base/runs/jq91qbh5
+2026-04-23 19:30:34,095 INFO W&B logging → darrowrh-stanford-university/conics-l2-100-from-base
+Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+2026-04-23 19:30:34,191 WARNING Note: Environment variable`HF_TOKEN` is set and is the current active token independently from the token you've just configured.
+2026-04-23 19:30:38,172 INFO ServiceClient initialized for session 51da9a97-c990-5891-be9d-8798c9cb1c0b
+2026-04-23 19:30:38,174 INFO Resuming from checkpoint: tinker://a30d6bd2-22b3-5868-a3c2-3cc436427c42:train:0/weights/subproblems-run.ckpt-000050
+2026-04-23 19:30:55,778 INFO TrainingClient initialized for model 51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0
+2026-04-23 19:31:04,144 INFO GRPO training  model=openai/gpt-oss-120b  problems=100  batches=2  epochs=25
+Step 0:   0%|          | 0/50 [00:00<?, ?it/s]Step 0:   2%|▏         | 1/50 [09:18<7:36:28, 558.94s/it]Step 0:   6%|▌         | 3/50 [09:57<2:04:36, 159.08s/it]Step 0:  10%|█         | 5/50 [09:57<57:59, 77.32s/it]   Step 0:  18%|█▊        | 9/50 [09:57<21:24, 31.33s/it]Step 0:  18%|█▊        | 9/50 [10:10<21:24, 31.33s/it]Step 0:  22%|██▏       | 11/50 [11:16<21:58, 33.81s/it]Step 0:  24%|██▍       | 12/50 [11:16<17:39, 27.89s/it]Step 0:  28%|██▊       | 14/50 [11:25<12:00, 20.02s/it]Step 0:  32%|███▏      | 16/50 [11:25<07:41, 13.56s/it]Step 0:  40%|████      | 20/50 [11:25<03:31,  7.07s/it]Step 0:  46%|████▌     | 23/50 [11:25<02:06,  4.69s/it]Step 0:  56%|█████▌    | 28/50 [11:25<00:57,  2.60s/it]Step 0:  64%|██████▍   | 32/50 [11:26<00:31,  1.73s/it]Step 0:  80%|████████  | 40/50 [11:26<00:08,  1.13it/s]Step 0:  90%|█████████ | 45/50 [11:26<00:03,  1.58it/s]Step 0: 100%|██████████| 50/50 [11:26<00:00, 13.73s/it]
+2026-04-23 19:42:56,052 INFO step=0  reward=0.882  time=711.9s
+wandb: WARNING Serializing object of type str that is 105908 bytes
+wandb: WARNING Serializing object of type str that is 100638 bytes
+Step 1:   0%|          | 0/50 [00:00<?, ?it/s]Step 1:   2%|▏         | 1/50 [09:13<7:32:09, 553.67s/it]Step 1:  10%|█         | 5/50 [09:13<1:01:51, 82.49s/it] Step 1:  18%|█▊        | 9/50 [09:14<25:27, 37.26s/it]  Step 1:  18%|█▊        | 9/50 [09:26<25:27, 37.26s/it]Step 1:  24%|██▍       | 12/50 [09:43<17:08, 27.05s/it]Step 1:  26%|██▌       | 13/50 [10:11<16:46, 27.21s/it]Step 1:  30%|███       | 15/50 [10:11<11:07, 19.07s/it]Step 1:  36%|███▌      | 18/50 [10:11<06:12, 11.63s/it]Step 1:  36%|███▌      | 18/50 [10:26<06:12, 11.63s/it]Step 1:  42%|████▏     | 21/50 [11:03<06:35, 13.63s/it]Step 1:  50%|█████     | 25/50 [11:03<03:22,  8.11s/it]Step 1:  56%|█████▌    | 28/50 [11:03<02:04,  5.67s/it]Step 1:  56%|█████▌    | 28/50 [11:16<02:04,  5.67s/it]Step 1:  60%|██████    | 30/50 [11:35<02:40,  8.04s/it]Step 1:  64%|██████▍   | 32/50 [11:36<01:50,  6.12s/it]Step 1:  68%|██████▊   | 34/50 [11:36<01:13,  4.57s/it]Step 1:  74%|███████▍  | 37/50 [11:36<00:38,  2.96s/it]Step 1:  78%|███████▊  | 39/50 [11:36<00:24,  2.23s/it]Step 1:  82%|████████▏ | 41/50 [11:36<00:14,  1.66s/it]Step 1:  86%|████████▌ | 43/50 [11:36<00:08,  1.22s/it]Step 1:  94%|█████████▍| 47/50 [11:37<00:02,  1.42it/s]Step 1: 100%|██████████| 50/50 [11:37<00:00,  2.04it/s]Step 1: 100%|██████████| 50/50 [11:37<00:00, 13.94s/it]
+2026-04-23 19:54:56,657 INFO step=1  reward=0.859  time=719.6s
+wandb: WARNING Serializing object of type str that is 119802 bytes
+wandb: WARNING Serializing object of type str that is 103672 bytes
+wandb: WARNING Serializing object of type str that is 114708 bytes
+Step 2:   0%|          | 0/50 [00:00<?, ?it/s]Step 2:   2%|▏         | 1/50 [04:40<3:49:05, 280.52s/it]Step 2:   6%|▌         | 3/50 [11:09<2:49:46, 216.73s/it]Step 2:  10%|█         | 5/50 [11:09<1:18:59, 105.33s/it]Step 2:  16%|█▌        | 8/50 [11:09<35:05, 50.13s/it]   Step 2:  22%|██▏       | 11/50 [11:09<18:39, 28.70s/it]Step 2:  22%|██▏       | 11/50 [11:26<18:39, 28.70s/it]Step 2:  26%|██▌       | 13/50 [11:30<14:27, 23.45s/it]Step 2:  30%|███       | 15/50 [12:09<12:59, 22.28s/it]Step 2:  34%|███▍      | 17/50 [12:09<08:38, 15.73s/it]Step 2:  40%|████      | 20/50 [12:10<04:49,  9.65s/it]Step 2:  46%|████▌     | 23/50 [12:10<02:48,  6.23s/it]Step 2:  50%|█████     | 25/50 [12:10<01:56,  4.68s/it]Step 2:  54%|█████▍    | 27/50 [12:10<01:19,  3.45s/it]Step 2:  62%|██████▏   | 31/50 [12:10<00:37,  1.97s/it]Step 2:  68%|██████▊   | 34/50 [12:10<00:21,  1.36s/it]Step 2:  76%|███████▌  | 38/50 [12:10<00:10,  1.16it/s]Step 2:  82%|████████▏ | 41/50 [12:10<00:05,  1.59it/s]Step 2:  88%|████████▊ | 44/50 [12:11<00:02,  2.14it/s]Step 2:  94%|█████████▍| 47/50 [12:11<00:01,  2.84it/s]Step 2: 100%|██████████| 50/50 [12:11<00:00, 14.63s/it]
+2026-04-23 20:07:34,289 INFO step=2  reward=0.877  time=757.2s
+wandb: WARNING Serializing object of type str that is 113780 bytes
+wandb: WARNING Serializing object of type str that is 225492 bytes
+wandb: WARNING Serializing object of type str that is 104526 bytes
+Step 3:   0%|          | 0/50 [00:00<?, ?it/s]Step 3:   2%|▏         | 1/50 [07:07<5:49:21, 427.79s/it]Step 3:   4%|▍         | 2/50 [13:21<5:16:52, 396.10s/it]Step 3:   8%|▊         | 4/50 [14:31<2:09:56, 169.49s/it]Step 3:  10%|█         | 5/50 [14:31<1:27:49, 117.10s/it]Step 3:  12%|█▏        | 6/50 [14:31<59:35, 81.27s/it]   Step 3:  18%|█▊        | 9/50 [19:08<59:49, 87.55s/it]Step 3:  24%|██▍       | 12/50 [19:08<30:38, 48.37s/it]Step 3:  30%|███       | 15/50 [19:08<17:13, 29.52s/it]Step 3:  38%|███▊      | 19/50 [19:08<08:45, 16.95s/it]Step 3:  42%|████▏     | 21/50 [19:08<06:17, 13.01s/it]Step 3:  46%|████▌     | 23/50 [19:09<04:23,  9.77s/it]Step 3:  56%|█████▌    | 28/50 [19:09<01:53,  5.17s/it]Step 3:  62%|██████▏   | 31/50 [19:09<01:10,  3.70s/it]Step 3:  68%|██████▊   | 34/50 [19:09<00:42,  2.67s/it]Step 3:  74%|███████▍  | 37/50 [19:10<00:24,  1.90s/it]Step 3:  78%|███████▊  | 39/50 [19:10<00:16,  1.51s/it]Step 3:  82%|████████▏ | 41/50 [19:10<00:10,  1.17s/it]Step 3:  86%|████████▌ | 43/50 [19:10<00:06,  1.12it/s]Step 3:  94%|█████████▍| 47/50 [19:10<00:01,  1.83it/s]Step 3: 100%|██████████| 50/50 [19:10<00:00,  2.54it/s]Step 3: 100%|██████████| 50/50 [19:10<00:00, 23.02s/it]
+2026-04-23 20:27:10,283 INFO step=3  reward=0.852  time=1175.5s
+wandb: WARNING Serializing object of type str that is 103660 bytes
+wandb: WARNING Serializing object of type str that is 105626 bytes
+wandb: WARNING Serializing object of type str that is 130628 bytes
+wandb: WARNING Serializing object of type str that is 107278 bytes
+wandb: WARNING Serializing object of type str that is 110042 bytes
+wandb: WARNING Serializing object of type str that is 101132 bytes
+wandb: WARNING Serializing object of type str that is 104328 bytes
+wandb: WARNING Serializing object of type str that is 125306 bytes
+wandb: WARNING Serializing object of type str that is 124876 bytes
+wandb: WARNING Serializing object of type str that is 107168 bytes
+wandb: WARNING Serializing object of type str that is 115812 bytes
+wandb: WARNING Serializing object of type str that is 137540 bytes
+wandb: WARNING Serializing object of type str that is 101640 bytes
+wandb: WARNING Serializing object of type str that is 100088 bytes
+wandb: WARNING Serializing object of type str that is 106920 bytes
+wandb: WARNING Serializing object of type str that is 103700 bytes
+Step 4:   0%|          | 0/50 [00:00<?, ?it/s]Step 4:   2%|▏         | 1/50 [05:59<4:53:29, 359.38s/it]Step 4:   6%|▌         | 3/50 [10:14<2:27:08, 187.84s/it]Step 4:   8%|▊         | 4/50 [12:41<2:13:07, 173.63s/it]Step 4:  14%|█▍        | 7/50 [12:41<50:08, 69.96s/it]   Step 4:  18%|█▊        | 9/50 [12:42<30:29, 44.63s/it]Step 4:  18%|█▊        | 9/50 [13:00<30:29, 44.63s/it]Step 4:  20%|██        | 10/50 [18:09<1:08:30, 102.76s/it]Step 4:  22%|██▏       | 11/50 [18:09<51:39, 79.47s/it]   Step 4:  24%|██▍       | 12/50 [18:09<38:01, 60.03s/it]Step 4:  26%|██▌       | 13/50 [18:09<27:28, 44.54s/it]Step 4:  30%|███       | 15/50 [18:10<14:56, 25.63s/it]Step 4:  34%|███▍      | 17/50 [18:10<08:46, 15.97s/it]Step 4:  42%|████▏     | 21/50 [18:10<03:43,  7.71s/it]Step 4:  46%|████▌     | 23/50 [18:10<02:32,  5.65s/it]Step 4:  50%|█████     | 25/50 [18:11<01:42,  4.11s/it]Step 4:  64%|██████▍   | 32/50 [18:11<00:31,  1.73s/it]Step 4:  74%|███████▍  | 37/50 [18:11<00:14,  1.09s/it]Step 4:  80%|████████  | 40/50 [18:11<00:08,  1.18it/s]Step 4:  88%|████████▊ | 44/50 [18:11<00:03,  1.65it/s]Step 4: 100%|██████████| 50/50 [18:11<00:00, 21.84s/it]
+2026-04-23 20:45:54,306 INFO step=4  reward=0.896  time=1123.6s
+wandb: WARNING Serializing object of type str that is 107476 bytes
+wandb: WARNING Serializing object of type str that is 114896 bytes
+wandb: WARNING Serializing object of type str that is 109764 bytes
+wandb: WARNING Serializing object of type str that is 109102 bytes
+wandb: WARNING Serializing object of type str that is 102926 bytes
+wandb: WARNING Serializing object of type str that is 117660 bytes
+wandb: WARNING Serializing object of type str that is 175632 bytes
+wandb: WARNING Serializing object of type str that is 113786 bytes
+wandb: WARNING Serializing object of type str that is 110460 bytes
+wandb: WARNING Serializing object of type str that is 108982 bytes
+wandb: WARNING Serializing object of type str that is 100218 bytes
+wandb: WARNING Serializing object of type str that is 106060 bytes
+wandb: WARNING Serializing object of type str that is 101994 bytes
+wandb: WARNING Serializing object of type str that is 125990 bytes
+wandb: WARNING Serializing object of type str that is 123400 bytes
+wandb: WARNING Serializing object of type str that is 123356 bytes
+wandb: WARNING Serializing object of type str that is 101452 bytes
+wandb: WARNING Serializing object of type str that is 100078 bytes
+wandb: WARNING Serializing object of type str that is 101818 bytes
+wandb: WARNING Serializing object of type str that is 113252 bytes
+wandb: WARNING Serializing object of type str that is 129208 bytes
+wandb: WARNING Serializing object of type str that is 115656 bytes
+wandb: WARNING Serializing object of type str that is 127444 bytes
+wandb: WARNING Serializing object of type str that is 133844 bytes
+wandb: WARNING Serializing object of type str that is 116776 bytes
+wandb: WARNING Serializing object of type str that is 101028 bytes
+wandb: WARNING Serializing object of type str that is 104230 bytes
+wandb: WARNING Serializing object of type str that is 103610 bytes
+wandb: WARNING Serializing object of type str that is 106586 bytes
+wandb: WARNING Serializing object of type str that is 109456 bytes
+wandb: WARNING Serializing object of type str that is 105186 bytes
+wandb: WARNING Serializing object of type str that is 110232 bytes
+wandb: WARNING Serializing object of type str that is 104122 bytes
+2026-04-23 20:46:04,930 INFO Checkpoint → subproblems-run-resumed.ckpt-000005  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000005)
+Step 5:   0%|          | 0/50 [00:00<?, ?it/s]Step 5:   2%|▏         | 1/50 [22:33<18:25:15, 1353.37s/it]Step 5:  10%|█         | 5/50 [24:34<2:50:29, 227.33s/it]  Step 5:  12%|█▏        | 6/50 [25:54<2:21:31, 192.98s/it]Step 5:  18%|█▊        | 9/50 [25:54<1:05:59, 96.57s/it] Step 5:  22%|██▏       | 11/50 [25:54<42:32, 65.45s/it] Step 5:  22%|██▏       | 11/50 [26:09<42:32, 65.45s/it]Step 5:  24%|██▍       | 12/50 [28:22<51:12, 80.86s/it]Step 5:  30%|███       | 15/50 [28:22<26:11, 44.90s/it]Step 5:  34%|███▍      | 17/50 [28:22<17:21, 31.55s/it]Step 5:  38%|███▊      | 19/50 [28:22<11:26, 22.15s/it]Step 5:  42%|████▏     | 21/50 [28:23<07:31, 15.58s/it]Step 5:  46%|████▌     | 23/50 [28:23<04:55, 10.94s/it]Step 5:  54%|█████▍    | 27/50 [28:23<02:16,  5.93s/it]Step 5:  58%|█████▊    | 29/50 [28:23<01:34,  4.48s/it]Step 5:  62%|██████▏   | 31/50 [28:24<01:03,  3.34s/it]Step 5:  66%|██████▌   | 33/50 [28:24<00:42,  2.49s/it]Step 5:  68%|██████▊   | 34/50 [28:54<01:52,  7.01s/it]Step 5:  72%|███████▏  | 36/50 [28:54<01:07,  4.81s/it]Step 5:  76%|███████▌  | 38/50 [28:55<00:40,  3.37s/it]Step 5:  80%|████████  | 40/50 [28:55<00:23,  2.36s/it]Step 5:  82%|████████▏ | 41/50 [28:55<00:17,  1.97s/it]Step 5:  86%|████████▌ | 43/50 [28:55<00:09,  1.33s/it]Step 5:  94%|█████████▍| 47/50 [28:56<00:02,  1.40it/s]Step 5: 100%|██████████| 50/50 [28:56<00:00,  2.04it/s]Step 5: 100%|██████████| 50/50 [28:56<00:00, 34.73s/it]
+2026-04-23 21:15:37,882 INFO step=5  reward=0.839  time=1773.0s
+wandb: WARNING Serializing object of type str that is 123412 bytes
+wandb: WARNING Serializing object of type str that is 120972 bytes
+wandb: WARNING Serializing object of type str that is 130268 bytes
+wandb: WARNING Serializing object of type str that is 135884 bytes
+wandb: WARNING Serializing object of type str that is 130964 bytes
+wandb: WARNING Serializing object of type str that is 111716 bytes
+wandb: WARNING Serializing object of type str that is 106302 bytes
+wandb: WARNING Serializing object of type str that is 118656 bytes
+wandb: WARNING Serializing object of type str that is 118706 bytes
+wandb: WARNING Serializing object of type str that is 171504 bytes
+wandb: WARNING Serializing object of type str that is 110936 bytes
+wandb: WARNING Serializing object of type str that is 111202 bytes
+wandb: WARNING Serializing object of type str that is 118940 bytes
+wandb: WARNING Serializing object of type str that is 102094 bytes
+wandb: WARNING Serializing object of type str that is 107782 bytes
+wandb: WARNING Serializing object of type str that is 102252 bytes
+wandb: WARNING Serializing object of type str that is 116688 bytes
+wandb: WARNING Serializing object of type str that is 126800 bytes
+wandb: WARNING Serializing object of type str that is 117752 bytes
+wandb: WARNING Serializing object of type str that is 110242 bytes
+wandb: WARNING Serializing object of type str that is 126342 bytes
+wandb: WARNING Serializing object of type str that is 130316 bytes
+wandb: WARNING Serializing object of type str that is 126960 bytes
+wandb: WARNING Serializing object of type str that is 131568 bytes
+wandb: WARNING Serializing object of type str that is 117182 bytes
+wandb: WARNING Serializing object of type str that is 114188 bytes
+wandb: WARNING Serializing object of type str that is 114432 bytes
+wandb: WARNING Serializing object of type str that is 126754 bytes
+wandb: WARNING Serializing object of type str that is 118564 bytes
+wandb: WARNING Serializing object of type str that is 113128 bytes
+wandb: WARNING Serializing object of type str that is 117720 bytes
+wandb: WARNING Serializing object of type str that is 112720 bytes
+wandb: WARNING Serializing object of type str that is 127154 bytes
+wandb: WARNING Serializing object of type str that is 129832 bytes
+wandb: WARNING Serializing object of type str that is 132290 bytes
+wandb: WARNING Serializing object of type str that is 117302 bytes
+wandb: WARNING Serializing object of type str that is 117354 bytes
+wandb: WARNING Serializing object of type str that is 109470 bytes
+wandb: WARNING Serializing object of type str that is 121034 bytes
+wandb: WARNING Serializing object of type str that is 127888 bytes
+wandb: WARNING Serializing object of type str that is 131770 bytes
+wandb: WARNING Serializing object of type str that is 106756 bytes
+Step 6:   0%|          | 0/50 [00:00<?, ?it/s]Step 6:   2%|▏         | 1/50 [11:04<9:02:35, 664.39s/it]Step 6:   6%|▌         | 3/50 [15:29<3:31:45, 270.32s/it]Step 6:   8%|▊         | 4/50 [15:29<2:15:33, 176.82s/it]Step 6:  14%|█▍        | 7/50 [15:29<51:04, 71.26s/it]   Step 6:  20%|██        | 10/50 [15:29<25:39, 38.48s/it]Step 6:  24%|██▍       | 12/50 [15:30<16:58, 26.81s/it]Step 6:  24%|██▍       | 12/50 [15:45<16:58, 26.81s/it]Step 6:  26%|██▌       | 13/50 [16:37<20:57, 33.99s/it]Step 6:  30%|███       | 15/50 [27:48<1:19:17, 135.93s/it]Step 6:  34%|███▍      | 17/50 [27:48<50:25, 91.67s/it]   Step 6:  42%|████▏     | 21/50 [27:48<22:58, 47.52s/it]Step 6:  46%|████▌     | 23/50 [27:48<15:55, 35.38s/it]Step 6:  50%|█████     | 25/50 [27:49<10:48, 25.95s/it]Step 6:  62%|██████▏   | 31/50 [27:49<03:49, 12.10s/it]Step 6:  66%|██████▌   | 33/50 [27:49<02:44,  9.66s/it]Step 6:  76%|███████▌  | 38/50 [27:49<01:07,  5.62s/it]Step 6:  80%|████████  | 40/50 [27:49<00:45,  4.54s/it]Step 6:  84%|████████▍ | 42/50 [27:49<00:28,  3.58s/it]Step 6:  88%|████████▊ | 44/50 [27:50<00:16,  2.77s/it]Step 6:  92%|█████████▏| 46/50 [27:50<00:08,  2.12s/it]Step 6: 100%|██████████| 50/50 [27:50<00:00, 33.41s/it]
+2026-04-23 21:44:08,028 WARNING Training for 51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0 is paused. Reason: Tinker backend is running short on capacity, please wait.
+2026-04-23 21:49:56,198 INFO step=6  reward=0.888  time=2057.7s
+wandb: WARNING Serializing object of type str that is 107598 bytes
+wandb: WARNING Serializing object of type str that is 103956 bytes
+wandb: WARNING Serializing object of type str that is 105094 bytes
+wandb: WARNING Serializing object of type str that is 109044 bytes
+wandb: WARNING Serializing object of type str that is 102968 bytes
+wandb: WARNING Serializing object of type str that is 124924 bytes
+wandb: WARNING Serializing object of type str that is 118480 bytes
+wandb: WARNING Serializing object of type str that is 102878 bytes
+wandb: WARNING Serializing object of type str that is 102074 bytes
+wandb: WARNING Serializing object of type str that is 122876 bytes
+wandb: WARNING Serializing object of type str that is 123706 bytes
+wandb: WARNING Serializing object of type str that is 111232 bytes
+wandb: WARNING Serializing object of type str that is 115742 bytes
+wandb: WARNING Serializing object of type str that is 114980 bytes
+wandb: WARNING Serializing object of type str that is 112594 bytes
+wandb: WARNING Serializing object of type str that is 112058 bytes
+wandb: WARNING Serializing object of type str that is 110122 bytes
+wandb: WARNING Serializing object of type str that is 107352 bytes
+wandb: WARNING Serializing object of type str that is 107818 bytes
+wandb: WARNING Serializing object of type str that is 112408 bytes
+wandb: WARNING Serializing object of type str that is 102342 bytes
+wandb: WARNING Serializing object of type str that is 112618 bytes
+wandb: WARNING Serializing object of type str that is 108162 bytes
+wandb: WARNING Serializing object of type str that is 107352 bytes
+wandb: WARNING Serializing object of type str that is 113924 bytes
+wandb: WARNING Serializing object of type str that is 111360 bytes
+wandb: WARNING Serializing object of type str that is 107790 bytes
+wandb: WARNING Serializing object of type str that is 114994 bytes
+wandb: WARNING Serializing object of type str that is 108738 bytes
+wandb: WARNING Serializing object of type str that is 105930 bytes
+wandb: WARNING Serializing object of type str that is 106072 bytes
+wandb: WARNING Serializing object of type str that is 174996 bytes
+wandb: WARNING Serializing object of type str that is 248892 bytes
+wandb: WARNING Serializing object of type str that is 123256 bytes
+wandb: WARNING Serializing object of type str that is 125882 bytes
+wandb: WARNING Serializing object of type str that is 118158 bytes
+wandb: WARNING Serializing object of type str that is 107110 bytes
+wandb: WARNING Serializing object of type str that is 128116 bytes
+wandb: WARNING Serializing object of type str that is 112518 bytes
+wandb: WARNING Serializing object of type str that is 108230 bytes
+wandb: WARNING Serializing object of type str that is 108176 bytes
+wandb: WARNING Serializing object of type str that is 126738 bytes
+wandb: WARNING Serializing object of type str that is 131704 bytes
+wandb: WARNING Serializing object of type str that is 127284 bytes
+wandb: WARNING Serializing object of type str that is 108440 bytes
+wandb: WARNING Serializing object of type str that is 126986 bytes
+wandb: WARNING Serializing object of type str that is 110746 bytes
+wandb: WARNING Serializing object of type str that is 121884 bytes
+wandb: WARNING Serializing object of type str that is 105876 bytes
+wandb: WARNING Serializing object of type str that is 100446 bytes
+wandb: WARNING Serializing object of type str that is 103630 bytes
+wandb: WARNING Serializing object of type str that is 105650 bytes
+wandb: WARNING Serializing object of type str that is 101714 bytes
+wandb: WARNING Serializing object of type str that is 101236 bytes
+wandb: WARNING Serializing object of type str that is 108742 bytes
+wandb: WARNING Serializing object of type str that is 105550 bytes
+wandb: WARNING Serializing object of type str that is 103674 bytes
+wandb: WARNING Serializing object of type str that is 104210 bytes
+wandb: WARNING Serializing object of type str that is 101996 bytes
+wandb: WARNING Serializing object of type str that is 103250 bytes
+wandb: WARNING Serializing object of type str that is 105940 bytes
+Step 7:   0%|          | 0/50 [00:00<?, ?it/s]Step 7:   2%|▏         | 1/50 [13:49<11:17:22, 829.44s/it]Step 7:   4%|▍         | 2/50 [14:29<4:52:01, 365.03s/it] Step 7:  10%|█         | 5/50 [15:21<1:27:07, 116.17s/it]Step 7:  12%|█▏        | 6/50 [20:29<2:00:56, 164.93s/it]Step 7:  18%|█▊        | 9/50 [22:17<1:06:47, 97.74s/it] Step 7:  20%|██        | 10/50 [22:19<52:27, 78.70s/it] Step 7:  24%|██▍       | 12/50 [22:20<31:48, 50.22s/it]Step 7:  26%|██▌       | 13/50 [22:47<28:07, 45.61s/it]Step 7:  30%|███       | 15/50 [22:48<16:47, 28.80s/it]Step 7:  36%|███▌      | 18/50 [22:48<08:34, 16.08s/it]Step 7:  40%|████      | 20/50 [22:48<05:39, 11.33s/it]Step 7:  44%|████▍     | 22/50 [22:48<03:43,  8.00s/it]Step 7:  50%|█████     | 25/50 [22:48<02:02,  4.91s/it]Step 7:  54%|█████▍    | 27/50 [22:49<01:23,  3.61s/it]Step 7:  54%|█████▍    | 27/50 [23:02<01:23,  3.61s/it]Step 7:  60%|██████    | 30/50 [23:44<03:00,  9.04s/it]Step 7:  62%|██████▏   | 31/50 [23:44<02:26,  7.72s/it]Step 7:  64%|██████▍   | 32/50 [23:44<01:55,  6.42s/it]Step 7:  66%|██████▌   | 33/50 [23:45<01:27,  5.16s/it]Step 7:  72%|███████▏  | 36/50 [23:45<00:39,  2.79s/it]Step 7:  72%|███████▏  | 36/50 [24:02<00:39,  2.79s/it]Step 7:  76%|███████▌  | 38/50 [24:14<01:16,  6.40s/it]Step 7:  82%|████████▏ | 41/50 [24:14<00:35,  3.90s/it]Step 7:  86%|████████▌ | 43/50 [24:14<00:19,  2.86s/it]Step 7:  90%|█████████ | 45/50 [24:14<00:10,  2.08s/it]Step 7:  94%|█████████▍| 47/50 [24:15<00:04,  1.52s/it]Step 7: 100%|██████████| 50/50 [24:15<00:00,  1.04it/s]Step 7: 100%|██████████| 50/50 [24:15<00:00, 29.11s/it]
+2026-04-23 22:14:56,431 INFO step=7  reward=0.865  time=1499.7s
+wandb: WARNING Serializing object of type str that is 100556 bytes
+wandb: WARNING Serializing object of type str that is 108452 bytes
+wandb: WARNING Serializing object of type str that is 115550 bytes
+wandb: WARNING Serializing object of type str that is 113462 bytes
+wandb: WARNING Serializing object of type str that is 113304 bytes
+wandb: WARNING Serializing object of type str that is 111566 bytes
+wandb: WARNING Serializing object of type str that is 103316 bytes
+wandb: WARNING Serializing object of type str that is 112944 bytes
+wandb: WARNING Serializing object of type str that is 114808 bytes
+wandb: WARNING Serializing object of type str that is 102040 bytes
+wandb: WARNING Serializing object of type str that is 117700 bytes
+wandb: WARNING Serializing object of type str that is 125490 bytes
+wandb: WARNING Serializing object of type str that is 132726 bytes
+wandb: WARNING Serializing object of type str that is 129288 bytes
+wandb: WARNING Serializing object of type str that is 130796 bytes
+wandb: WARNING Serializing object of type str that is 125462 bytes
+wandb: WARNING Serializing object of type str that is 122326 bytes
+wandb: WARNING Serializing object of type str that is 121692 bytes
+wandb: WARNING Serializing object of type str that is 116098 bytes
+wandb: WARNING Serializing object of type str that is 116396 bytes
+wandb: WARNING Serializing object of type str that is 121202 bytes
+wandb: WARNING Serializing object of type str that is 126740 bytes
+wandb: WARNING Serializing object of type str that is 106672 bytes
+wandb: WARNING Serializing object of type str that is 228844 bytes
+wandb: WARNING Serializing object of type str that is 129370 bytes
+wandb: WARNING Serializing object of type str that is 101600 bytes
+wandb: WARNING Serializing object of type str that is 112572 bytes
+wandb: WARNING Serializing object of type str that is 113604 bytes
+Step 8:   0%|          | 0/50 [00:00<?, ?it/s]Step 8:   2%|▏         | 1/50 [14:22<11:44:03, 862.12s/it]Step 8:   6%|▌         | 3/50 [17:16<3:45:32, 287.93s/it] Step 8:   8%|▊         | 4/50 [17:16<2:24:23, 188.34s/it]Step 8:  14%|█▍        | 7/50 [17:16<54:23, 75.88s/it]   Step 8:  18%|█▊        | 9/50 [17:16<33:04, 48.39s/it]Step 8:  22%|██▏       | 11/50 [17:16<20:45, 31.93s/it]Step 8:  22%|██▏       | 11/50 [17:26<20:45, 31.93s/it]Step 8:  26%|██▌       | 13/50 [20:38<33:35, 54.46s/it]Step 8:  34%|███▍      | 17/50 [20:38<15:28, 28.14s/it]Step 8:  42%|████▏     | 21/50 [20:38<08:03, 16.67s/it]Step 8:  48%|████▊     | 24/50 [20:38<05:02, 11.62s/it]Step 8:  62%|██████▏   | 31/50 [20:38<01:49,  5.78s/it]Step 8:  68%|██████▊   | 34/50 [20:39<01:10,  4.43s/it]Step 8:  76%|███████▌  | 38/50 [20:39<00:36,  3.07s/it]Step 8:  82%|████████▏ | 41/50 [20:39<00:20,  2.33s/it]Step 8:  88%|████████▊ | 44/50 [20:39<00:10,  1.74s/it]Step 8:  92%|█████████▏| 46/50 [20:40<00:05,  1.42s/it]Step 8: 100%|██████████| 50/50 [20:40<00:00, 24.80s/it]
+2026-04-23 22:36:06,347 INFO step=8  reward=0.907  time=1269.4s
+wandb: WARNING Serializing object of type str that is 107944 bytes
+wandb: WARNING Serializing object of type str that is 116432 bytes
+wandb: WARNING Serializing object of type str that is 142840 bytes
+wandb: WARNING Serializing object of type str that is 104038 bytes
+wandb: WARNING Serializing object of type str that is 120858 bytes
+wandb: WARNING Serializing object of type str that is 111444 bytes
+wandb: WARNING Serializing object of type str that is 108564 bytes
+wandb: WARNING Serializing object of type str that is 106002 bytes
+wandb: WARNING Serializing object of type str that is 111604 bytes
+wandb: WARNING Serializing object of type str that is 109680 bytes
+wandb: WARNING Serializing object of type str that is 108456 bytes
+wandb: WARNING Serializing object of type str that is 102576 bytes
+wandb: WARNING Serializing object of type str that is 109504 bytes
+wandb: WARNING Serializing object of type str that is 101712 bytes
+wandb: WARNING Serializing object of type str that is 117146 bytes
+wandb: WARNING Serializing object of type str that is 109148 bytes
+wandb: WARNING Serializing object of type str that is 113970 bytes
+wandb: WARNING Serializing object of type str that is 106336 bytes
+wandb: WARNING Serializing object of type str that is 124946 bytes
+wandb: WARNING Serializing object of type str that is 209236 bytes
+wandb: WARNING Serializing object of type str that is 111402 bytes
+wandb: WARNING Serializing object of type str that is 116680 bytes
+wandb: WARNING Serializing object of type str that is 124172 bytes
+wandb: WARNING Serializing object of type str that is 108856 bytes
+wandb: WARNING Serializing object of type str that is 107464 bytes
+wandb: WARNING Serializing object of type str that is 113176 bytes
+wandb: WARNING Serializing object of type str that is 100390 bytes
+wandb: WARNING Serializing object of type str that is 111102 bytes
+wandb: WARNING Serializing object of type str that is 100964 bytes
+wandb: WARNING Serializing object of type str that is 102928 bytes
+wandb: WARNING Serializing object of type str that is 106958 bytes
+wandb: WARNING Serializing object of type str that is 100472 bytes
+wandb: WARNING Serializing object of type str that is 105800 bytes
+wandb: WARNING Serializing object of type str that is 103778 bytes
+wandb: WARNING Serializing object of type str that is 125076 bytes
+Step 9:   0%|          | 0/50 [00:00<?, ?it/s]Step 9:   2%|▏         | 1/50 [09:43<7:56:17, 583.22s/it]Step 9:   4%|▍         | 2/50 [10:02<3:21:24, 251.76s/it]Step 9:  10%|█         | 5/50 [11:39<1:10:53, 94.53s/it] Step 9:  12%|█▏        | 6/50 [11:39<51:43, 70.53s/it]  Step 9:  20%|██        | 10/50 [11:39<19:10, 28.77s/it]Step 9:  20%|██        | 10/50 [11:56<19:10, 28.77s/it]Step 9:  26%|██▌       | 13/50 [12:39<15:37, 25.33s/it]Step 9:  30%|███       | 15/50 [12:45<11:17, 19.35s/it]Step 9:  38%|███▊      | 19/50 [12:45<05:39, 10.94s/it]Step 9:  42%|████▏     | 21/50 [12:46<04:02,  8.37s/it]Step 9:  46%|████▌     | 23/50 [12:46<02:49,  6.27s/it]Step 9:  56%|█████▌    | 28/50 [12:46<01:12,  3.30s/it]Step 9:  62%|██████▏   | 31/50 [12:46<00:45,  2.37s/it]Step 9:  68%|██████▊   | 34/50 [12:46<00:27,  1.71s/it]Step 9:  74%|███████▍  | 37/50 [12:47<00:15,  1.22s/it]Step 9:  74%|███████▍  | 37/50 [13:06<00:15,  1.22s/it]Step 9:  76%|███████▌  | 38/50 [13:38<01:28,  7.37s/it]Step 9:  82%|████████▏ | 41/50 [13:38<00:43,  4.85s/it]Step 9:  90%|█████████ | 45/50 [13:38<00:14,  2.94s/it]Step 9:  96%|█████████▌| 48/50 [13:38<00:04,  2.09s/it]Step 9: 100%|██████████| 50/50 [13:39<00:00,  1.64s/it]Step 9: 100%|██████████| 50/50 [13:39<00:00, 16.38s/it]
+2026-04-23 22:50:07,898 INFO step=9  reward=0.881  time=841.1s
+wandb: WARNING Serializing object of type str that is 104258 bytes
+wandb: WARNING Serializing object of type str that is 118064 bytes
+wandb: WARNING Serializing object of type str that is 110076 bytes
+wandb: WARNING Serializing object of type str that is 108094 bytes
+wandb: WARNING Serializing object of type str that is 110632 bytes
+wandb: WARNING Serializing object of type str that is 201396 bytes
+wandb: WARNING Serializing object of type str that is 114916 bytes
+wandb: WARNING Serializing object of type str that is 114580 bytes
+wandb: WARNING Serializing object of type str that is 123798 bytes
+wandb: WARNING Serializing object of type str that is 126116 bytes
+wandb: WARNING Serializing object of type str that is 114376 bytes
+2026-04-23 22:50:14,132 INFO Checkpoint → subproblems-run-resumed.ckpt-000010  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000010)
+Step 10:   0%|          | 0/50 [00:00<?, ?it/s]Step 10:   2%|▏         | 1/50 [12:48<10:27:21, 768.20s/it]Step 10:   8%|▊         | 4/50 [12:48<1:51:26, 145.37s/it] Step 10:  14%|█▍        | 7/50 [12:48<48:17, 67.37s/it]   Step 10:  20%|██        | 10/50 [12:48<25:26, 38.15s/it]Step 10:  20%|██        | 10/50 [13:07<25:26, 38.15s/it]Step 10:  22%|██▏       | 11/50 [13:22<24:22, 37.51s/it]Step 10:  24%|██▍       | 12/50 [13:23<19:06, 30.17s/it]Step 10:  24%|██▍       | 12/50 [13:37<19:06, 30.17s/it]Step 10:  26%|██▌       | 13/50 [14:44<25:29, 41.34s/it]Step 10:  30%|███       | 15/50 [14:44<14:50, 25.45s/it]Step 10:  42%|████▏     | 21/50 [14:44<04:38,  9.61s/it]Step 10:  42%|████▏     | 21/50 [14:57<04:38,  9.61s/it]Step 10:  44%|████▍     | 22/50 [15:08<05:19, 11.41s/it]Step 10:  48%|████▊     | 24/50 [15:08<03:37,  8.37s/it]Step 10:  56%|█████▌    | 28/50 [15:08<01:44,  4.74s/it]Step 10:  62%|██████▏   | 31/50 [15:08<01:01,  3.24s/it]Step 10:  68%|██████▊   | 34/50 [15:08<00:35,  2.24s/it]Step 10:  76%|███████▌  | 38/50 [15:08<00:17,  1.42s/it]Step 10:  82%|████████▏ | 41/50 [15:08<00:09,  1.03s/it]Step 10:  88%|████████▊ | 44/50 [15:09<00:04,  1.31it/s]Step 10:  92%|█████████▏| 46/50 [15:09<00:02,  1.61it/s]Step 10: 100%|██████████| 50/50 [15:09<00:00, 18.19s/it]
+2026-04-23 23:06:02,608 INFO step=10  reward=0.910  time=948.5s
+wandb: WARNING Serializing object of type str that is 102238 bytes
+wandb: WARNING Serializing object of type str that is 136980 bytes
+wandb: WARNING Serializing object of type str that is 111250 bytes
+wandb: WARNING Serializing object of type str that is 113520 bytes
+wandb: WARNING Serializing object of type str that is 114476 bytes
+wandb: WARNING Serializing object of type str that is 101180 bytes
+wandb: WARNING Serializing object of type str that is 105836 bytes
+wandb: WARNING Serializing object of type str that is 114094 bytes
+wandb: WARNING Serializing object of type str that is 126160 bytes
+wandb: WARNING Serializing object of type str that is 114268 bytes
+wandb: WARNING Serializing object of type str that is 108396 bytes
+wandb: WARNING Serializing object of type str that is 101010 bytes
+wandb: WARNING Serializing object of type str that is 107052 bytes
+wandb: WARNING Serializing object of type str that is 123676 bytes
+Step 11:   0%|          | 0/50 [00:00<?, ?it/s]Step 11:   2%|▏         | 1/50 [07:57<6:29:59, 477.55s/it]Step 11:  10%|█         | 5/50 [09:11<1:05:08, 86.86s/it] Step 11:  12%|█▏        | 6/50 [09:11<48:52, 66.64s/it]  Step 11:  24%|██▍       | 12/50 [09:51<16:52, 26.64s/it]Step 11:  30%|███       | 15/50 [15:15<30:51, 52.90s/it]Step 11:  38%|███▊      | 19/50 [15:15<16:56, 32.78s/it]Step 11:  44%|████▍     | 22/50 [15:15<10:52, 23.31s/it]Step 11:  52%|█████▏    | 26/50 [15:16<06:00, 15.03s/it]Step 11:  58%|█████▊    | 29/50 [15:16<03:48, 10.90s/it]Step 11:  64%|██████▍   | 32/50 [15:25<02:36,  8.71s/it]Step 11:  68%|██████▊   | 34/50 [15:25<01:50,  6.88s/it]Step 11:  74%|███████▍  | 37/50 [15:25<01:01,  4.74s/it]Step 11:  80%|████████  | 40/50 [15:26<00:33,  3.30s/it]Step 11:  84%|████████▍ | 42/50 [15:26<00:20,  2.57s/it]Step 11:  92%|█████████▏| 46/50 [15:26<00:06,  1.57s/it]Step 11: 100%|██████████| 50/50 [15:26<00:00, 18.53s/it]
+2026-04-23 23:21:48,546 INFO step=11  reward=0.881  time=945.5s
+wandb: WARNING Serializing object of type str that is 116732 bytes
+wandb: WARNING Serializing object of type str that is 100388 bytes
+Step 12:   0%|          | 0/50 [00:00<?, ?it/s]Step 12:   2%|▏         | 1/50 [04:36<3:45:32, 276.17s/it]Step 12:   4%|▍         | 2/50 [05:50<2:05:45, 157.19s/it]Step 12:   6%|▌         | 3/50 [08:22<2:01:24, 155.00s/it]Step 12:  10%|█         | 5/50 [08:22<50:28, 67.30s/it]   Step 12:  18%|█▊        | 9/50 [08:22<17:35, 25.73s/it]Step 12:  18%|█▊        | 9/50 [08:33<17:35, 25.73s/it]Step 12:  22%|██▏       | 11/50 [10:12<22:31, 34.65s/it]Step 12:  24%|██▍       | 12/50 [10:12<18:01, 28.45s/it]Step 12:  28%|██▊       | 14/50 [10:12<11:18, 18.84s/it]Step 12:  34%|███▍      | 17/50 [10:12<06:00, 10.94s/it]Step 12:  42%|████▏     | 21/50 [10:13<02:56,  6.08s/it]Step 12:  48%|████▊     | 24/50 [10:13<01:47,  4.14s/it]Step 12:  62%|██████▏   | 31/50 [10:13<00:38,  2.00s/it]Step 12:  76%|███████▌  | 38/50 [10:13<00:13,  1.16s/it]Step 12:  84%|████████▍ | 42/50 [10:13<00:06,  1.15it/s]Step 12:  92%|█████████▏| 46/50 [10:13<00:02,  1.54it/s]Step 12: 100%|██████████| 50/50 [10:13<00:00, 12.28s/it]
+2026-04-23 23:32:22,565 INFO step=12  reward=0.904  time=633.6s
+wandb: WARNING Serializing object of type str that is 162208 bytes
+Step 13:   0%|          | 0/50 [00:00<?, ?it/s]Step 13:   2%|▏         | 1/50 [02:19<1:53:49, 139.38s/it]Step 13:   8%|▊         | 4/50 [03:37<36:19, 47.38s/it]   Step 13:  10%|█         | 5/50 [13:01<2:23:31, 191.36s/it]Step 13:  24%|██▍       | 12/50 [13:01<32:01, 50.57s/it]  Step 13:  32%|███▏      | 16/50 [13:01<17:54, 31.62s/it]Step 13:  42%|████▏     | 21/50 [13:01<09:09, 18.94s/it]Step 13:  50%|█████     | 25/50 [13:02<05:24, 13.00s/it]Step 13:  58%|█████▊    | 29/50 [13:02<03:08,  8.98s/it]Step 13:  64%|██████▍   | 32/50 [13:02<02:01,  6.77s/it]Step 13:  70%|███████   | 35/50 [13:02<01:15,  5.01s/it]Step 13:  76%|███████▌  | 38/50 [13:02<00:43,  3.65s/it]Step 13:  82%|████████▏ | 41/50 [13:03<00:23,  2.64s/it]Step 13:  90%|█████████ | 45/50 [13:03<00:08,  1.73s/it]Step 13: 100%|██████████| 50/50 [13:03<00:00,  1.08s/it]Step 13: 100%|██████████| 50/50 [13:03<00:00, 15.66s/it]
+2026-04-23 23:45:46,096 INFO step=13  reward=0.874  time=803.2s
+wandb: WARNING Serializing object of type str that is 118526 bytes
+Step 14:   0%|          | 0/50 [00:00<?, ?it/s]Step 14:   2%|▏         | 1/50 [10:53<8:53:36, 653.40s/it]Step 14:   6%|▌         | 3/50 [10:53<2:12:44, 169.45s/it]Step 14:  10%|█         | 5/50 [10:53<1:01:46, 82.36s/it] Step 14:  18%|█▊        | 9/50 [10:53<22:48, 33.37s/it]  Step 14:  24%|██▍       | 12/50 [10:54<12:55, 20.42s/it]Step 14:  28%|██▊       | 14/50 [10:54<08:56, 14.91s/it]Step 14:  34%|███▍      | 17/50 [10:54<05:12,  9.46s/it]Step 14:  48%|████▊     | 24/50 [10:54<01:50,  4.27s/it]Step 14:  64%|██████▍   | 32/50 [10:54<00:40,  2.26s/it]Step 14:  80%|████████  | 40/50 [10:54<00:13,  1.36s/it]Step 14:  80%|████████  | 40/50 [11:06<00:13,  1.36s/it]Step 14:  88%|████████▊ | 44/50 [11:59<00:27,  4.66s/it]Step 14: 100%|██████████| 50/50 [11:59<00:00, 14.39s/it]
+2026-04-23 23:58:16,041 INFO step=14  reward=0.909  time=749.5s
+wandb: WARNING Serializing object of type str that is 126660 bytes
+2026-04-23 23:58:21,681 INFO Checkpoint → subproblems-run-resumed.ckpt-000015  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000015)
+Step 15:   0%|          | 0/50 [00:00<?, ?it/s]Step 15:   2%|▏         | 1/50 [02:07<1:44:08, 127.51s/it]Step 15:   4%|▍         | 2/50 [03:36<1:24:00, 105.02s/it]Step 15:   8%|▊         | 4/50 [03:39<30:40, 40.00s/it]   Step 15:  10%|█         | 5/50 [04:37<34:11, 45.60s/it]Step 15:  12%|█▏        | 6/50 [08:52<1:20:25, 109.68s/it]Step 15:  24%|██▍       | 12/50 [12:44<36:53, 58.25s/it]  Step 15:  30%|███       | 15/50 [12:44<22:24, 38.40s/it]Step 15:  36%|███▌      | 18/50 [12:44<13:46, 25.84s/it]Step 15:  42%|████▏     | 21/50 [12:44<08:30, 17.62s/it]Step 15:  52%|█████▏    | 26/50 [12:44<04:00, 10.03s/it]Step 15:  58%|█████▊    | 29/50 [12:44<02:34,  7.34s/it]Step 15:  58%|█████▊    | 29/50 [13:02<02:34,  7.34s/it]Step 15:  64%|██████▍   | 32/50 [20:50<15:05, 50.31s/it]Step 15:  70%|███████   | 35/50 [20:50<09:00, 36.01s/it]Step 15:  76%|███████▌  | 38/50 [20:50<05:07, 25.62s/it]Step 15:  82%|████████▏ | 41/50 [20:50<02:43, 18.15s/it]Step 15:  92%|█████████▏| 46/50 [20:50<00:42, 10.71s/it]Step 15:  98%|█████████▊| 49/50 [20:50<00:07,  7.94s/it]Step 15: 100%|██████████| 50/50 [20:50<00:00, 25.02s/it]
+2026-04-24 00:19:33,255 INFO step=15  reward=0.871  time=1271.6s
+wandb: WARNING Serializing object of type str that is 120644 bytes
+Step 16:   0%|          | 0/50 [00:00<?, ?it/s]Step 16:   2%|▏         | 1/50 [06:23<5:12:56, 383.19s/it]Step 16:   6%|▌         | 3/50 [13:29<3:21:23, 257.09s/it]Step 16:  10%|█         | 5/50 [13:29<1:33:42, 124.94s/it]Step 16:  20%|██        | 10/50 [13:29<29:22, 44.07s/it]  Step 16:  26%|██▌       | 13/50 [13:29<17:30, 28.38s/it]Step 16:  36%|███▌      | 18/50 [13:29<08:11, 15.36s/it]Step 16:  44%|████▍     | 22/50 [13:29<04:42, 10.08s/it]Step 16:  50%|█████     | 25/50 [13:30<03:04,  7.38s/it]Step 16:  50%|█████     | 25/50 [13:41<03:04,  7.38s/it]Step 16:  68%|██████▊   | 34/50 [15:17<02:36,  9.81s/it]Step 16:  80%|████████  | 40/50 [15:17<01:05,  6.50s/it]Step 16:  90%|█████████ | 45/50 [15:17<00:23,  4.64s/it]Step 16: 100%|██████████| 50/50 [15:17<00:00, 18.35s/it]
+2026-04-24 00:35:10,103 INFO step=16  reward=0.904  time=936.5s
+Step 17:   0%|          | 0/50 [00:00<?, ?it/s]Step 17:   2%|▏         | 1/50 [02:36<2:07:40, 156.35s/it]Step 17:  10%|█         | 5/50 [05:08<41:45, 55.68s/it]   Step 17:  12%|█▏        | 6/50 [07:02<50:47, 69.27s/it]Step 17:  24%|██▍       | 12/50 [07:02<14:38, 23.12s/it]Step 17:  34%|███▍      | 17/50 [07:02<07:06, 12.91s/it]Step 17:  42%|████▏     | 21/50 [07:03<04:09,  8.59s/it]Step 17:  50%|█████     | 25/50 [07:03<02:25,  5.82s/it]Step 17:  56%|█████▌    | 28/50 [07:03<01:35,  4.33s/it]Step 17:  56%|█████▌    | 28/50 [07:13<01:35,  4.33s/it]Step 17:  64%|██████▍   | 32/50 [08:53<03:36, 12.01s/it]Step 17:  70%|███████   | 35/50 [08:54<02:13,  8.88s/it]Step 17:  76%|███████▌  | 38/50 [08:54<01:17,  6.49s/it]Step 17:  82%|████████▏ | 41/50 [08:54<00:42,  4.69s/it]Step 17:  88%|████████▊ | 44/50 [08:54<00:20,  3.36s/it]Step 17:  94%|█████████▍| 47/50 [08:54<00:07,  2.40s/it]Step 17: 100%|██████████| 50/50 [08:54<00:00, 10.69s/it]
+2026-04-24 00:44:23,269 INFO step=17  reward=0.895  time=552.7s
+Step 18:   0%|          | 0/50 [00:00<?, ?it/s]Step 18:   2%|▏         | 1/50 [03:43<3:02:45, 223.78s/it]Step 18:   6%|▌         | 3/50 [07:56<1:58:52, 151.76s/it]Step 18:  14%|█▍        | 7/50 [07:57<34:54, 48.72s/it]   Step 18:  22%|██▏       | 11/50 [07:57<16:05, 24.75s/it]Step 18:  28%|██▊       | 14/50 [07:57<09:44, 16.23s/it]Step 18:  34%|███▍      | 17/50 [07:57<05:59, 10.88s/it]Step 18:  44%|████▍     | 22/50 [07:57<02:50,  6.10s/it]Step 18:  52%|█████▏    | 26/50 [07:57<01:37,  4.07s/it]Step 18:  68%|██████▊   | 34/50 [07:57<00:33,  2.09s/it]Step 18:  80%|████████  | 40/50 [07:58<00:13,  1.38s/it]Step 18:  90%|█████████ | 45/50 [07:58<00:04,  1.00it/s]Step 18: 100%|██████████| 50/50 [07:58<00:00,  9.57s/it]
+2026-04-24 00:52:42,583 INFO step=18  reward=0.912  time=498.9s
+Step 19:   0%|          | 0/50 [00:00<?, ?it/s]Step 19:   2%|▏         | 1/50 [02:10<1:46:52, 130.87s/it]Step 19:  10%|█         | 5/50 [03:45<29:39, 39.54s/it]   Step 19:  14%|█▍        | 7/50 [03:45<17:38, 24.61s/it]Step 19:  14%|█▍        | 7/50 [04:01<17:38, 24.61s/it]Step 19:  24%|██▍       | 12/50 [06:21<18:00, 28.45s/it]Step 19:  28%|██▊       | 14/50 [06:21<12:51, 21.44s/it]Step 19:  32%|███▏      | 16/50 [06:21<08:59, 15.86s/it]Step 19:  36%|███▌      | 18/50 [06:22<06:10, 11.57s/it]Step 19:  44%|████▍     | 22/50 [06:22<03:02,  6.53s/it]Step 19:  52%|█████▏    | 26/50 [06:22<01:36,  4.03s/it]Step 19:  60%|██████    | 30/50 [06:22<00:52,  2.62s/it]Step 19:  60%|██████    | 30/50 [06:41<00:52,  2.62s/it]Step 19:  64%|██████▍   | 32/50 [09:56<07:05, 23.66s/it]Step 19:  70%|███████   | 35/50 [09:56<04:07, 16.53s/it]Step 19:  76%|███████▌  | 38/50 [09:56<02:18, 11.56s/it]Step 19:  82%|████████▏ | 41/50 [09:56<01:12,  8.09s/it]Step 19:  92%|█████████▏| 46/50 [09:56<00:18,  4.72s/it]Step 19: 100%|██████████| 50/50 [09:56<00:00, 11.93s/it]
+2026-04-24 01:02:58,558 INFO step=19  reward=0.892  time=615.7s
+2026-04-24 01:03:30,995 INFO Checkpoint → subproblems-run-resumed.ckpt-000020  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000020)
+Step 20:   0%|          | 0/50 [00:00<?, ?it/s]Step 20:   2%|▏         | 1/50 [04:20<3:33:05, 260.93s/it]Step 20:  10%|█         | 5/50 [04:26<30:04, 40.11s/it]   Step 20:  20%|██        | 10/50 [04:26<10:37, 15.93s/it]Step 20:  20%|██        | 10/50 [04:42<10:37, 15.93s/it]Step 20:  22%|██▏       | 11/50 [04:49<11:00, 16.95s/it]Step 20:  26%|██▌       | 13/50 [04:49<07:22, 11.96s/it]Step 20:  34%|███▍      | 17/50 [04:50<03:34,  6.50s/it]Step 20:  40%|████      | 20/50 [04:50<02:11,  4.37s/it]Step 20:  48%|████▊     | 24/50 [04:50<01:10,  2.70s/it]Step 20:  56%|█████▌    | 28/50 [04:50<00:38,  1.75s/it]Step 20:  76%|███████▌  | 38/50 [04:50<00:09,  1.28it/s]Step 20:  88%|████████▊ | 44/50 [04:54<00:04,  1.32it/s]Step 20:  96%|█████████▌| 48/50 [04:54<00:01,  1.70it/s]Step 20: 100%|██████████| 50/50 [04:54<00:00,  5.90s/it]
+2026-04-24 01:08:43,967 INFO step=20  reward=0.905  time=313.0s
+Step 21:   0%|          | 0/50 [00:00<?, ?it/s]Step 21:   2%|▏         | 1/50 [02:24<1:57:49, 144.28s/it]Step 21:  10%|█         | 5/50 [04:54<40:09, 53.55s/it]   Step 21:  18%|█▊        | 9/50 [04:55<16:31, 24.18s/it]Step 21:  18%|█▊        | 9/50 [05:10<16:31, 24.18s/it]Step 21:  24%|██▍       | 12/50 [05:35<12:46, 20.18s/it]Step 21:  30%|███       | 15/50 [05:35<07:42, 13.21s/it]Step 21:  36%|███▌      | 18/50 [05:35<04:43,  8.86s/it]Step 21:  44%|████▍     | 22/50 [05:35<02:32,  5.44s/it]Step 21:  54%|█████▍    | 27/50 [05:35<01:14,  3.23s/it]Step 21:  62%|██████▏   | 31/50 [05:35<00:42,  2.21s/it]Step 21:  62%|██████▏   | 31/50 [05:50<00:42,  2.21s/it]Step 21:  64%|██████▍   | 32/50 [06:55<03:01, 10.10s/it]Step 21:  70%|███████   | 35/50 [06:55<01:45,  7.04s/it]Step 21:  78%|███████▊  | 39/50 [06:55<00:49,  4.47s/it]Step 21:  86%|████████▌ | 43/50 [06:55<00:20,  2.94s/it]Step 21: 100%|██████████| 50/50 [06:55<00:00,  1.59s/it]Step 21: 100%|██████████| 50/50 [06:55<00:00,  8.32s/it]
+2026-04-24 01:15:55,902 INFO step=21  reward=0.890  time=431.7s
+Step 22:   0%|          | 0/50 [00:00<?, ?it/s]Step 22:   2%|▏         | 1/50 [09:35<7:49:57, 575.47s/it]Step 22:  10%|█         | 5/50 [09:35<1:04:18, 85.74s/it] Step 22:  22%|██▏       | 11/50 [09:35<19:44, 30.38s/it] Step 22:  30%|███       | 15/50 [09:48<11:39, 20.00s/it]Step 22:  44%|████▍     | 22/50 [09:48<04:47, 10.25s/it]Step 22:  56%|█████▌    | 28/50 [09:48<02:21,  6.43s/it]Step 22:  70%|███████   | 35/50 [09:48<00:59,  3.97s/it]Step 22:  82%|████████▏ | 41/50 [09:48<00:24,  2.70s/it]Step 22:  94%|█████████▍| 47/50 [09:48<00:05,  1.87s/it]Step 22: 100%|██████████| 50/50 [09:49<00:00, 11.78s/it]
+2026-04-24 01:26:01,624 INFO step=22  reward=0.907  time=605.4s
+Step 23:   0%|          | 0/50 [00:00<?, ?it/s]Step 23:   2%|▏         | 1/50 [01:33<1:16:08, 93.24s/it]Step 23:  10%|█         | 5/50 [04:59<43:18, 57.74s/it]  Step 23:  12%|█▏        | 6/50 [06:13<45:05, 61.48s/it]Step 23:  24%|██▍       | 12/50 [06:13<13:00, 20.53s/it]Step 23:  32%|███▏      | 16/50 [06:13<07:07, 12.57s/it]Step 23:  40%|████      | 20/50 [06:13<04:02,  8.10s/it]Step 23:  50%|█████     | 25/50 [06:13<02:03,  4.96s/it]Step 23:  56%|█████▌    | 28/50 [06:13<01:22,  3.73s/it]Step 23:  62%|██████▏   | 31/50 [06:14<00:52,  2.76s/it]Step 23:  68%|██████▊   | 34/50 [06:14<00:32,  2.03s/it]Step 23:  76%|███████▌  | 38/50 [06:14<00:16,  1.35s/it]Step 23:  82%|████████▏ | 41/50 [06:14<00:08,  1.00it/s]Step 23:  90%|█████████ | 45/50 [06:14<00:03,  1.50it/s]Step 23:  90%|█████████ | 45/50 [06:32<00:03,  1.50it/s]Step 23:  94%|█████████▍| 47/50 [11:53<01:40, 33.49s/it]Step 23: 100%|██████████| 50/50 [11:53<00:00, 23.65s/it]Step 23: 100%|██████████| 50/50 [11:53<00:00, 14.27s/it]
+2026-04-24 01:38:15,034 INFO step=23  reward=0.877  time=733.1s
+wandb: WARNING Serializing object of type str that is 123004 bytes
+Step 24:   0%|          | 0/50 [00:00<?, ?it/s]Step 24:   2%|▏         | 1/50 [06:22<5:12:15, 382.36s/it]Step 24:  12%|█▏        | 6/50 [06:22<34:26, 46.98s/it]   Step 24:  12%|█▏        | 6/50 [06:38<34:26, 46.98s/it]Step 24:  20%|██        | 10/50 [07:22<20:40, 31.01s/it]Step 24:  22%|██▏       | 11/50 [08:05<21:18, 32.79s/it]Step 24:  24%|██▍       | 12/50 [08:05<17:04, 26.97s/it]Step 24:  30%|███       | 15/50 [08:05<08:56, 15.33s/it]Step 24:  40%|████      | 20/50 [08:06<03:46,  7.56s/it]Step 24:  48%|████▊     | 24/50 [08:06<02:04,  4.80s/it]Step 24:  64%|██████▍   | 32/50 [08:06<00:42,  2.35s/it]Step 24:  80%|████████  | 40/50 [08:06<00:13,  1.37s/it]Step 24:  90%|█████████ | 45/50 [08:06<00:05,  1.00s/it]Step 24: 100%|██████████| 50/50 [08:06<00:00,  9.73s/it]
+2026-04-24 01:46:39,619 INFO step=24  reward=0.912  time=504.2s
+2026-04-24 01:46:45,266 INFO Checkpoint → subproblems-run-resumed.ckpt-000025  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000025)
+Step 25:   0%|          | 0/50 [00:00<?, ?it/s]Step 25:   2%|▏         | 1/50 [02:23<1:56:49, 143.05s/it]Step 25:  10%|█         | 5/50 [03:35<27:33, 36.74s/it]   Step 25:  24%|██▍       | 12/50 [03:35<07:27, 11.76s/it]Step 25:  24%|██▍       | 12/50 [03:48<07:27, 11.76s/it]Step 25:  30%|███       | 15/50 [04:43<08:43, 14.95s/it]Step 25:  40%|████      | 20/50 [04:43<04:24,  8.81s/it]Step 25:  48%|████▊     | 24/50 [04:43<02:36,  6.00s/it]Step 25:  48%|████▊     | 24/50 [04:58<02:36,  6.00s/it]Step 25:  54%|█████▍    | 27/50 [05:15<02:44,  7.17s/it]Step 25:  64%|██████▍   | 32/50 [05:52<02:09,  7.22s/it]Step 25:  70%|███████   | 35/50 [05:52<01:21,  5.46s/it]Step 25:  76%|███████▌  | 38/50 [05:52<00:48,  4.06s/it]Step 25:  82%|████████▏ | 41/50 [05:52<00:26,  2.98s/it]Step 25:  90%|█████████ | 45/50 [05:52<00:09,  1.98s/it]Step 25:  96%|█████████▌| 48/50 [05:52<00:02,  1.46s/it]Step 25: 100%|██████████| 50/50 [05:52<00:00,  7.06s/it]
+2026-04-24 01:52:56,632 INFO step=25  reward=0.905  time=371.4s
+Step 26:   0%|          | 0/50 [00:00<?, ?it/s]Step 26:   2%|▏         | 1/50 [04:51<3:58:18, 291.80s/it]Step 26:  10%|█         | 5/50 [05:29<38:39, 51.55s/it]   Step 26:  18%|█▊        | 9/50 [05:29<15:54, 23.28s/it]Step 26:  18%|█▊        | 9/50 [05:47<15:54, 23.28s/it]Step 26:  20%|██        | 10/50 [07:13<24:14, 36.36s/it]Step 26:  22%|██▏       | 11/50 [08:13<26:39, 41.01s/it]Step 26:  24%|██▍       | 12/50 [08:43<24:28, 38.65s/it]Step 26:  26%|██▌       | 13/50 [08:44<18:17, 29.66s/it]Step 26:  34%|███▍      | 17/50 [08:44<07:00, 12.73s/it]Step 26:  40%|████      | 20/50 [08:44<03:57,  7.92s/it]Step 26:  46%|████▌     | 23/50 [08:44<02:19,  5.15s/it]Step 26:  52%|█████▏    | 26/50 [08:44<01:22,  3.44s/it]Step 26:  64%|██████▍   | 32/50 [08:44<00:31,  1.77s/it]Step 26:  76%|███████▌  | 38/50 [08:44<00:12,  1.05s/it]Step 26:  84%|████████▍ | 42/50 [08:45<00:06,  1.30it/s]Step 26:  84%|████████▍ | 42/50 [08:57<00:06,  1.30it/s]Step 26:  90%|█████████ | 45/50 [09:59<00:31,  6.37s/it]Step 26: 100%|██████████| 50/50 [09:59<00:00, 12.00s/it]
+2026-04-24 02:03:37,479 INFO step=26  reward=0.901  time=640.5s
+wandb: WARNING Serializing object of type str that is 104374 bytes
+wandb: WARNING Serializing object of type str that is 125772 bytes
+wandb: WARNING Serializing object of type str that is 104408 bytes
+Step 27:   0%|          | 0/50 [00:00<?, ?it/s]Step 27:   2%|▏         | 1/50 [02:20<1:54:55, 140.72s/it]Step 27:  10%|█         | 5/50 [06:14<53:01, 70.70s/it]   Step 27:  22%|██▏       | 11/50 [06:14<16:17, 25.05s/it]Step 27:  22%|██▏       | 11/50 [06:26<16:17, 25.05s/it]Step 27:  24%|██▍       | 12/50 [07:03<17:54, 28.28s/it]Step 27:  28%|██▊       | 14/50 [07:04<12:17, 20.50s/it]Step 27:  34%|███▍      | 17/50 [07:04<07:05, 12.91s/it]Step 27:  40%|████      | 20/50 [07:04<04:13,  8.45s/it]Step 27:  48%|████▊     | 24/50 [07:04<02:12,  5.10s/it]Step 27:  54%|█████▍    | 27/50 [07:04<01:22,  3.60s/it]Step 27:  62%|██████▏   | 31/50 [07:04<00:43,  2.31s/it]Step 27:  62%|██████▏   | 31/50 [07:16<00:43,  2.31s/it]Step 27:  64%|██████▍   | 32/50 [09:00<04:35, 15.30s/it]Step 27:  68%|██████▊   | 34/50 [09:00<03:04, 11.54s/it]Step 27:  76%|███████▌  | 38/50 [09:00<01:21,  6.78s/it]Step 27:  82%|████████▏ | 41/50 [09:00<00:42,  4.72s/it]Step 27:  92%|█████████▏| 46/50 [09:01<00:10,  2.73s/it]Step 27:  98%|█████████▊| 49/50 [09:01<00:02,  2.02s/it]Step 27: 100%|██████████| 50/50 [09:01<00:00, 10.82s/it]
+2026-04-24 02:12:59,446 INFO step=27  reward=0.889  time=561.5s
+Step 28:   0%|          | 0/50 [00:00<?, ?it/s]Step 28:   2%|▏         | 1/50 [03:51<3:09:04, 231.52s/it]Step 28:  10%|█         | 5/50 [03:51<25:53, 34.52s/it]   Step 28:  20%|██        | 10/50 [03:51<09:08, 13.72s/it]Step 28:  20%|██        | 10/50 [04:03<09:08, 13.72s/it]Step 28:  22%|██▏       | 11/50 [04:25<10:49, 16.64s/it]Step 28:  26%|██▌       | 13/50 [04:25<07:14, 11.75s/it]Step 28:  34%|███▍      | 17/50 [04:25<03:30,  6.39s/it]Step 28:  46%|████▌     | 23/50 [04:25<01:27,  3.23s/it]Step 28:  54%|█████▍    | 27/50 [04:26<00:50,  2.21s/it]Step 28:  76%|███████▌  | 38/50 [04:26<00:11,  1.02it/s]Step 28:  86%|████████▌ | 43/50 [04:26<00:05,  1.37it/s]Step 28:  96%|█████████▌| 48/50 [04:26<00:01,  1.84it/s]Step 28: 100%|██████████| 50/50 [04:26<00:00,  5.33s/it]
+2026-04-24 02:17:47,720 INFO step=28  reward=0.901  time=287.9s
+wandb: WARNING Serializing object of type str that is 100662 bytes
+wandb: WARNING Serializing object of type str that is 110542 bytes
+Step 29:   0%|          | 0/50 [00:00<?, ?it/s]Step 29:   2%|▏         | 1/50 [02:28<2:01:15, 148.47s/it]Step 29:   4%|▍         | 2/50 [03:04<1:05:53, 82.37s/it] Step 29:  10%|█         | 5/50 [05:09<39:58, 53.31s/it]  Step 29:  18%|█▊        | 9/50 [05:10<15:25, 22.57s/it]Step 29:  18%|█▊        | 9/50 [05:26<15:25, 22.57s/it]Step 29:  24%|██▍       | 12/50 [05:42<11:28, 18.11s/it]Step 29:  28%|██▊       | 14/50 [06:32<11:58, 19.97s/it]Step 29:  30%|███       | 15/50 [08:18<19:41, 33.74s/it]Step 29:  34%|███▍      | 17/50 [08:19<12:44, 23.17s/it]Step 29:  42%|████▏     | 21/50 [08:19<05:54, 12.23s/it]Step 29:  50%|█████     | 25/50 [08:19<03:02,  7.32s/it]Step 29:  56%|█████▌    | 28/50 [08:19<01:52,  5.12s/it]Step 29:  62%|██████▏   | 31/50 [08:19<01:08,  3.60s/it]Step 29:  68%|██████▊   | 34/50 [08:20<00:42,  2.64s/it]Step 29:  76%|███████▌  | 38/50 [08:21<00:20,  1.69s/it]Step 29:  82%|████████▏ | 41/50 [08:21<00:11,  1.23s/it]Step 29:  90%|█████████ | 45/50 [08:21<00:04,  1.23it/s]Step 29:  98%|█████████▊| 49/50 [08:21<00:00,  1.81it/s]Step 29: 100%|██████████| 50/50 [08:21<00:00, 10.03s/it]
+2026-04-24 02:26:28,613 INFO step=29  reward=0.892  time=520.5s
+2026-04-24 02:26:56,737 INFO Checkpoint → subproblems-run-resumed.ckpt-000030  (tinker_path: tinker://51da9a97-c990-5891-be9d-8798c9cb1c0b:train:0/weights/subproblems-run-resumed.ckpt-000030)
+Step 30:   0%|          | 0/50 [00:00<?, ?it/s]Step 30:   2%|▏         | 1/50 [04:35<3:44:56, 275.43s/it]Step 30:   8%|▊         | 4/50 [04:55<44:12, 57.66s/it]   Step 30:  10%|█         | 5/50 [07:10<59:23, 79.19s/it]Step 30:  20%|██        | 10/50 [07:11<17:40, 26.51s/it]Step 30:  20%|██        | 10/50 [07:29<17:40, 26.51s/it]Step 30:  26%|██▌       | 13/50 [10:07<23:35, 38.24s/it]Step 30:  34%|███▍      | 17/50 [10:07<12:26, 22.62s/it]Step 30:  44%|████▍     | 22/50 [10:07<06:06, 13.09s/it]Step 30:  52%|█████▏    | 26/50 [10:08<03:32,  8.84s/it]Step 30:  76%|███████▌  | 38/50 [10:08<00:44,  3.70s/it]Step 30:  88%|████████▊ | 44/50 [10:08<00:15,  2.62s/it]Step 30:  98%|█████████▊| 49/50 [10:08<00:01,  1.95s/it]Step 30: 100%|██████████| 50/50 [10:08<00:00, 12.17s/it]
+2026-04-24 02:37:31,879 INFO step=30  reward=0.916  time=635.1s
+Step 31:   0%|          | 0/50 [00:00<?, ?it/s]Step 31:   2%|▏         | 1/50 [02:20<1:54:25, 140.11s/it]Step 31:   4%|▍         | 2/50 [02:36<53:50, 67.30s/it]   Step 31:  10%|█         | 5/50 [08:17<1:15:19, 100.43s/it]Step 31:  14%|█▍        | 7/50 [08:17<42:48, 59.73s/it]   Step 31:  18%|█▊        | 9/50 [08:17<25:51, 37.85s/it]Step 31:  24%|██▍       | 12/50 [08:17<13:26, 21.22s/it]Step 31:  24%|██▍       | 12/50 [08:32<13:26, 21.22s/it]Step 31:  28%|██▊       | 14/50 [10:54<22:51, 38.10s/it]Step 31:  30%|███       | 15/50 [10:54<18:22, 31.49s/it]Step 31:  36%|███▌      | 18/50 [10:54<09:37, 18.04s/it]Step 31:  44%|████▍     | 22/50 [10:54<04:38,  9.96s/it]Step 31:  52%|█████▏    | 26/50 [10:54<02:25,  6.08s/it]Step 31:  60%|██████    | 30/50 [10:54<01:18,  3.92s/it]Step 31:  60%|██████    | 30/50 [11:12<01:18,  3.92s/it]Step 31:  64%|██████▍   | 32/50 [14:43<07:54, 26.35s/it]Step 31:  68%|██████▊   | 34/50 [14:43<05:26, 20.43s/it]Step 31:  76%|███████▌  | 38/50 [14:43<02:29, 12.44s/it]Step 31:  82%|████████▏ | 41/50 [14:43<01:19,  8.78s/it]Step 31:  90%|█████████ | 45/50 [14:43<00:28,  5.63s/it]Step 31: 100%|██████████| 50/50 [14:43<00:00,  3.43s/it]Step 31: 100%|██████████| 50/50 [14:43<00:00, 17.67s/it]
+2026-04-24 02:52:35,265 INFO step=31  reward=0.897  time=902.8s
+Step 32:   0%|          | 0/50 [00:00<?, ?it/s]Step 32:   2%|▏         | 1/50 [04:53<3:59:26, 293.19s/it]Step 32:   8%|▊         | 4/50 [04:53<42:32, 55.50s/it]   Step 32:  18%|█▊        | 9/50 [04:53<12:57, 18.95s/it]Step 32:  18%|█▊        | 9/50 [05:08<12:57, 18.95s/it]Step 32:  22%|██▏       | 11/50 [05:15<10:55, 16.80s/it]Step 32:  24%|██▍       | 12/50 [07:05<20:15, 31.99s/it]Step 32:  26%|██▌       | 13/50 [07:05<16:00, 25.96s/it]Step 32:  34%|███▍      | 17/50 [07:05<06:52, 12.50s/it]Step 32:  44%|████▍     | 22/50 [07:05<03:01,  6.50s/it]Step 32:  50%|█████     | 25/50 [07:05<01:55,  4.61s/it]Step 32:  64%|██████▍   | 32/50 [07:06<00:42,  2.35s/it]Step 32:  80%|████████  | 40/50 [07:06<00:13,  1.31s/it]Step 32:  88%|████████▊ | 44/50 [07:06<00:05,  1.00it/s]Step 32:  96%|█████████▌| 48/50 [07:06<00:01,  1.32it/s]Step 32: 100%|██████████| 50/50 [07:06<00:00,  8.53s/it]
+2026-04-24 03:00:05,509 INFO step=32  reward=0.901  time=449.8s
+wandb: WARNING Serializing object of type str that is 102336 bytes
+Step 33:   0%|          | 0/50 [00:00<?, ?it/s]2026-04-24 03:04:50,242 WARNING Session heartbeat failed for 136.52591846502037 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:05:36,377 WARNING Session heartbeat failed for 182.74377762302174 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:06:23,101 WARNING Session heartbeat failed for 229.43079108800157 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:07:02,874 WARNING Session heartbeat failed for 269.12815821301774 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:07:36,588 WARNING Session heartbeat failed for 302.78790710199974 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:08:17,358 WARNING Session heartbeat failed for 343.48992388602346 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:09:07,291 WARNING Session heartbeat failed for 393.6437395340181 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:09:51,943 WARNING Session heartbeat failed for 438.2136075280141 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:10:52,731 WARNING Session heartbeat failed for 499.0184795620153 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:11:43,863 WARNING Session heartbeat failed for 550.2057058330101 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:12:22,520 WARNING Session heartbeat failed for 588.8513385860133 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:13:19,444 WARNING Session heartbeat failed for 645.7912327860249 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:13:21,028 WARNING Failed to send telemetry batch
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 969, in request
+    response = await self._client.send(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 133, in _send_batch_with_retry
+    return await self._send_batch(batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 142, in _send_batch
+    return await client.telemetry.send(request=request, timeout=HTTP_TIMEOUT_SECONDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/resources/telemetry.py", line 68, in send
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 1232, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 987, in request
+    raise APITimeoutError(request=request) from err
+tinker.APITimeoutError: Request timed out.
+2026-04-24 03:13:58,288 WARNING Session heartbeat failed for 684.5609760270163 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:14:37,513 WARNING Session heartbeat failed for 723.420388071012 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:17:20,238 WARNING Session heartbeat failed for 886.4469429120072 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APIConnectionError: Connection error..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:18:00,079 WARNING Session heartbeat failed for 926.421640073997 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:18:50,423 WARNING Session heartbeat failed for 976.7431698730215 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:18:53,630 WARNING Failed to send telemetry batch
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 969, in request
+    response = await self._client.send(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 133, in _send_batch_with_retry
+    return await self._send_batch(batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 142, in _send_batch
+    return await client.telemetry.send(request=request, timeout=HTTP_TIMEOUT_SECONDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/resources/telemetry.py", line 68, in send
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 1232, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 987, in request
+    raise APITimeoutError(request=request) from err
+tinker.APITimeoutError: Request timed out.
+2026-04-24 03:19:47,553 WARNING Session heartbeat failed for 1033.683121353999 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:20:37,568 WARNING Session heartbeat failed for 1083.789260149002 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:21:15,510 WARNING Session heartbeat failed for 1121.8059158240212 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:22:02,475 WARNING Session heartbeat failed for 1168.7672680079995 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:22:48,005 WARNING Session heartbeat failed for 1214.20879039602 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:23:32,075 WARNING Session heartbeat failed for 1258.0583215070073 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:24:08,794 WARNING Session heartbeat failed for 1295.1278541450156 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:24:46,374 WARNING Session heartbeat failed for 1332.6909181290248 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:25:25,450 WARNING Session heartbeat failed for 1371.7636034160096 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:25:31,137 WARNING Failed to send telemetry batch
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 969, in request
+    response = await self._client.send(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 133, in _send_batch_with_retry
+    return await self._send_batch(batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 142, in _send_batch
+    return await client.telemetry.send(request=request, timeout=HTTP_TIMEOUT_SECONDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/resources/telemetry.py", line 68, in send
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 1232, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 987, in request
+    raise APITimeoutError(request=request) from err
+tinker.APITimeoutError: Request timed out.
+2026-04-24 03:25:57,705 WARNING Session heartbeat failed for 1403.9598434329964 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:26:39,838 WARNING Session heartbeat failed for 1446.1618903799972 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:27:16,391 WARNING Session heartbeat failed for 1482.7483746220241 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:27:59,757 WARNING Session heartbeat failed for 1526.0629323910107 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:28:38,551 WARNING Session heartbeat failed for 1564.8771731360175 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:29:10,220 WARNING Session heartbeat failed for 1596.5409783240175 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:29:53,541 WARNING Session heartbeat failed for 1639.7801579560037 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:30:34,579 WARNING Session heartbeat failed for 1680.8758098200196 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:30:45,772 WARNING Failed to send telemetry batch
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 101, in handle_async_request
+    raise exc
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 124, in _connect
+    stream = await self._network_backend.connect_tcp(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/auto.py", line 31, in connect_tcp
+    return await self._backend.connect_tcp(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_backends/anyio.py", line 113, in connect_tcp
+    with map_exceptions(exc_map):
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpcore/_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 969, in request
+    response = await self._client.send(
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+  File "/usr/lib64/python3.11/contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 133, in _send_batch_with_retry
+    return await self._send_batch(batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/lib/telemetry.py", line 142, in _send_batch
+    return await client.telemetry.send(request=request, timeout=HTTP_TIMEOUT_SECONDS)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/resources/telemetry.py", line 68, in send
+    return await self._post(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 1232, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ec2-user/.local/lib/python3.11/site-packages/tinker/_base_client.py", line 987, in request
+    raise APITimeoutError(request=request) from err
+tinker.APITimeoutError: Request timed out.
+2026-04-24 03:31:11,310 WARNING Session heartbeat failed for 1717.6678594830155 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:31:50,952 WARNING Session heartbeat failed for 1757.0122889610066 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:32:35,412 WARNING Session heartbeat failed for 1801.5805245969968 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:33:15,895 WARNING Session heartbeat failed for 1842.1671809109976 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:33:58,512 WARNING Session heartbeat failed for 1884.8532512520032 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
+2026-04-24 03:34:30,196 WARNING Session heartbeat failed for 1916.562871742004 seconds for session 51da9a97-c990-5891-be9d-8798c9cb1c0b. Last exception: APITimeoutError: Request timed out..
+Your connection may be unreliable or Tinker is down. If this persists, the session will be terminated.
