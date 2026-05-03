@@ -249,3 +249,120 @@ class TestRegenFeedback:
         d = decide(clusters, k_calibrate=K, band=BAND, ambiguity_threshold=AMB)
         fb = regen_feedback(d)
         assert "simplify" in fb.lower() or "tractable" in fb.lower() or "reduce" in fb.lower()
+
+
+# ---------------------------------------------------------------------------
+# decide_multipart — aggregate r_bar band on chained problems
+# ---------------------------------------------------------------------------
+
+from ttt_binary.cluster import decide_multipart, regen_feedback_multipart
+from ttt_binary.answer_extract import extract_answers_multipart
+
+
+def _parts(*per_part_lists):
+    """Helper: build per_part_clusters from lists of predicted strings."""
+    labels = "abcdefghij"
+    return [(labels[i], cluster_answers(preds)) for i, preds in enumerate(per_part_lists)]
+
+
+class TestDecideMultipart:
+    K = 10
+    BAND = (0.4, 0.6)
+    AMB = 0.2
+
+    def test_all_unanimous_too_easy(self):
+        d = decide_multipart(
+            _parts(["1.0000"] * self.K, ["2.0000"] * self.K, ["3.0000"] * self.K),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+        )
+        assert d.kind == "REJECT_TOO_EASY"
+        assert d.r_bar == pytest.approx(1.0)
+
+    def test_in_band_with_distractors(self):
+        a_preds = ["1.0000"] * 5 + ["2.0000", "3.0000", "4.0000", "5.0000", "6.0000"]
+        b_preds = ["7.0000"] * 5 + ["8.0000", "9.0000", "10.0000", "11.0000", "12.0000"]
+        d = decide_multipart(
+            _parts(a_preds, b_preds),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+        )
+        assert d.kind == "ACCEPT"
+        assert d.r_bar == pytest.approx(0.5)
+        assert d.per_part[0].consensus_answer == "1.0000"
+        assert d.per_part[1].consensus_answer == "7.0000"
+
+    def test_one_ambiguous_part_rejects_whole(self):
+        d = decide_multipart(
+            _parts(["1.0000"] * self.K, ["7.0000"] * 5 + ["8.0000"] * 5),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+        )
+        assert d.kind == "REJECT_AMBIGUOUS"
+
+    def test_too_hard_aggregate(self):
+        # p1=0.3, p2=0.1 on each part: well-posed but r_bar=0.3 < band_lo.
+        spread = ["1.0000"] * 3 + [f"{i}.0000" for i in range(2, 9)]  # 3 + 7 = 10
+        d = decide_multipart(
+            _parts(spread, spread),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+        )
+        assert d.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS"
+        assert d.r_bar < 0.4
+
+    def test_too_many_unparseable_per_part(self):
+        d = decide_multipart(
+            _parts([None] * self.K, ["7.0000"] * self.K),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+            max_unparseable=3,
+        )
+        assert d.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS"
+        assert "unparseable" in d.reason
+
+    def test_empty_parts_rejects(self):
+        d = decide_multipart([], k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB)
+        assert d.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS"
+
+    def test_regen_feedback_too_easy_mentions_rbar(self):
+        d = decide_multipart(
+            _parts(["1.0000"] * self.K, ["2.0000"] * self.K),
+            k_calibrate=self.K, band=self.BAND, ambiguity_threshold=self.AMB,
+        )
+        fb = regen_feedback_multipart(d)
+        assert "easy" in fb.lower() or "r_bar" in fb.lower()
+
+
+# ---------------------------------------------------------------------------
+# extract_answers_multipart — JSON ANSWERS line and fallback
+# ---------------------------------------------------------------------------
+
+class TestExtractMultipart:
+    def test_json_answers_line(self):
+        text = (
+            "Reasoning ...\n"
+            r"\boxed{1.0000}" "\n"
+            r"\boxed{2.5000}" "\n"
+            'ANSWERS: {"a": "1.0000", "b": "2.5000"}\n'
+        )
+        out = extract_answers_multipart(text, ["a", "b"])
+        assert out == {"a": "1.0000", "b": "2.5000"}
+
+    def test_missing_label_returns_none(self):
+        text = 'ANSWERS: {"a": "1.0000"}'
+        out = extract_answers_multipart(text, ["a", "b"])
+        assert out == {"a": "1.0000", "b": None}
+
+    def test_no_answers_line_falls_back_to_part_headers(self):
+        text = (
+            "Part (a): the answer is \\boxed{3.1416}.\n"
+            "Part (b): so we get \\boxed{42.0000}.\n"
+        )
+        out = extract_answers_multipart(text, ["a", "b"])
+        assert out["a"] == "3.1416"
+        assert out["b"] == "42.0000"
+
+    def test_empty_text_returns_all_none(self):
+        out = extract_answers_multipart("", ["a", "b", "c"])
+        assert out == {"a": None, "b": None, "c": None}
+
+    def test_extra_labels_in_json_ignored(self):
+        text = 'ANSWERS: {"a": "1.0000", "b": "2.0000", "extra": "999"}'
+        out = extract_answers_multipart(text, ["a", "b"])
+        assert out == {"a": "1.0000", "b": "2.0000"}

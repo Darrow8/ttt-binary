@@ -33,8 +33,8 @@ DEFAULT_CONFIG = {
     "m": 3,
     "band_lo": 0.4,
     "band_hi": 0.6,
-    "ambiguity_threshold": 0.2,   # max allowed second-cluster fraction (REVISIONS.md)
-    "max_unparseable": 3,
+    "ambiguity_threshold": 0.2,   # per-part max allowed second-cluster fraction
+    "max_unparseable": 5,         # per-part cap; 50% allows for multi-part cascade failures
     "k_calibrate": 10,
     "k_solve": 16,
     "max_regen": 5,

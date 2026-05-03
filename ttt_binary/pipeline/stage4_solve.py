@@ -1,15 +1,13 @@
-"""Stage 4 — generate solution traces for accepted subproblems.
+"""Stage 4 — generate multi-part solution traces and continuous-reward labels.
 
-For each accepted subproblem, sample K_solve attempts from a strong solver,
-keep the ones that match the consensus answer (REVISIONS.md), and write
-JSONL training data.
+For each accepted multi-part subproblem, sample K_solve attempts on the
+full problem, score each attempt's per-part answers against the per-part
+consensus, and write training records with reward = k/m (number of parts
+correct / total parts) — the continuous reward signal that lets RL learn
+on otherwise-binary verification tasks.
 
-Comparison uses the SAME canonicalization as Stage 3 clustering, so a
-predicted answer counts as correct iff it lies in the same cluster as the
-consensus.
-
-Optimization: re-uses the calibration attempts from Stage 3 if available, so
-we only top up to K_solve total attempts.
+Comparison uses the SAME canonicalization as Stage 3 clustering. Calibration
+attempts from Stage 3 are reused, topped up to K_solve total.
 """
 from __future__ import annotations
 
@@ -23,9 +21,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from ttt_binary.answer_extract import extract_boxed
+from ttt_binary.answer_extract import extract_answers_multipart
 from ttt_binary.cluster import _canonicalize  # cluster-equivalence, not raw equality
 from ttt_binary.llm import call_openai
+from ttt_binary.pipeline.stage3_generate_subproblems import (
+    SOLVE_SYSTEM as MULTIPART_SOLVE_SYSTEM,
+    _render_full_problem,
+)
 
 
 def _matches_consensus(predicted: str | None, consensus_canon: str | None) -> bool:
@@ -34,27 +36,45 @@ def _matches_consensus(predicted: str | None, consensus_canon: str | None) -> bo
     return _canonicalize(predicted) == consensus_canon
 
 
-SOLVE_SYSTEM = """\
-You are a careful and rigorous math student. Solve the problem step by step, \
-showing all important intermediate work. Compute a numerical final answer \
-and round it to exactly 4 decimal places. Place ONLY that rounded number \
-inside \\boxed{} at the end (e.g. \\boxed{866.0000}, \\boxed{0.5000}, \
-\\boxed{-2.3457}). Always include trailing zeros to fill all 4 decimals."""
+def _score_attempt(predicted_parts: dict, parts: list[dict]) -> tuple[int, list[bool]]:
+    """Return (k, per_part_correct) where k = # parts correct, per_part_correct
+    is a parallel boolean list aligned with *parts*."""
+    flags = []
+    k = 0
+    for part in parts:
+        consensus_canon = _canonicalize(str(part.get("consensus_answer"))) \
+            if part.get("consensus_answer") else None
+        pred = predicted_parts.get(part["label"]) if predicted_parts else None
+        ok = _matches_consensus(pred, consensus_canon)
+        flags.append(ok)
+        if ok:
+            k += 1
+    return k, flags
 
 
-def _solve_one(prompt: str, *, model: str, temperature: float) -> dict:
+def _solve_one(parts: list[dict], *, model: str, temperature: float) -> dict:
+    """Solve a multi-part problem once. Returns {ok, predicted_parts, text}."""
+    labels = [p["label"] for p in parts]
+    rendered = _render_full_problem(parts)
     try:
         text = call_openai(
-            prompt
-            + "\n\nRound your final answer to 4 decimal places and place it"
-              " inside \\boxed{} (e.g. \\boxed{866.0000}).",
+            rendered,
             model=model,
-            system=SOLVE_SYSTEM,
+            system=MULTIPART_SOLVE_SYSTEM,
             temperature=temperature,
         )
     except Exception as e:
-        return {"ok": False, "error": str(e)[:200], "predicted": None, "text": ""}
-    return {"ok": True, "text": text, "predicted": extract_boxed(text)}
+        return {
+            "ok": False,
+            "error": str(e)[:200],
+            "predicted_parts": {label: None for label in labels},
+            "text": "",
+        }
+    return {
+        "ok": True,
+        "text": text,
+        "predicted_parts": extract_answers_multipart(text, labels),
+    }
 
 
 def solve_subproblems(
@@ -66,32 +86,25 @@ def solve_subproblems(
     workers: int,
     out_path: Path,
 ) -> dict:
-    """For each accepted subproblem (REVISIONS.md schema), harvest correct
-    traces from Stage 3 calibration and top up with new solver calls until
-    K_solve total attempts. Verification target is consensus_answer."""
+    """For each accepted multi-part subproblem, harvest Stage-3 calibration
+    attempts and top up to K_solve total. Each kept record carries
+    `reward = k/m` (number of correctly-answered parts) as the continuous
+    training signal, plus per-part match flags for downstream analysis.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    n_traces = 0
-    n_problems_with_any = 0
+    n_records = 0
     per_problem_yield: list[dict] = []
     with out_path.open("w") as f:
         for sp in accepted:
-            consensus = sp.get("consensus_answer")
-            if consensus is None:
-                # Backwards compatibility for old records that still carry
-                # expected_answer instead of consensus_answer.
-                consensus = sp.get("expected_answer")
-            consensus_canon = _canonicalize(str(consensus)) if consensus else None
-            problem_text = sp["problem_text"]
+            parts = sp.get("parts") or []
+            m = len(parts)
+            if m == 0:
+                continue
 
-            # ---- harvest correct calibration traces (carry full text) ----
+            # ---- harvest calibration attempts (carry full text) ----
             cal_attempts = sp.get("calibration_attempts", [])
-            cal_correct = [
-                a for a in cal_attempts
-                if a.get("ok")
-                and a.get("text")
-                and _matches_consensus(a.get("predicted"), consensus_canon)
-            ]
-            n_cal_ok = sum(1 for a in cal_attempts if a.get("ok"))
+            cal_ok = [a for a in cal_attempts if a.get("ok") and a.get("text")]
+            n_cal_ok = len(cal_ok)
             attempts_needed = max(0, k_solve - n_cal_ok)
 
             # ---- top up with new solver calls if needed ----
@@ -100,60 +113,81 @@ def solve_subproblems(
                 with cf.ThreadPoolExecutor(max_workers=min(workers, attempts_needed)) as pool:
                     new_attempts = list(pool.map(
                         lambda _i: _solve_one(
-                            problem_text, model=solver_model, temperature=temperature,
+                            parts, model=solver_model, temperature=temperature,
                         ),
                         range(attempts_needed),
                     ))
-            new_correct = [
-                a for a in new_attempts
-                if a.get("ok") and _matches_consensus(a.get("predicted"), consensus_canon)
-            ]
 
             kept_local = 0
-            for src, a in (
-                [("calibration", c) for c in cal_correct]
-                + [("new", c) for c in new_correct]
+            sum_reward = 0.0
+            for src, attempt in (
+                [("calibration", c) for c in cal_ok]
+                + [("new", c) for c in new_attempts if c.get("ok") and c.get("text")]
             ):
+                k, flags = _score_attempt(attempt.get("predicted_parts") or {}, parts)
+                reward = k / m
                 f.write(json.dumps({
                     "combo_idx": sp.get("combo_idx"),
                     "skills_used": sp.get("skills_used"),
-                    "problem_text": problem_text,
-                    "consensus_answer": consensus,
-                    "generator_proposed_answer": sp.get("generator_proposed_answer"),
-                    "predicted_answer": a.get("predicted"),
-                    "trace": a.get("text"),
+                    "parts": [
+                        {
+                            "label": p["label"],
+                            "skill": p.get("skill"),
+                            "text": p["text"],
+                            "consensus_answer": p.get("consensus_answer"),
+                        }
+                        for p in parts
+                    ],
+                    "predicted_parts": attempt.get("predicted_parts"),
+                    "per_part_correct": flags,
+                    "k_correct": k,
+                    "m": m,
+                    "reward": reward,
+                    "trace": attempt.get("text"),
                     "source": src,
                 }) + "\n")
                 kept_local += 1
-                n_traces += 1
+                sum_reward += reward
+                n_records += 1
 
-            if kept_local > 0:
-                n_problems_with_any += 1
+            mean_reward = sum_reward / kept_local if kept_local else 0.0
             per_problem_yield.append({
                 "combo_idx": sp.get("combo_idx"),
-                "k_calibration_correct": len(cal_correct),
+                "m": m,
+                "k_calibration": len(cal_ok),
                 "k_new_attempted": len(new_attempts),
-                "k_new_correct": len(new_correct),
-                "k_total_correct": kept_local,
+                "k_records_kept": kept_local,
+                "mean_reward": mean_reward,
             })
             print(
-                f"  [combo {sp.get('combo_idx')}] kept {kept_local} traces "
-                f"(cal={len(cal_correct)}, new={len(new_correct)}/"
-                f"{len(new_attempts)}, consensus={consensus!r})",
+                f"  [combo {sp.get('combo_idx')}] kept {kept_local} records, "
+                f"mean reward = {mean_reward:.2f} (m={m}, "
+                f"cal={len(cal_ok)}, new={len(new_attempts)})",
                 flush=True,
             )
 
+    n_problems_with_records = sum(
+        1 for r in per_problem_yield if r.get("k_records_kept", 0) > 0
+    )
+    overall_mean_reward = (
+        sum(r.get("mean_reward", 0.0) * r.get("k_records_kept", 0) for r in per_problem_yield)
+        / n_records
+    ) if n_records else 0.0
     summary = {
         "out_path": str(out_path),
         "k_solve": k_solve,
         "solver_model": solver_model,
         "n_subproblems": len(accepted),
-        "n_problems_with_any_correct": n_problems_with_any,
-        "n_correct_traces": n_traces,
+        "n_problems_with_records": n_problems_with_records,
+        "n_records_total": n_records,
+        "overall_mean_reward": overall_mean_reward,
         "per_problem_yield": per_problem_yield,
     }
-    print(f"wrote {out_path} ({n_traces} correct traces across "
-          f"{n_problems_with_any}/{len(accepted)} subproblems)")
+    print(
+        f"wrote {out_path} ({n_records} records across "
+        f"{n_problems_with_records}/{len(accepted)} subproblems, "
+        f"overall mean reward = {overall_mean_reward:.2f})"
+    )
     return summary
 
 

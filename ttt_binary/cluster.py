@@ -290,6 +290,185 @@ def decide(
 # Feedback strings for the regen prompt
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Multi-part decision rule
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PerPartStats:
+    label: str
+    consensus_answer: str | None
+    p1: float          # modal cluster fraction = per-part solve rate s_i
+    p2: float          # second cluster fraction (ambiguity probe)
+    n_unparseable: int
+    clusters: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass
+class MultipartDecision:
+    kind: DecisionKind
+    per_part: list[PerPartStats]
+    r_bar: float            # mean of per-part s_i (continuous reward expectation)
+    n_total: int            # k_calibrate
+    reason: str = ""
+
+    @property
+    def accepted(self) -> bool:
+        return self.kind == "ACCEPT"
+
+
+def decide_multipart(
+    per_part_clusters: list[tuple[str, dict[str, int]]],
+    *,
+    k_calibrate: int,
+    band: tuple[float, float] = (0.4, 0.6),
+    ambiguity_threshold: float = 0.2,
+    max_unparseable: int = 3,
+) -> MultipartDecision:
+    """Apply the multi-part decision rule.
+
+    Args:
+        per_part_clusters: list of (label, cluster_dict) tuples in chain order.
+            cluster_dict comes from cluster_answers() over the K critic
+            predictions for that part.
+        k_calibrate: total number of critic samples (denominator for p1/p2).
+        band: difficulty band on the AGGREGATE r_bar (mean per-part p1).
+        ambiguity_threshold: per-part max allowed second-cluster fraction. If
+            ANY part exceeds this, the whole problem is rejected as ambiguous.
+        max_unparseable: per-part unparseable cap. Same logic as single-answer.
+
+    Acceptance criterion:
+        - every part has a parseable consensus
+        - every part's p2 < ambiguity_threshold
+        - every part's n_unparseable <= max_unparseable
+        - r_bar = mean(p1_i) is in [band_lo, band_hi]
+    Otherwise rejected with the most-specific failure mode.
+    """
+    if not per_part_clusters:
+        return MultipartDecision(
+            kind="REJECT_TOO_HARD_OR_AMBIGUOUS",
+            per_part=[], r_bar=0.0, n_total=k_calibrate,
+            reason="no parts provided",
+        )
+
+    per_part: list[PerPartStats] = []
+    for label, clusters in per_part_clusters:
+        n_unparseable = clusters.get(UNPARSEABLE, 0)
+        parseable = {k: v for k, v in clusters.items() if k != UNPARSEABLE}
+        ranked = sorted(
+            parseable.items(),
+            key=lambda kv: (-kv[1], list(parseable).index(kv[0])),
+        )
+        if ranked:
+            consensus = ranked[0][0]
+            p1 = ranked[0][1] / k_calibrate
+            p2 = ranked[1][1] / k_calibrate if len(ranked) >= 2 else 0.0
+        else:
+            consensus = None
+            p1 = 0.0
+            p2 = 0.0
+        per_part.append(PerPartStats(
+            label=label,
+            consensus_answer=consensus,
+            p1=p1, p2=p2,
+            n_unparseable=n_unparseable,
+            clusters=clusters,
+        ))
+
+    # Aggregate solve rate (continuous reward expectation).
+    r_bar = sum(p.p1 for p in per_part) / len(per_part)
+
+    # Per-part well-posedness checks.
+    for p in per_part:
+        if p.n_unparseable > max_unparseable:
+            return MultipartDecision(
+                kind="REJECT_TOO_HARD_OR_AMBIGUOUS",
+                per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+                reason=(
+                    f"part {p.label!r}: unparseable={p.n_unparseable}/"
+                    f"{k_calibrate} > max_unparseable={max_unparseable}"
+                ),
+            )
+        if p.consensus_answer is None:
+            return MultipartDecision(
+                kind="REJECT_TOO_HARD_OR_AMBIGUOUS",
+                per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+                reason=f"part {p.label!r}: no parseable consensus",
+            )
+        if p.p2 >= ambiguity_threshold:
+            return MultipartDecision(
+                kind="REJECT_AMBIGUOUS",
+                per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+                reason=(
+                    f"part {p.label!r}: two competing answers with "
+                    f"p1={p.p1:.2f}, p2={p.p2:.2f} >= {ambiguity_threshold}"
+                ),
+            )
+
+    # Aggregate band check.
+    if r_bar > band[1]:
+        return MultipartDecision(
+            kind="REJECT_TOO_EASY",
+            per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+            reason=f"r_bar={r_bar:.2f} > {band[1]} (mean per-part solve rate)",
+        )
+    if r_bar < band[0]:
+        return MultipartDecision(
+            kind="REJECT_TOO_HARD_OR_AMBIGUOUS",
+            per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+            reason=f"r_bar={r_bar:.2f} < {band[0]} (mean per-part solve rate)",
+        )
+
+    return MultipartDecision(
+        kind="ACCEPT",
+        per_part=per_part, r_bar=r_bar, n_total=k_calibrate,
+        reason=(
+            f"r_bar={r_bar:.2f} in band, all parts well-posed "
+            f"(per-part p1: {[f'{p.p1:.2f}' for p in per_part]})"
+        ),
+    )
+
+
+def regen_feedback_multipart(decision: MultipartDecision) -> str:
+    """Concrete instruction for the next generation attempt, given a multipart outcome."""
+    if decision.kind == "REJECT_TOO_EASY":
+        per_part_summary = ", ".join(
+            f"{p.label}={p.p1:.0%}" for p in decision.per_part
+        )
+        return (
+            f"- The previous problem was too easy: r_bar={decision.r_bar:.2f} "
+            f"(per-part solve rates: {per_part_summary}). At least one part "
+            "must require a nontrivial computation: increase the depth of one "
+            "part's required derivation, ensure it cannot be solved by recall, "
+            "or replace a textbook setup with a non-canonical instance."
+        )
+    if decision.kind == "REJECT_AMBIGUOUS":
+        return (
+            f"- {decision.reason}. The ambiguous part has multiple valid "
+            "interpretations or its answer depends on a representative choice. "
+            "Re-state that part so the answer is uniquely determined by the "
+            "stated conditions."
+        )
+    if decision.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS":
+        # Find the worst part for diagnosis.
+        worst = min(decision.per_part, key=lambda p: p.p1) if decision.per_part else None
+        if worst is None:
+            return (
+                "- No parseable consensus on any part. The problem may be "
+                "ill-posed or unsolvable. Simplify the framing and ensure "
+                "every part has a single real-number answer rounded to 4 "
+                "decimal places inside \\boxed{}."
+            )
+        return (
+            f"- The previous problem was too hard or ill-posed: "
+            f"r_bar={decision.r_bar:.2f}, weakest part {worst.label!r} had "
+            f"p1={worst.p1:.2f}. Simplify that part — reduce parameter sizes, "
+            "remove a source of bookkeeping complexity, or clarify the "
+            "wording. Keep all skills in the chain."
+        )
+    return "- Aim for r_bar near 0.5 with each part well-posed."
+
+
 def regen_feedback(decision: Decision) -> str:
     """Concrete instruction for the next generation attempt, given an outcome."""
     if decision.kind == "REJECT_TOO_EASY":

@@ -1,25 +1,30 @@
-"""Stage 3 — generate one subproblem per C(X, M) skill combination, with a
-consensus difficulty-calibration loop AND a generator/critic answer-agreement
-cross-check.
+"""Stage 3 — multi-part chained subproblem generation with consensus calibration.
 
 For each unordered M-tuple of skills:
-  1. Ask the generator to produce a subproblem whose solution chains the M
-     skills, with a single verifiable answer AND per-skill rationale.
-  2. Sample K_calibrate attempts from the critic (a different family from
-     the generator). Compute (a) solve-rate against the generator's claimed
-     answer, (b) the modal critic answer and its consensus strength.
-  3. Accept iff: critic mode == generator's claim AND solve-rate ∈ band.
-     Reject as "answer_disagreement" if the critic mode disagrees with the
-     generator's claim — this catches generator hallucinations cheaply.
-  4. Out-of-band → regenerate with a directional hint. Cap at max_regen_attempts.
+  1. Generator produces an M-part subproblem with cumulative dependency:
+     part (a) requires skill 1; part (b) starts with "Let x = your answer
+     to part (a)" and uses x as input to skill 2; part (c) starts with
+     "Let y = your answer to part (b)" and uses skill 3. This makes the
+     chain load-bearing by structure — you cannot solve later parts
+     without earlier parts' answers.
+  2. K critic solves on the full multi-part problem; each response ends with
+     a JSON ANSWERS line giving one numerical answer per part.
+  3. Per-part clustering yields per-part consensus answers and per-part
+     solve rates s_i. Aggregate r_bar = mean(s_i) is the continuous reward
+     expectation (also the future training reward = k/m).
+  4. Accept iff every part is well-posed (p2_i < ambiguity_threshold,
+     unparseable_i <= max_unparseable) AND r_bar ∈ band.
+  5. Out-of-band → regenerate with directional + (future) shortcut-aware
+     feedback. Cap at max_regen.
 
-Output: data/subproblems/<problem_id>.json
+Output: data/subproblems/<problem_id>.json (multi-part schema)
 """
 from __future__ import annotations
 
 import argparse
 import concurrent.futures as cf
 import json
+import random
 import sys
 import threading
 import time
@@ -31,86 +36,106 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from ttt_binary.answer_extract import extract_boxed
+from ttt_binary.answer_extract import extract_answers_multipart
 from ttt_binary.cluster import (
-    Decision,
+    MultipartDecision,
     UNPARSEABLE,
     cluster_answers,
-    decide,
-    regen_feedback,
+    decide_multipart,
+    regen_feedback_multipart,
 )
 from ttt_binary.llm import call_anthropic, call_openai, parse_json_loose
 
 
 GEN_SYSTEM = """\
-You write math subproblems that exercise a specified set of reasoning skills. \
-You are given a list of skills, each with a description, preconditions, \
-postconditions, and an isolated example. Your job: produce one subproblem \
-whose intended solution genuinely requires composing ALL the listed skills — \
-each skill's postcondition feeds the next skill's preconditions.
+You write multi-part math subproblems that exercise a specified set of \
+reasoning skills in a strict chain. Each part requires exactly one of the \
+listed skills. CRITICALLY, each part beyond the first must take its INPUT \
+DATA from the previous part's ANSWER — making the chain load-bearing by \
+structure, not just by topical association.
 
-The subproblem MUST have a single numerical final answer rounded to exactly \
-4 decimal places, expressed inside \\boxed{} (e.g. \\boxed{866.0000}, \
-\\boxed{0.5000}, \\boxed{-2.3457}). You must compute that answer correctly."""
+Each part has a single numerical final answer rounded to 4 decimal places. \
+Do NOT solve the problem yourself or report any answers — reference answers \
+come from majority consensus over independent solver attempts. The chain \
+must be MINIMAL: solving the problem must genuinely require all {m} skills, \
+and the question is wrong if any |S| < {m} subset of the skills suffices."""
 
 
 GEN_PROMPT_TEMPLATE = """\
-Produce ONE subproblem that requires composing the {m} skills below in a \
-chain. The output of one skill must be the input of the next. The reader \
-must NOT be told which skills to use — the problem statement is plain math.
+Produce ONE multi-part subproblem with exactly {m} parts labelled \
+({part_labels}). Each part requires exactly one of the {m} skills below, in \
+the listed order. The chain is enforced by ANSWER-LEVEL DEPENDENCY: each \
+part beyond the first begins by binding a variable to the previous part's \
+answer, and uses that variable as input.
 
 HARD CONSTRAINTS:
-- The subproblem must have a single, fully-determined NUMERICAL final answer \
-  (a real number). No symbolic expressions, no fractions like "p/q" without \
-  simplifying to a decimal, no "depends on parameter" answers.
-- The expected answer must be a real number, ROUNDED TO 4 DECIMAL PLACES, \
-  reported inside \\boxed{} in the form \\boxed{X.XXXX} \
-  (e.g. \\boxed{866.0000}, \\boxed{0.5000}, \\boxed{-2.3457}). Always include \
-  trailing zeros to fill all 4 decimal places.
-- The problem statement should explicitly tell the reader: "Round your final \
-  answer to 4 decimal places and place it inside \\boxed{}."
-- Do NOT mention skill names, the word "skill", or any meta-language about \
-  the technique inside problem_text.
-- Do NOT include the answer inside problem_text.
-- The chain MUST GENUINELY REQUIRE all {m} skills. A solver who skips any \
-  one of the {m} skills must be unable to reach the answer. If you can solve \
-  it without one of the listed skills, the subproblem is wrong — redraft.
-- Vary parameters so different subproblems produce different numerical \
-  answers. Avoid parameter values that match famous classical results.
-- The expected_answer you emit MUST be the answer you would compute by \
-  actually solving the problem step-by-step. Before responding, work the \
-  problem and confirm the value.
+- Each part has a single, fully-determined NUMERICAL final answer (a real \
+  number) reportable inside \\boxed{} rounded to 4 decimal places.
+- Part ({first_label}) is a well-posed standalone question requiring skill 1.
+- For every subsequent part, its text MUST begin with the literal phrase \
+  "Let <var> = your answer to part (<previous_label>)." and then use <var> \
+  as input to that part's skill. (Use <var> = x for part b, y for part c, z \
+  for part d, etc.) The dependency is structural, not optional.
+- Each part's text must include "Round your final answer to 4 decimal places \
+  and place it inside \\boxed{}."
+- Do NOT mention skill names, the word "skill", or any meta-language inside \
+  any part's text.
+- Do NOT include or hint at any part's answer. Do NOT solve the problem.
+- The full chain must be MINIMAL: removing any one skill must make the \
+  overall problem unsolvable.
+- Vary numerical parameters across drafts so different combinations produce \
+  different per-part answers.
 {difficulty_hint}
 
-Skills (use ALL of them):
+Skills (use ALL of them, in this order):
 {skills_block}
 
 Respond as a single JSON object (no prose around it) with this exact shape:
 {
-  "problem_text": "the full problem as a self-contained math statement, ending with the rounding-and-boxing instruction",
+  "parts": [
+    {
+      "label": "{first_label}",
+      "skill": "<skill_1_name>",
+      "text": "the part's question, including the rounding-and-boxing instruction. NO reference to a previous part."
+    },
+    {
+      "label": "<next_label>",
+      "skill": "<skill_2_name>",
+      "text": "Let x = your answer to part ({first_label}). ... uses x as input to skill 2 ... include the rounding-and-boxing instruction."
+    }
+    /* ... continue for all {m} parts in order ... */
+  ],
+  "skill_chain_rationale": "1-3 sentences describing the dependency order: which part's output feeds which part's input.",
   "per_skill_role": {
-    "<skill_name_1>": "<one sentence: which step in the solution invokes this skill, what its input is, what it produces>",
-    "<skill_name_2>": "...",
-    "<skill_name_3>": "..."
-  },
-  "skill_chain_rationale": "1-3 sentences describing the dependency order of the chain (which skill's output feeds which skill's input)",
-  "expected_answer": "the verifiable final answer as a number rounded to 4 decimal places, e.g. 866.0000"
+    "<skill_1_name>": "<one sentence: how part {first_label} invokes skill 1, what its input is, what its output is>",
+    "<skill_2_name>": "..."
+    /* one entry per skill */
+  }
 }
 
-After drafting, verify: (a) every one of the {m} skill names appears as a key \
-in per_skill_role; (b) removing any one skill from your solution would make \
-the problem unsolvable; (c) you have actually computed expected_answer rather \
-than guessing; (d) expected_answer is a single real number with 4 decimal \
-places of precision.
+Verify before responding: (a) every one of the {m} skill names appears as a \
+key in per_skill_role; (b) the parts list has exactly {m} entries with \
+labels in order ({part_labels}); (c) every part beyond ({first_label}) \
+literally begins with "Let <var> = your answer to part (...)"; (d) skipping \
+any one skill makes the overall problem unsolvable.
 """
 
 
 SOLVE_SYSTEM = """\
-You are a careful and rigorous math student. Solve the problem step by step, \
-showing all important intermediate work. Compute a numerical final answer \
-and round it to exactly 4 decimal places. Place ONLY that rounded number \
-inside \\boxed{} at the end (e.g. \\boxed{866.0000}, \\boxed{0.5000}, \
-\\boxed{-2.3457}). Always include trailing zeros to fill all 4 decimals."""
+You are a careful and rigorous math student. The problem has multiple \
+labelled parts; solve them in order. Each part has a single numerical final \
+answer rounded to 4 decimal places.
+
+For each part, work the solution step-by-step and end that part with \
+\\boxed{X.XXXX} (e.g. \\boxed{866.0000}, \\boxed{0.5000}, \\boxed{-2.3457}). \
+Always include trailing zeros to fill all 4 decimals.
+
+After ALL parts, end your full response with a single line of the form:
+
+ANSWERS: {"<label_1>": "X.XXXX", "<label_2>": "Y.YYYY", ...}
+
+The ANSWERS line is mandatory and must contain EXACTLY one entry per part \
+in the same labels as the problem."""
 
 
 def _format_skill(s: dict) -> str:
@@ -123,84 +148,191 @@ def _format_skill(s: dict) -> str:
     )
 
 
-def _hint_from_decision(prev: Decision | None) -> str:
+PART_LABELS = "abcdefghijklmnopqrstuvwxyz"
+
+
+def _labels_for(m: int) -> list[str]:
+    if m > len(PART_LABELS):
+        raise ValueError(f"chain length {m} exceeds supported labels (max {len(PART_LABELS)})")
+    return list(PART_LABELS[:m])
+
+
+def _hint_from_decision(prev: MultipartDecision | None,
+                        shortcut_hint: str | None = None) -> str:
+    """Build the difficulty hint for the next regeneration attempt.
+
+    Combines the standard band-based feedback with an optional
+    shortcut-aware hint produced by the audit (step 2 — currently a no-op
+    stub; see _observe_shortcuts below).
+    """
+    parts: list[str] = []
     if prev is None:
-        return "- Aim for a difficulty where a strong solver gets it right roughly half the time."
-    return regen_feedback(prev)
+        parts.append(
+            "- Aim for r_bar (mean per-part solve rate) near 0.5: each part "
+            "should be hard enough that a strong solver gets it right roughly "
+            "half the time. Vary per-part difficulty so the chain has both "
+            "tractable and challenging steps."
+        )
+    else:
+        parts.append(regen_feedback_multipart(prev))
+    if shortcut_hint:
+        parts.append(shortcut_hint)
+    return "\n".join(parts)
+
+
+def _observe_shortcuts(
+    parts: list[dict],
+    cal_attempts: list[dict],
+    decision: MultipartDecision,
+) -> str | None:
+    """STEP 2 STUB — observation-driven adversarial regeneration feedback.
+
+    Future implementation: for each correct critic trace, run a lightweight
+    audit judge to identify which skills were actually invoked and whether
+    the trace took a SHORTCUT around the chain. If a dominant shortcut is
+    detected (e.g. "60% of solvers bypassed skill 2 via Lang-Weil"), return
+    a one-sentence hint to be appended to the next generator prompt:
+        "- Previous attempts were solved via {shortcut}; modify the chain
+         so {shortcut} no longer reaches the answer."
+    For now this returns None — step 2 lives in a follow-up commit.
+    """
+    return None
 
 
 def _generate_one(
     skills_in_combo: list[dict],
     *,
-    prev_decision: Decision | None,
+    prev_decision: MultipartDecision | None,
+    shortcut_hint: str | None,
     generator_model: str,
     temperature: float,
 ) -> dict:
     skills_block = "\n".join(_format_skill(s) for s in skills_in_combo)
+    m = len(skills_in_combo)
+    labels = _labels_for(m)
     # Use plain .replace() rather than .format() because the template body
     # contains literal LaTeX braces (\boxed{X.XXXX}, etc) that would otherwise
     # be misinterpreted as positional placeholders.
     prompt = (
         GEN_PROMPT_TEMPLATE
-        .replace("{m}", str(len(skills_in_combo)))
-        .replace("{difficulty_hint}", _hint_from_decision(prev_decision))
+        .replace("{m}", str(m))
+        .replace("{first_label}", labels[0])
+        .replace("{part_labels}", ", ".join(labels))
+        .replace("{difficulty_hint}",
+                 _hint_from_decision(prev_decision, shortcut_hint))
         .replace("{skills_block}", skills_block)
     )
     text = call_anthropic(
         prompt,
         model=generator_model,
-        system=GEN_SYSTEM,
+        system=GEN_SYSTEM.replace("{m}", str(m)),
         temperature=temperature,
     )
     obj = parse_json_loose(text)
-    for k in ("problem_text", "skill_chain_rationale", "expected_answer", "per_skill_role"):
+    for k in ("parts", "skill_chain_rationale", "per_skill_role"):
         if k not in obj:
             raise ValueError(f"generator missing field {k}: keys={list(obj)}")
+
+    parts = obj["parts"]
+    if not isinstance(parts, list) or len(parts) != m:
+        raise ValueError(
+            f"parts must be a list of length {m}, got "
+            f"{type(parts).__name__} of length "
+            f"{len(parts) if isinstance(parts, list) else 'N/A'}"
+        )
+    seen_labels = []
+    for i, part in enumerate(parts):
+        if not isinstance(part, dict):
+            raise ValueError(f"parts[{i}] must be a dict, got {type(part).__name__}")
+        for k in ("label", "skill", "text"):
+            if k not in part:
+                raise ValueError(f"parts[{i}] missing field {k}: keys={list(part)}")
+        if part["label"] != labels[i]:
+            raise ValueError(
+                f"parts[{i}].label = {part['label']!r}, expected {labels[i]!r}"
+            )
+        seen_labels.append(part["label"])
+        # Cumulative-dependency check for parts beyond the first.
+        if i > 0:
+            text_lower = part["text"].lstrip().lower()
+            prev_label = labels[i - 1]
+            if not text_lower.startswith(("let ",)) or f"part ({prev_label})" not in part["text"].lower():
+                raise ValueError(
+                    f"parts[{i}].text must begin with 'Let <var> = your answer "
+                    f"to part ({prev_label}).' — got prefix "
+                    f"{part['text'][:80]!r}"
+                )
+
     psr = obj["per_skill_role"]
     if not isinstance(psr, dict):
         raise ValueError(f"per_skill_role must be a dict, got {type(psr).__name__}")
     expected_names = {s["name"] for s in skills_in_combo}
-    rationale_names = {str(k) for k in psr.keys()}
-    missing = expected_names - rationale_names
+    role_names = {str(k) for k in psr.keys()}
+    missing = expected_names - role_names
     if missing:
         raise ValueError(
             f"per_skill_role missing entries for: {sorted(missing)}; "
-            f"got keys={sorted(rationale_names)} (decorative-skill failure)"
+            f"got keys={sorted(role_names)} (decorative-skill failure)"
         )
+    # Sanity: each part's listed skill must be one of the combo skills.
+    for i, part in enumerate(parts):
+        if part["skill"] not in expected_names:
+            raise ValueError(
+                f"parts[{i}].skill = {part['skill']!r} not in combo "
+                f"{sorted(expected_names)}"
+            )
     return obj
 
 
+def _render_full_problem(parts: list[dict]) -> str:
+    """Render the multi-part problem as a single text block to send to the critic."""
+    lines: list[str] = []
+    for p in parts:
+        lines.append(f"Part ({p['label']}). {p['text']}")
+    lines.append(
+        "\nAfter solving every part, end your response with a single line of "
+        "the form: ANSWERS: {\"a\": \"X.XXXX\", \"b\": \"Y.YYYY\", ...} with one "
+        "entry per part."
+    )
+    return "\n\n".join(lines)
+
+
 def _calibrate(
-    problem_text: str,
+    parts: list[dict],
     *,
     k: int,
     critic_model: str,
     parallel: int = 8,
 ) -> list[dict]:
-    """Run K critic solves at temperature 0.7 in parallel.
+    """Run K critic solves on a multi-part problem at temperature 0.7 in parallel.
 
-    Returns a list of per-attempt records:
-        {ok: bool, predicted: str|None, text: str, error?: str}
+    Each attempt receives the full rendered multi-part problem and is asked
+    to produce one boxed answer per part plus a final ANSWERS: {...} JSON
+    line. The line is parsed into a dict keyed by part label.
 
-    Calibration NO LONGER compares against any "expected_answer" — that
-    comparison happened in the previous (mode==claim) variant. The new
-    decision rule (REVISIONS.md) clusters the predictions and treats the
-    largest cluster as the authoritative answer.
+    Returns per-attempt records:
+        {ok: bool, predicted_parts: dict[label, str|None], text: str, error?: str}
     """
+    labels = [p["label"] for p in parts]
+    rendered = _render_full_problem(parts)
+
     def one_attempt(_i: int) -> dict:
         try:
             text = call_openai(
-                problem_text
-                + "\n\nRound your final answer to 4 decimal places and place"
-                  " it inside \\boxed{} (e.g. \\boxed{866.0000}).",
+                rendered,
                 model=critic_model,
                 system=SOLVE_SYSTEM,
                 temperature=0.7,
             )
         except Exception as e:
-            return {"ok": False, "error": str(e)[:200], "predicted": None, "text": ""}
-        predicted = extract_boxed(text)
-        return {"ok": True, "text": text, "predicted": predicted}
+            return {
+                "ok": False,
+                "error": str(e)[:200],
+                "predicted_parts": {label: None for label in labels},
+                "text": "",
+            }
+        predicted_parts = extract_answers_multipart(text, labels)
+        return {"ok": True, "text": text, "predicted_parts": predicted_parts}
 
     attempts: list[dict] = []
     with cf.ThreadPoolExecutor(max_workers=parallel) as pool:
@@ -223,34 +355,36 @@ def _process_combo(
     max_unparseable: int = 3,
     write_attempt=None,  # callable(record: dict, accepted: bool) -> None
 ) -> dict:
-    """Generate→calibrate→cluster→decide→regen loop for one skill combination.
+    """Generate→calibrate→per-part-cluster→multipart-decide→regen loop.
 
-    Outputs the new (consensus-based) record schema from REVISIONS.md:
-        consensus_answer (training target), generator_proposed_answer,
-        p1, p2, all_answer_clusters, per_iteration log, calibration_attempts.
+    Output record schema (multi-part, consensus-based):
+        parts (list of {label, skill, text, consensus_answer, p1, p2,
+                        n_unparseable, clusters}),
+        r_bar (mean of per-part p1),
+        per_skill_role, skill_chain_rationale,
+        per_iteration log, calibration_attempts.
 
-    Status values:
-        "accepted"
-        "REJECT_AMBIGUOUS" / "REJECT_TOO_EASY" / "REJECT_TOO_HARD_OR_AMBIGUOUS"
-        "errored_out"
+    Status values: "accepted" / "REJECT_*" / "errored_out".
     """
     skill_names = [s["name"] for s in skills_in_combo]
-    last_decision: Decision | None = None
+    last_decision: MultipartDecision | None = None
     last_record: dict | None = None
     per_iteration: list[dict] = []
     n_transient_errors = 0
     attempt = 0
+    shortcut_hint: str | None = None
 
     while attempt <= max_regen:
         try:
             gen = _generate_one(
                 skills_in_combo,
                 prev_decision=last_decision,
+                shortcut_hint=shortcut_hint,
                 generator_model=generator_model,
                 temperature=temperature,
             )
             cal_attempts = _calibrate(
-                gen["problem_text"],
+                gen["parts"],
                 k=k_calibrate,
                 critic_model=critic_model,
             )
@@ -278,11 +412,16 @@ def _process_combo(
                 return rec
             continue
 
-        # Cluster the K predictions and apply the decision rule.
-        predictions = [a.get("predicted") for a in cal_attempts]
-        clusters = cluster_answers(predictions)
-        decision = decide(
-            clusters,
+        # Per-part clustering on the K critic responses.
+        gen_parts = gen["parts"]
+        labels = [p["label"] for p in gen_parts]
+        per_part_clusters: list[tuple[str, dict[str, int]]] = []
+        for label in labels:
+            preds = [a.get("predicted_parts", {}).get(label) for a in cal_attempts]
+            per_part_clusters.append((label, cluster_answers(preds)))
+
+        decision = decide_multipart(
+            per_part_clusters,
             k_calibrate=k_calibrate,
             band=band,
             ambiguity_threshold=ambiguity_threshold,
@@ -290,25 +429,24 @@ def _process_combo(
         )
         last_decision = decision
 
-        gen_claim = str(gen["expected_answer"])
-        # Canonicalize the generator's claim with the same machinery so the
-        # comparison to consensus is on equal footing.
-        from ttt_binary.cluster import _canonicalize  # local import to avoid leaking
-        gen_claim_canon = _canonicalize(gen_claim)
-        consensus_matches_generator = (
-            decision.consensus_answer is not None
-            and decision.consensus_answer == gen_claim_canon
-        )
+        # Step 2 stub: would inspect cal_attempts traces and decision and produce
+        # a shortcut-aware regen hint. Currently always returns None.
+        shortcut_hint = _observe_shortcuts(gen_parts, cal_attempts, decision)
 
         per_iteration.append({
             "attempt": attempt,
             "kind": decision.kind,
-            "consensus_answer": decision.consensus_answer,
-            "generator_proposed_answer": gen_claim,
-            "consensus_matches_generator": consensus_matches_generator,
-            "p1": decision.p1,
-            "p2": decision.p2,
-            "n_unparseable": decision.n_unparseable,
+            "r_bar": decision.r_bar,
+            "per_part": [
+                {
+                    "label": p.label,
+                    "consensus": p.consensus_answer,
+                    "p1": p.p1,
+                    "p2": p.p2,
+                    "n_unparseable": p.n_unparseable,
+                }
+                for p in decision.per_part
+            ],
             "reason": decision.reason,
         })
 
@@ -317,21 +455,27 @@ def _process_combo(
             "skills_used": skill_names,
             "per_skill_role": gen.get("per_skill_role"),
             "skill_chain_rationale": gen.get("skill_chain_rationale"),
-            "problem_text": gen["problem_text"],
-            "consensus_answer": decision.consensus_answer,
-            "generator_proposed_answer": gen_claim,
-            "consensus_matches_generator": consensus_matches_generator,
-            "p1": decision.p1,
-            "p2": decision.p2,
-            "n_unparseable": decision.n_unparseable,
-            "all_answer_clusters": dict(decision.clusters),
+            "parts": [
+                {
+                    "label": gp["label"],
+                    "skill": gp["skill"],
+                    "text": gp["text"],
+                    "consensus_answer": pp.consensus_answer,
+                    "p1": pp.p1,
+                    "p2": pp.p2,
+                    "n_unparseable": pp.n_unparseable,
+                    "clusters": dict(pp.clusters),
+                }
+                for gp, pp in zip(gen_parts, decision.per_part)
+            ],
+            "r_bar": decision.r_bar,
             "k_calibrate": k_calibrate,
             "regeneration_attempts": attempt,
             "per_iteration": list(per_iteration),
             "calibration_attempts": [
                 {
                     "ok": a.get("ok"),
-                    "predicted": a.get("predicted"),
+                    "predicted_parts": a.get("predicted_parts"),
                     "error": a.get("error"),
                     "text": a.get("text"),
                 }
@@ -340,13 +484,12 @@ def _process_combo(
         }
         last_record = record
 
+        per_part_summary = ", ".join(f"{p.label}={p.p1:.2f}" for p in decision.per_part)
         if decision.kind == "ACCEPT":
             record["status"] = "accepted"
             print(
                 f"  [combo {combo_idx}] accepted "
-                f"(p1={decision.p1:.2f}, p2={decision.p2:.2f}, "
-                f"consensus={decision.consensus_answer!r}, "
-                f"gen_match={consensus_matches_generator}, "
+                f"(r_bar={decision.r_bar:.2f}, parts: {per_part_summary}, "
                 f"attempts={attempt+1})",
                 flush=True,
             )
@@ -357,20 +500,15 @@ def _process_combo(
         # Rejected — log immediately, then regen.
         print(
             f"  [combo {combo_idx}] {decision.kind} "
-            f"(p1={decision.p1:.2f}, p2={decision.p2:.2f}); "
+            f"(r_bar={decision.r_bar:.2f}, parts: {per_part_summary}); "
             f"regen {attempt+1}/{max_regen}",
             flush=True,
         )
         if write_attempt is not None:
-            # Mark this rejected attempt with its decision kind so resume
-            # logic can tell mid-run rejects apart from final cap-outs.
             rec_for_skip = dict(record, status=decision.kind)
             write_attempt(rec_for_skip, accepted=False)
         attempt += 1
 
-    # Fell out of the regen loop without acceptance. Use the LAST decision
-    # kind as the status so the cap-out reason is informative. Also mark
-    # cap_out=True so resume can distinguish this from a mid-run skip.
     if last_record is None:
         rec = {
             "combo_idx": combo_idx,
@@ -391,36 +529,44 @@ def _process_combo(
 
 
 def _aggregate_stats(results: list[dict]) -> dict:
-    """Run-end summary stats from REVISIONS.md §"Logging requirements"."""
+    """Run-end summary stats over multi-part records."""
     n = len(results)
     accepted = [r for r in results if r.get("status") == "accepted"]
     fail_reasons = Counter(
         r.get("status") for r in results if r.get("status") != "accepted"
     )
-    n_generator_disagrees = sum(
-        1 for r in accepted if r.get("consensus_matches_generator") is False
-    )
-    p1_values = [r.get("p1") for r in accepted if isinstance(r.get("p1"), (int, float))]
-    p1_hist_bins = [0.40, 0.45, 0.50, 0.55, 0.60]
-    p1_hist = {f"<= {b:.2f}": 0 for b in p1_hist_bins}
-    for v in p1_values:
-        for b in p1_hist_bins:
+    r_bar_values = [
+        r.get("r_bar") for r in accepted
+        if isinstance(r.get("r_bar"), (int, float))
+    ]
+    r_bar_hist_bins = [0.40, 0.45, 0.50, 0.55, 0.60]
+    r_bar_hist = {f"<= {b:.2f}": 0 for b in r_bar_hist_bins}
+    for v in r_bar_values:
+        for b in r_bar_hist_bins:
             if v <= b:
-                p1_hist[f"<= {b:.2f}"] += 1
+                r_bar_hist[f"<= {b:.2f}"] += 1
                 break
-    p1_mean = (sum(p1_values) / len(p1_values)) if p1_values else None
+    r_bar_mean = (sum(r_bar_values) / len(r_bar_values)) if r_bar_values else None
+
+    # Per-part-rate stats across accepted records (s_i values flattened).
+    s_values: list[float] = []
+    for r in accepted:
+        for p in r.get("parts", []) or []:
+            v = p.get("p1")
+            if isinstance(v, (int, float)):
+                s_values.append(v)
+    s_mean = (sum(s_values) / len(s_values)) if s_values else None
+
     return {
         "n_total": n,
         "n_accepted": len(accepted),
         "pct_accepted": (len(accepted) / n) if n else 0.0,
         "fail_counts": dict(fail_reasons),
         "fail_pcts": {k: v / n for k, v in fail_reasons.items()} if n else {},
-        "n_accepted_with_generator_mismatch": n_generator_disagrees,
-        "pct_accepted_with_generator_mismatch": (
-            (n_generator_disagrees / len(accepted)) if accepted else 0.0
-        ),
-        "p1_mean_accepted": p1_mean,
-        "p1_histogram_accepted": p1_hist,
+        "r_bar_mean_accepted": r_bar_mean,
+        "r_bar_histogram_accepted": r_bar_hist,
+        "per_part_solve_rate_mean": s_mean,
+        "n_per_part_observations": len(s_values),
     }
 
 
@@ -473,12 +619,22 @@ def generate_subproblems(
     if skips_path is None:
         skips_path = out_path.parent / f"{problem_id}.skips.jsonl"
 
-    combos = list(combinations(range(len(skills)), m))
+    # Shuffle combinations deterministically by problem_id so:
+    #   (a) `--max-combos N` smoke runs sample across the skill pool, not just
+    #       the first N lexicographic tuples (which all share skills 0 and 1);
+    #   (b) re-running with the same problem_id yields the same ordering, so
+    #       resume by combo_idx works correctly across runs;
+    #   (c) different problems get different orderings.
+    n_skills = len(skills)
+    full_combos = list(combinations(range(n_skills), m))
+    rng = random.Random(f"stage3:{problem_id}:{n_skills}:{m}")
+    rng.shuffle(full_combos)
+    combos = full_combos
     if max_combos is not None and max_combos < len(combos):
         combos = combos[:max_combos]
         print(f"smoke mode: capped at {max_combos} of "
-              f"C({len(skills)},{m}) combinations", flush=True)
-    print(f"enumerating {len(combos)} combinations of {m} skills from {len(skills)}",
+              f"C({n_skills},{m}) shuffled combinations", flush=True)
+    print(f"enumerating {len(combos)} combinations of {m} skills from {n_skills}",
           flush=True)
 
     # Resume support: a combo is "done" if it has a keep, OR a skip record
