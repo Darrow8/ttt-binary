@@ -1,0 +1,155 @@
+{
+  "out_path": "ttt_binary/data/solutions/conics-multipart-full.jsonl",
+  "k_solve": 16,
+  "solver_model": "openai/gpt-oss-120b-maas",
+  "n_subproblems": 18,
+  "n_problems_with_records": 18,
+  "n_records_total": 288,
+  "overall_mean_reward": 0.6122685185185185,
+  "per_problem_yield": [
+    {
+      "combo_idx": 0,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.625
+    },
+    {
+      "combo_idx": 9,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.75
+    },
+    {
+      "combo_idx": 10,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.4791666666666667
+    },
+    {
+      "combo_idx": 13,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.4791666666666667
+    },
+    {
+      "combo_idx": 21,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5624999999999999
+    },
+    {
+      "combo_idx": 23,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.7291666666666666
+    },
+    {
+      "combo_idx": 34,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.6875
+    },
+    {
+      "combo_idx": 37,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.6458333333333333
+    },
+    {
+      "combo_idx": 50,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5833333333333334
+    },
+    {
+      "combo_idx": 58,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.75
+    },
+    {
+      "combo_idx": 61,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5625
+    },
+    {
+      "combo_idx": 66,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.31249999999999994
+    },
+    {
+      "combo_idx": 83,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.75
+    },
+    {
+      "combo_idx": 86,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.6875
+    },
+    {
+      "combo_idx": 87,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.6249999999999999
+    },
+    {
+      "combo_idx": 92,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.6666666666666666
+    },
+    {
+      "combo_idx": 98,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5625
+    },
+    {
+      "combo_idx": 100,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5625
+    }
+  ]
+}

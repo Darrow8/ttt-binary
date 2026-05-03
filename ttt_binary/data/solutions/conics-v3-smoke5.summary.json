@@ -1,0 +1,9 @@
+{
+  "out_path": "ttt_binary/data/solutions/conics-v3-smoke5.jsonl",
+  "k_solve": 16,
+  "solver_model": "openai/gpt-oss-120b-maas",
+  "n_subproblems": 0,
+  "n_problems_with_any_correct": 0,
+  "n_correct_traces": 0,
+  "per_problem_yield": []
+}

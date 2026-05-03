@@ -1,0 +1,19 @@
+{
+  "out_path": "ttt_binary/data/solutions/conics-multipart-smoke3b.jsonl",
+  "k_solve": 16,
+  "solver_model": "openai/gpt-oss-120b-maas",
+  "n_subproblems": 1,
+  "n_problems_with_records": 1,
+  "n_records_total": 16,
+  "overall_mean_reward": 0.5625,
+  "per_problem_yield": [
+    {
+      "combo_idx": 1,
+      "m": 3,
+      "k_calibration": 10,
+      "k_new_attempted": 6,
+      "k_records_kept": 16,
+      "mean_reward": 0.5625
+    }
+  ]
+}
