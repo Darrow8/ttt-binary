@@ -1,0 +1,76 @@
+{
+  "run_idx": 2,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "compute_degree_of_finite_map",
+      "description": "For a morphism of varieties that is finite, the degree equals the cardinality of a geometric generic fiber.",
+      "preconditions": "A morphism f : X \u2192 Y of irreducible varieties over an algebraically closed field, known to be finite (i.e., proper with finite fibers).",
+      "postconditions": "The integer deg(f) is obtained, equal to |f^{-1}(\u03b7)| where \u03b7 is the generic point of Y; this number can be used to count fibers over generic points.",
+      "example": "Given the map f: \u2119^1 \u2192 \u2119^1 defined by f([x:y]) = [x^3:y^3], f is finite of degree 3 because the generic fiber consists of three points."
+    },
+    {
+      "name": "apply_lang_weil_estimate",
+      "description": "Estimate the number of rational points of a geometrically irreducible variety over a finite field in terms of its dimension and degree.",
+      "preconditions": "A geometrically irreducible projective variety V of dimension d defined over \ud835\udd3d_q, with known degree \u03b4.",
+      "postconditions": "An estimate #V(\ud835\udd3d_q) = q^d + O(q^{d-1/2}) is obtained, allowing asymptotic comparisons as q \u2192 \u221e.",
+      "example": "For a smooth cubic curve C \u2282 \u2119^2 over \ud835\udd3d_p, dim\u202fC = 1 and deg\u202fC = 3, so #C(\ud835\udd3d_p) = p + O(\u221ap)."
+    },
+    {
+      "name": "use_bezout_for_tangency_conditions",
+      "description": "Apply B\u00e9zout's theorem to the intersection of dual curves, which encode tangency conditions, to count the number of solutions.",
+      "preconditions": "Two projective plane curves D_1, D_2 of degrees d_1, d_2 without common components; tangency conditions are expressed as intersections of their duals.",
+      "postconditions": "The total number of intersection points (counted with multiplicity) is d_1\u00b7d_2, giving the algebraic count of configurations satisfying the tangency.",
+      "example": "The dual of a smooth conic has degree 2. Intersecting the duals of two distinct smooth conics yields 4 points, corresponding to the four common tangents."
+    },
+    {
+      "name": "compute_resultant_of_two_quadratics",
+      "description": "Eliminate a variable between two quadratic forms by computing their resultant, obtaining a condition for a common root (e.g., a common tangent line).",
+      "preconditions": "Two homogeneous quadratic polynomials Q_1(x,y) and Q_2(x,y) in variables x, y, with coefficients in a field K.",
+      "postconditions": "A single polynomial R in the parameters (coefficients) is produced; R = 0 exactly when Q_1 and Q_2 have a non\u2011trivial common zero, i.e., a common tangent direction.",
+      "example": "For Q_1 = ax^2 + bxy + cy^2 and Q_2 = a'x^2 + b'xy + c'y^2, the resultant Res_x(Q_1,Q_2) is a quadratic in y whose vanishing gives the slopes of common tangents."
+    },
+    {
+      "name": "apply_chebotarev_density_to_average_fiber_size",
+      "description": "Use Chebotarev's density theorem (or its function\u2011field analogue) to equate the average number of \ud835\udd3d_p\u2011points in fibers of a finite \u00e9tale cover with the degree of the cover.",
+      "preconditions": "A finite \u00e9tale morphism \u03c0 : X \u2192 Y of varieties defined over \u2124, with geometrically connected fibers, and a set of primes of good reduction.",
+      "postconditions": "The limit as p \u2192 \u221e of (1/#Y(\ud835\udd3d_p))\u00b7\u2211_{y\u2208Y(\ud835\udd3d_p)} #\u03c0^{-1}(y) exists and equals deg(\u03c0).",
+      "example": "For the cover given by the map t \u21a6 t^2 from \u2119^1 to \u2119^1, the average number of \ud835\udd3d_p\u2011points in fibers over \u2119^1(\ud835\udd3d_p) tends to 2, the degree of the map."
+    },
+    {
+      "name": "use_generic_smoothness_to_identify_open_dense_subscheme",
+      "description": "Apply the generic smoothness theorem to locate a dense open subset where a morphism is smooth (hence \u00e9tale if also unramified).",
+      "preconditions": "A morphism f : X \u2192 Y of finite type between varieties over a field of characteristic 0 (or large enough characteristic), with X, Y irreducible.",
+      "postconditions": "An explicit open dense subset U \u2282 Y is produced such that f|_{f^{-1}(U)} is smooth; if the relative dimension is 0, the restriction is \u00e9tale.",
+      "example": "For the projection \u03c0 : {(x,y,z) \u2208 \u2119^2 \u00d7 \u2119^2 | x\u00b7y = 0} \u2192 \u2119^2, generic smoothness yields an open set where the fibers are two distinct points, making \u03c0 \u00e9tale over that set."
+    },
+    {
+      "name": "compute_monodromy_group_of_cover",
+      "description": "Determine the Galois (monodromy) group of a finite cover by analyzing how loops in the base permute the points of a generic fiber.",
+      "preconditions": "A finite, generically separable cover f : X \u2192 Y of irreducible varieties over an algebraically closed field of characteristic 0, together with a base point y\u2080 \u2208 Y.",
+      "postconditions": "The subgroup G \u2282 S_n (n = deg\u202ff) describing the action of the \u00e9tale fundamental group \u03c0\u2081^{et}(Y, y\u2080) on the fiber f^{-1}(y\u2080) is identified; transitivity of G implies the cover is connected.",
+      "example": "For the map \u2119^1 \u2192 \u2119^1 given by t \u21a6 t^3 - t, the monodromy group is the full symmetric group S\u2083, because the discriminant has three distinct roots, and loops around them generate S\u2083."
+    },
+    {
+      "name": "use_hilbert_scheme_of_conics_parameterization",
+      "description": "Identify the Hilbert scheme parametrizing plane conics with a projective space, enabling concrete coordinate calculations.",
+      "preconditions": "The Hilbert polynomial of a plane conic (degree\u202f2, genus\u202f0) is known, and the ambient projective plane \u2119^2 is fixed.",
+      "postconditions": "An isomorphism Hilb_conic(\u2119^2) \u2245 \u2119^5 is obtained, where a point [a_{ij}] corresponds to the quadratic form \u03a3 a_{ij}x_i x_j, allowing algebraic manipulation of families of conics.",
+      "example": "The space of all degree\u20112 hypersurfaces in \u2119^2 is \u2119^5; a smooth conic corresponds to a point where the associated quadratic form has non\u2011zero discriminant."
+    },
+    {
+      "name": "apply_discriminant_to_check_singularity_of_conic",
+      "description": "Compute the discriminant of a homogeneous quadratic form to decide whether the corresponding conic is smooth or singular.",
+      "preconditions": "A homogeneous quadratic polynomial Q(x,y,z) = \u03a3 a_{ij} x_i x_j with coefficients in a field K.",
+      "postconditions": "The discriminant \u0394(Q) \u2208 K is produced; \u0394(Q) \u2260 0 iff the conic defined by Q = 0 is smooth, while \u0394(Q) = 0 indicates a singular (reducible or double) conic.",
+      "example": "For Q = x^2 + y^2 - z^2, the discriminant is 4, non\u2011zero, so the conic is smooth; for Q = x^2 + y^2, the discriminant vanishes, giving a pair of lines."
+    },
+    {
+      "name": "use_inclusion_exclusion_for_tangency_counts",
+      "description": "Apply the principle of inclusion\u2013exclusion to correct overcounts when multiple tangency conditions intersect non\u2011transversely.",
+      "preconditions": "A finite set of tangency conditions {T_i} on a parameter space, where intersections T_i \u2229 T_j may have positive dimension or multiplicity.",
+      "postconditions": "An adjusted count \u03a3|T_i| - \u03a3|T_i\u2229T_j| + \u03a3|T_i\u2229T_j\u2229T_k| - \u2026 is obtained, giving the exact number of parameter points satisfying at least one of the conditions.",
+      "example": "When counting lines tangent to two distinct circles in the plane, na\u00efvely one gets 4 tangents (2 per circle), but the two common external tangents are counted twice; inclusion\u2013exclusion subtracts the 2 intersections, yielding the correct total of 4."
+    }
+  ]
+}

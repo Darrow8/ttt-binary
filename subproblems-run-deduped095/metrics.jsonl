@@ -1,0 +1,1 @@
+{"step": 0, "progress/step": 0, "progress/done_frac": 0.02, "optim/lr": 0.0001, "time/total": 611.1529021263123, "reward/mean": 0.65625, "reward/max": 1.01, "reward/min": 0.010000000000000002, "advantage/std": 0.3916112549455135, "tokens/mean_per_completion": 2762.93125, "problems/skipped_frac": 0.14, "datums/count": 688}

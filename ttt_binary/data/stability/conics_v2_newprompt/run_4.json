@@ -1,0 +1,76 @@
+{
+  "run_idx": 4,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "parametrize_plane_conics_as_projective_space",
+      "description": "Identify the set of plane conics with the projective space of homogeneous quadratic forms, giving an explicit isomorphism between the Hilbert scheme of conics in \\(\\mathbb{P}^2\\) and \\(\\mathbb{P}^5\\).",
+      "preconditions": "A projective plane \\(\\mathbb{P}^2\\) over a field and the desire to describe degree\u20112 curves (conics) on it.",
+      "postconditions": "A bijective correspondence \\(\\{\\text{conics in }\\mathbb{P}^2\\}\\leftrightarrow \\mathbb{P}^5\\) sending a quadratic form \\(Q\\) to its class \\([Q]\\).",
+      "example": "Over \\(\\mathbb{C}\\), the conic defined by \\(x^2+yz=0\\) corresponds to the point \\([1:0:0:0:1:0]\\in\\mathbb{P}^5\\) where the coordinates are the coefficients of \\(x^2, xy, xz, y^2, yz, z^2\\)."
+    },
+    {
+      "name": "detect_smooth_conic_via_discriminant",
+      "description": "Use the discriminant of a quadratic form to test whether the associated conic is smooth (non\u2011singular).",
+      "preconditions": "A quadratic form \\(Q\\) representing a conic in \\(\\mathbb{P}^2\\) and the ability to compute its 3\u00d73 symmetric matrix.",
+      "postconditions": "A Boolean answer: the conic is smooth iff the discriminant (determinant of the matrix) is non\u2011zero.",
+      "example": "For \\(Q = x^2 + y^2 + z^2\\) the associated matrix is the identity, whose determinant is 1 \\(\\neq 0\\); thus the conic is smooth."
+    },
+    {
+      "name": "translate_tangency_condition_to_linear_equation_in_dual_projective_space",
+      "description": "Express the condition that two conics are tangent at a point as a linear equation in the dual projective space of lines, using the fact that tangency imposes a single linear relation on the coefficients of the second conic once the point and tangent line are fixed.",
+      "preconditions": "A fixed smooth conic \\(C\\) and a point \\(P\\in C\\) together with its tangent line \\(T_P C\\).",
+      "postconditions": "A linear equation in the coordinates of a second conic \\(C'\\) that characterises all \\(C'\\) tangent to \\(C\\) at \\(P\\).",
+      "example": "If \\(C\\) is given by \\(x^2+y^2-z^2=0\\) and \\(P=[1:0:1]\\), the tangent line is \\(x-z=0\\); any conic \\(C'\\) tangent to \\(C\\) at \\(P\\) must satisfy the linear relation \\(a_{xz}+a_{zz}=0\\) among its coefficients."
+    },
+    {
+      "name": "compute_intersection_number_using_bezout_theorem",
+      "description": "Apply B\u00e9zout's theorem to compute the total intersection multiplicity of two projective plane curves with no common component, as the product of their degrees.",
+      "preconditions": "Two projective plane curves \\(C_1, C_2\\) of degrees \\(d_1, d_2\\) that share no irreducible component.",
+      "postconditions": "The sum of intersection multiplicities over all points of \\(C_1\\cap C_2\\) equals \\(d_1 d_2\\).",
+      "example": "A line (degree\u202f1) and a cubic (degree\u202f3) intersect in exactly three points counted with multiplicity, because \\(1\\times 3 = 3\\)."
+    },
+    {
+      "name": "determine_degree_of_finite_morphism_via_generic_fiber",
+      "description": "Find the degree of a finite morphism by counting the number of geometric points in a generic fiber, using the fact that the degree is locally constant on a dense open set.",
+      "preconditions": "A finite morphism \\(f: X\\to Y\\) of varieties and a point \\(y\\in Y\\) lying in the open set where \\(f\\) is flat.",
+      "postconditions": "The integer \\(\\deg f\\) equal to \\#\\(f^{-1}(y)\\) (counted with multiplicities) for any such generic \\(y\\).",
+      "example": "The map \\(\\mathbb{A}^1\\to\\mathbb{A}^1\\), \\(t\\mapsto t^3\\), is finite; over a generic value \\(a\\neq 0\\) the fiber has three points, so \\(\\deg f = 3\\)."
+    },
+    {
+      "name": "apply_lang_weil_estimate_to_point_counts_over_finite_fields",
+      "description": "Use the Lang\u2013Weil estimate to relate the number of \\(\\mathbb{F}_q\\)-rational points of a geometrically irreducible variety to its dimension and degree, obtaining an error term of order \\(q^{\\dim-1/2}\\).",
+      "preconditions": "A geometrically irreducible variety \\(X\\) of dimension \\(d\\) and degree \\(\\delta\\) defined over \\(\\mathbb{F}_q\\).",
+      "postconditions": "An estimate \\(|\\#X(\\mathbb{F}_q) - q^d| \\le C\\,\\delta\\, q^{d-1/2}\\) for some constant \\(C\\) depending only on \\(d\\).",
+      "example": "For a smooth plane cubic (dimension\u202f1, degree\u202f3) over \\(\\mathbb{F}_p\\), Lang\u2013Weil gives \\(|\\#E(\\mathbb{F}_p) - p| \\le 2\\sqrt{p}\\)."
+    },
+    {
+      "name": "relate_average_fiber_size_to_degree_using_etale_covering",
+      "description": "When a morphism is finite \u00e9tale over a dense open subset, the average number of \\(\\mathbb{F}_p\\)-points in its fibers over that open set converges to the degree of the covering as \\(p\\to\\infty\\).",
+      "preconditions": "A finite \u00e9tale morphism \\(f: X\\to Y\\) defined over \\(\\mathbb{Z}\\) and a dense open \\(U\\subset Y\\) where \\(f\\) is \u00e9tale.",
+      "postconditions": "The limit \\(\\lim_{p\\to\\infty}\\frac{1}{\\#U(\\mathbb{F}_p)}\\sum_{y\\in U(\\mathbb{F}_p)} \\#f^{-1}(y) = \\deg f\\).",
+      "example": "The map \\(\\mathbb{A}^1\\to\\mathbb{A}^1\\), \\(t\\mapsto t^2\\), is \u00e9tale away from 0; averaging \\#preimages over \\(\\mathbb{F}_p^\\times\\) gives limit 2, the degree."
+    },
+    {
+      "name": "verify_finite_etale_over_dense_open_using_jacobian_criterion",
+      "description": "Apply the Jacobian criterion to a morphism of varieties to check that it is smooth and unramified (hence \u00e9tale) on a dense open subset.",
+      "preconditions": "A morphism \\(f: X\\to Y\\) defined by polynomial equations, and the ability to compute the Jacobian matrix of the defining equations with respect to the source coordinates.",
+      "postconditions": "A Zariski open subset \\(U\\subset Y\\) such that \\(f^{-1}(U)\\to U\\) is \u00e9tale (i.e., the Jacobian has full rank at every point of the preimage).",
+      "example": "For \\(f: \\mathbb{A}^2\\to\\mathbb{A}^1\\), \\((x,y)\\mapsto x^2+y^2\\), the Jacobian \\((2x,2y)\\) has rank 1 except at the origin; thus \\(f\\) is \u00e9tale over \\(\\mathbb{A}^1\\setminus\\{0\\}\\)."
+    },
+    {
+      "name": "use_monodromy_to_show_geometric_irreducibility_of_fiber",
+      "description": "Employ the monodromy group of a finite cover to prove that a generic fiber is geometrically irreducible, using transitivity of the action on the fiber.",
+      "preconditions": "A finite dominant morphism \\(f: X\\to Y\\) with a known monodromy representation of the fundamental group of a Zariski open subset of \\(Y\\) acting on a generic fiber.",
+      "postconditions": "Conclusion that the generic fiber is a single geometrically irreducible component because the monodromy action is transitive.",
+      "example": "For the map \\(\\mathbb{A}^1\\to\\mathbb{A}^1\\), \\(t\\mapsto t^n\\), the monodromy group is the cyclic group of order \\(n\\) acting transitively on the \\(n\\) roots, so the generic fiber consists of \\(n\\) distinct points (geometrically irreducible as a zero\u2011dimensional scheme)."
+    },
+    {
+      "name": "pass_to_limit_of_point_counts_to_obtain_geometric_degree",
+      "description": "Combine Lang\u2013Weil estimates with the \u00e9tale average\u2011fiber argument to deduce that the limiting average of \\(\\#f^{-1}(y)\\) over \\(\\mathbb{F}_p\\)-points equals the geometric degree of \\(f\\).",
+      "preconditions": "A finite morphism \\(f: X\\to Y\\) that is \u00e9tale over a dense open \\(U\\subset Y\\) and a Lang\u2013Weil bound for \\(U\\).",
+      "postconditions": "A formula \\(L = \\deg f\\) where \\(L\\) is the limit \\(\\lim_{p\\to\\infty}\\frac{1}{\\#U(\\mathbb{F}_p)}\\sum_{y\\in U(\\mathbb{F}_p)} \\#f^{-1}(y)\\).",
+      "example": "For the covering \\(t\\mapsto t^3\\) of \\(\\mathbb{A}^1\\) ramified only at 0, applying the limit over \\(\\mathbb{F}_p^\\times\\) yields \\(L=3\\), the degree of the map."
+    }
+  ]
+}

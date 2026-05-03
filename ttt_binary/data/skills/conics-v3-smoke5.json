@@ -1,0 +1,77 @@
+{
+  "problem_id": "conics-v3-smoke5",
+  "n_skills": 10,
+  "model": "openai/gpt-oss-120b-maas",
+  "skills": [
+    {
+      "name": "apply_bezout_theorem_to_intersections",
+      "description": "Use B\u00e9zout's theorem to compute the number of intersection points of two projective varieties when they intersect transversely, by multiplying their degrees.",
+      "preconditions": "Two projective subvarieties V,W \u2282 \u2119\u207f defined by homogeneous equations, with no common component and intersecting properly (i.e., dimensions add to \u2264 n).",
+      "postconditions": "The total number of intersection points counted with multiplicity equals deg(V)\u00b7deg(W).",
+      "example": "In \u2119\u00b2, a line (degree\u202f1) and a smooth cubic curve (degree\u202f3) intersect in exactly 3 points (counted with multiplicity) by B\u00e9zout."
+    },
+    {
+      "name": "compute_tangent_condition_via_dual_curve",
+      "description": "Translate the condition that a curve C is tangent to a fixed curve D into the condition that the point representing C lies on the dual variety D^\u2228 in the dual projective space.",
+      "preconditions": "A smooth projective plane curve D \u2282 \u2119\u00b2 and a family of curves parametrized by a projective space (e.g., conics by \u2119\u2075). The dual curve D^\u2228 \u2282 (\u2119\u00b2)^\u2228 is defined as the closure of the set of tangent lines to D.",
+      "postconditions": "A curve C from the family is tangent to D if and only if the corresponding point in the parameter space maps to a line lying in D^\u2228, i.e., satisfies the defining equations of D^\u2228.",
+      "example": "For a smooth cubic D \u2282 \u2119\u00b2, the dual curve D^\u2228 is a degree\u202f6 curve in the dual plane; a line \u2113 is tangent to D exactly when the point representing \u2113 in (\u2119\u00b2)^\u2228 lies on D^\u2228."
+    },
+    {
+      "name": "determine_degree_of_finite_map_via_generic_fiber",
+      "description": "Compute the degree of a finite morphism by counting the number of points in a geometric generic fiber.",
+      "preconditions": "A morphism f : X \u2192 Y between irreducible varieties that is finite (hence proper with finite fibers) and dominant.",
+      "postconditions": "deg(f) = # (X_\u03b7) where X_\u03b7 is the fiber over the generic point \u03b7 of Y (geometric generic fiber).",
+      "example": "The map \u2119\u00b9 \u2192 \u2119\u00b9 given by t \u21a6 t\u00b2 is finite of degree\u202f2 because over the generic point the fiber consists of two distinct points."
+    },
+    {
+      "name": "use_lang_weil_estimate_for_point_counts",
+      "description": "Apply the Lang\u2013Weil estimate to relate the number of \u2131_q\u2011rational points on a geometrically irreducible variety to its dimension and degree, up to an error of O(q^{dim\u20111/2}).",
+      "preconditions": "A geometrically irreducible projective variety X of dimension d defined over a finite field \u2131_q.",
+      "postconditions": "An asymptotic formula #X(\u2131_q) = q^d + O(q^{d-1/2}) holds, where the implied constant depends only on deg(X) and d.",
+      "example": "For a smooth plane conic (dimension\u202f1, degree\u202f2) over \u2131_q, Lang\u2013Weil gives #C(\u2131_q) = q + 1 + O(\u221aq), which matches the exact count q+1 when q is odd."
+    },
+    {
+      "name": "average_fiber_size_over_finite_fields_equals_degree",
+      "description": "Use the fact that for a finite \u00e9tale cover f : X \u2192 Y defined over \u2124, the average size of the fiber f^{-1}(y) over y \u2208 Y(\u2131_p) tends to deg(f) as p \u2192 \u221e (Chebotarev/Deligne equidistribution).",
+      "preconditions": "A finite \u00e9tale morphism f : X \u2192 Y of schemes of finite type over \u2124, with Y nonempty and geometrically irreducible.",
+      "postconditions": "lim_{p\u2192\u221e} (1/#Y(\u2131_p)) \u03a3_{y\u2208Y(\u2131_p)} #f^{-1}(y) = deg(f).",
+      "example": "For the map \u2119\u00b9 \u2192 \u2119\u00b9, t \u21a6 t\u00b3, which is finite \u00e9tale away from t = 0, the average number of preimages of a random point in \u2119\u00b9(\u2131_p) approaches 3 as p \u2192 \u221e."
+    },
+    {
+      "name": "verify_finite_etale_locus_via_jacobian_nonvanishing",
+      "description": "Determine the open subset where a morphism is finite \u00e9tale by checking that the Jacobian determinant does not vanish there.",
+      "preconditions": "A morphism f : X \u2192 Y of smooth varieties over a field, given locally by polynomial equations, and a point y \u2208 Y where the fiber is finite.",
+      "postconditions": "The subset V \u2282 Y where the Jacobian matrix of the defining equations has full rank is open, and over V the morphism is \u00e9tale (unramified and flat).",
+      "example": "For the map \u2102 \u2192 \u2102, z \u21a6 z\u00b2, the derivative 2z is nonzero away from z = 0, so the morphism is \u00e9tale on \u2102\u2216{0}."
+    },
+    {
+      "name": "parametrize_conics_by_symmetric_matrices",
+      "description": "Represent plane conics as zero loci of symmetric 3\u00d73 matrices, turning the space of conics into \u2119\u2075 via the six independent entries.",
+      "preconditions": "Working in \u2119\u00b2 with homogeneous coordinates (x:y:z); a conic is defined by a homogeneous quadratic form Q(x,y,z) = [x y z]\u00b7M\u00b7[x y z]^T where M is a symmetric 3\u00d73 matrix up to scaling.",
+      "postconditions": "The set of all conics corresponds to the projective space \u2119\u2075 of symmetric matrices modulo scalar multiplication.",
+      "example": "The conic x\u00b2 + yz = 0 corresponds to the matrix M = [[1,0,0],[0,0,\u00bd],[0,\u00bd,0]] (up to scaling)."
+    },
+    {
+      "name": "compute_resultant_to_eliminate_variables",
+      "description": "Use the resultant of two homogeneous polynomials to eliminate a variable and obtain a condition on the remaining coefficients, often expressing tangency or common zeros.",
+      "preconditions": "Two homogeneous polynomials f, g in variables x\u2080,\u2026,x_n, where elimination of a variable (say x_n) is desired, and the coefficients lie in a polynomial ring.",
+      "postconditions": "The resultant Res_{x_n}(f,g) is a polynomial in the remaining coefficients that vanishes exactly when f and g have a common root in \u2119\u00b9 (or when the corresponding curves are tangent along a line).",
+      "example": "For two binary quadratics f = a\u2080x\u00b2 + a\u2081xy + a\u2082y\u00b2 and g = b\u2080x\u00b2 + b\u2081xy + b\u2082y\u00b2, the resultant in x yields a condition a\u2080b\u2082 - a\u2081b\u2081 + a\u2082b\u2080 = 0, which characterizes when the two quadratics share a root."
+    },
+    {
+      "name": "use_generic_smoothness_to_establish_flatness",
+      "description": "Apply the generic smoothness theorem to deduce that a morphism is flat over a dense open subset of the base where the fibers are smooth.",
+      "preconditions": "A morphism f : X \u2192 Y of finite type between Noetherian schemes over a field of characteristic 0 (or sufficiently large), with X reduced.",
+      "postconditions": "There exists a dense open U \u2282 Y such that f|_{f^{-1}(U)} is smooth, and consequently flat, over U.",
+      "example": "For the family of plane curves defined by F_t(x,y,z)=x\u00b2+y\u00b2 - t z\u00b2 in \u2119\u00b2\u00d7\u2119\u00b9, generic smoothness implies that over t \u2260 0 the fibers are smooth conics, giving a flat morphism over \u2119\u00b9\u2216{0}."
+    },
+    {
+      "name": "apply_monodromy_transitivity_to_constancy_of_fiber_cardinality",
+      "description": "Use the transitivity of the geometric monodromy group of a finite \u00e9tale cover to conclude that all geometric fibers have the same cardinality.",
+      "preconditions": "A finite \u00e9tale morphism f : X \u2192 Y with Y connected (geometrically) and the associated monodromy action of \u03c0\u2081^{\u00e9t}(Y) on the fiber over a geometric point is transitive.",
+      "postconditions": "All geometric fibers of f have the same number of points, equal to deg(f).",
+      "example": "The cover given by adjoining a primitive n\u2011th root of unity to \u2119\u00b9\u2216{0,\u221e} has Galois group (\u2124/n\u2124)^{\u00d7} acting transitively on the n points of the fiber, so each fiber consists of n points."
+    }
+  ]
+}

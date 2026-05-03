@@ -1,0 +1,76 @@
+{
+  "run_idx": 0,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "parametrize_plane_conics_as_projective_space",
+      "description": "Identify the set of plane conics with the projective space of homogeneous quadratic forms in three variables, i.e. \\(\\mathbb{P}^5\\), by sending a conic to its coefficient vector up to scaling.",
+      "preconditions": "A projective plane \\(\\mathbb{P}^2\\) over a field and the line bundle \\(\\mathcal{O}(2)\\).",
+      "postconditions": "A bijection between smooth conics and points of an open subset of \\(\\mathbb{P}^5\\), providing coordinates for each conic.",
+      "example": "For \\(\\mathbb{P}^2_{\\mathbb{C}}\\), the conic defined by \\(x^2+yz=0\\) corresponds to the point \\([1:0:0:0:1:0]\\) in \\(\\mathbb{P}^5\\) given by the coefficients of \\(x^2, xy, xz, y^2, yz, z^2\\)."
+    },
+    {
+      "name": "express_tangency_condition_via_resultant",
+      "description": "Translate the condition that two plane conics are tangent into the vanishing of the resultant of their defining quadratic forms and a linear combination of their gradients, yielding a homogeneous polynomial equation in the coefficients.",
+      "preconditions": "Two conics given by homogeneous quadratic forms \\(F,G\\) in three variables.",
+      "postconditions": "An explicit polynomial equation \\(T(F,G)=0\\) whose vanishing is equivalent to \\(F\\) and \\(G\\) sharing a tangent line at some point.",
+      "example": "For conics \\(F=x^2+y^2-z^2\\) and \\(G=xy-z^2\\) in \\(\\mathbb{P}^2\\), the tangency condition reduces to the vanishing of the determinant \\(\\det\\begin{pmatrix} \\partial F/\\partial x & \\partial F/\\partial y & \\partial F/\\partial z \\\\ \\partial G/\\partial x & \\partial G/\\partial y & \\partial G/\\partial z \\\\ x & y & z \\end{pmatrix}=0\\)."
+    },
+    {
+      "name": "set_up_incidence_correspondence_and_compute_dimension",
+      "description": "Create an incidence variety pairing objects (e.g., a conic and a point of tangency) and use dimension counting to determine the expected dimension of the projection onto one factor.",
+      "preconditions": "A product space \\(X\\times Y\\) where a closed condition \\(Z\\subset X\\times Y\\) is defined by polynomial equations.",
+      "postconditions": "The dimension of \\(Z\\) and of its image under projection are computed, indicating whether the projection is generically finite.",
+      "example": "For the set of pairs \\((C,P)\\) where \\(C\\) is a line in \\(\\mathbb{P}^2\\) and \\(P\\) lies on \\(C\\), the incidence variety is a \\(\\mathbb{P}^1\\)-bundle over \\(\\mathbb{P}^2\\) of dimension 2, and its projection to the space of lines (\\(\\mathbb{P}^{2*}\\)) is surjective with 1\u2011dimensional fibers."
+    },
+    {
+      "name": "apply_bezout_theorem_to_intersection_of_hypersurfaces",
+      "description": "Use B\u00e9zout's theorem to compute the number of points in a zero\u2011dimensional complete intersection of hypersurfaces in projective space, assuming proper intersection.",
+      "preconditions": "A set of homogeneous polynomials \\(f_1,\\dots,f_r\\) in \\(\\mathbb{P}^n\\) whose common zero locus is zero\u2011dimensional and the hypersurfaces intersect transversely.",
+      "postconditions": "The total count (with multiplicities) of intersection points equals the product of the degrees \\(\\deg f_1\\cdots\\deg f_r\\).",
+      "example": "In \\(\\mathbb{P}^3\\), intersecting a quadric surface (degree 2) and a cubic surface (degree 3) that meet properly yields \\(2\\times3=6\\) points counted with multiplicity."
+    },
+    {
+      "name": "compute_degree_of_projection_map_using_generic_fiber",
+      "description": "Determine the degree of a dominant morphism by counting the number of points in a generic fiber, often via dimension arguments and intersection theory.",
+      "preconditions": "A dominant morphism \\(\\pi: X\\to Y\\) between irreducible varieties of the same dimension, with \\(\\pi\\) finite over a dense open subset of \\(Y\\).",
+      "postconditions": "The integer \\(\\deg \\pi\\) equal to the cardinality of a generic fiber (counted with multiplicity).",
+      "example": "The map \\(\\mathbb{P}^1\\to\\mathbb{P}^1\\) given by \\(t\\mapsto t^3\\) has degree 3 because a generic point \\(y\\) has three preimages \\(\\sqrt[3]{y}\\)."
+    },
+    {
+      "name": "use_lang_weil_estimate_for_point_counts_over_finite_fields",
+      "description": "Apply the Lang\u2013Weil estimate to bound the number of \\(\\mathbb{F}_p\\)-rational points on a geometrically irreducible variety in terms of its dimension and degree.",
+      "preconditions": "A geometrically irreducible projective variety \\(X\\) of dimension \\(d\\) and degree \\(\\delta\\) defined over \\(\\mathbb{F}_p\\).",
+      "postconditions": "An estimate \\(|\\#X(\\mathbb{F}_p)-p^d|\\le C\\,p^{d-1/2}\\) for some constant \\(C\\) depending only on \\(d\\) and \\(\\delta\\).",
+      "example": "For a smooth plane cubic curve (dimension 1, degree 3) over \\(\\mathbb{F}_p\\), Lang\u2013Weil gives \\(|\\#C(\\mathbb{F}_p)-p|\\le 2\\sqrt{p}\\)."
+    },
+    {
+      "name": "deduce_average_fiber_size_of_finite_etale_map_equals_degree",
+      "description": "Use the fact that for a finite \u00e9tale morphism \\(\\pi: X\\to Y\\) over a finite field, the average size of the fibers over \\(\\mathbb{F}_p\\)-points of \\(Y\\) tends to the degree of \\(\\pi\\) as \\(p\\to\\infty\\).",
+      "preconditions": "A finite \u00e9tale morphism \\(\\pi: X\\to Y\\) defined over \\(\\mathbb{F}_p\\) with \\(Y\\) geometrically irreducible.",
+      "postconditions": "The limit \\(\\lim_{p\\to\\infty}\\frac{1}{\\#Y(\\mathbb{F}_p)}\\sum_{y\\in Y(\\mathbb{F}_p)}\\#\\pi^{-1}(y)=\\deg \\pi\\).",
+      "example": "For the covering \\(\\mathbb{A}^1\\to\\mathbb{A}^1\\), \\(t\\mapsto t^2\\), which is finite \u00e9tale away from 0, the average number of square roots of a random element of \\(\\mathbb{F}_p\\) approaches 2, the degree."
+    },
+    {
+      "name": "apply_generic_smoothness_to_guarantee_etale_locus_dense_open",
+      "description": "Invoke generic smoothness to conclude that the set of points where a morphism is smooth (hence \u00e9tale for finite maps) contains a dense open subset of the target.",
+      "preconditions": "A morphism \\(f: X\\to Y\\) between varieties of finite type over a field of characteristic 0 (or large enough characteristic), with \\(X\\) reduced.",
+      "postconditions": "Existence of a dense open \\(U\\subset Y\\) such that \\(f\\) is smooth (and therefore \u00e9tale if also finite) over \\(U\\).",
+      "example": "The projection \\(\\pi: V\\subset\\mathbb{A}^3\\to\\mathbb{A}^2\\) given by \\((x,y,z)\\mapsto (x,y)\\) from the surface \\(z^2=xy\\) is smooth away from the origin, so the \u00e9tale locus is \\(\\mathbb{A}^2\\setminus\\{(0,0)\\}\\)."
+    },
+    {
+      "name": "use_dual_plane_and_dual_curve_to_translate_tangency_to_incidence",
+      "description": "Replace a tangency condition between a conic and a fixed conic by the incidence of a point in the dual plane lying on the dual curve of the fixed conic.",
+      "preconditions": "A plane curve \\(C\\subset\\mathbb{P}^2\\) and its projective dual \\(C^*\\subset(\\mathbb{P}^2)^*\\).",
+      "postconditions": "The set of conics tangent to \\(C\\) corresponds to points in \\(\\mathbb{P}^5\\) whose associated dual line lies on \\(C^*\\), turning a quadratic tangency condition into a linear incidence in the dual space.",
+      "example": "For a smooth cubic curve \\(E\\) in \\(\\mathbb{P}^2\\), a line \\(L\\) is tangent to \\(E\\) iff the point in the dual plane representing \\(L\\) lies on the dual cubic curve \\(E^*\\)."
+    },
+    {
+      "name": "evaluate_degree_via_chern_classes_and_intersection_numbers",
+      "description": "Compute the degree of a morphism or the class of a subvariety by expressing it as an intersection product of Chern classes in the Chow ring of a projective space.",
+      "preconditions": "A vector bundle \\(E\\) over a smooth projective variety \\(X\\) and a section whose zero locus defines the subvariety of interest.",
+      "postconditions": "The degree (or class) equals the top Chern class \\(c_{\\text{top}}(E)\\) evaluated on \\([X]\\), giving a concrete integer via standard intersection formulas.",
+      "example": "The number of lines on a smooth cubic surface is computed by intersecting the class \\(c_2(T_{\\mathbb{P}^3})\\) with the class of the cubic, yielding \\(27\\)."
+    }
+  ]
+}

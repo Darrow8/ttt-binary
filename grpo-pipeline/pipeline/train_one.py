@@ -96,7 +96,7 @@ def train_problem(
     group_size: int = 16,
     learning_rate: float = 1e-4,
     lora_rank: int = 32,
-    max_tokens: int = 16384,
+    max_tokens: int = 100000,
     save_every: int = 5,
     wandb_run_name: str | None = None,
     subproblems_path: Path | None = None,
@@ -157,7 +157,7 @@ def main():
     parser.add_argument("--group-size", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--lora-rank", type=int, default=32)
-    parser.add_argument("--max-tokens", type=int, default=16384)
+    parser.add_argument("--max-tokens", type=int, default=100000)
     parser.add_argument("--save-every", type=int, default=5)
     parser.add_argument("--wandb-run-name", type=str, default=None)
     parser.add_argument("--subproblems", type=Path, default=None,

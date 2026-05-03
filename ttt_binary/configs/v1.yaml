@@ -1,0 +1,23 @@
+# Skill-chained subproblem-generation pipeline — v1 defaults.
+# See claude_content/brainstorm/PIPELINE_SPEC.md and REVISIONS.md.
+
+n_skills: 10                  # X — skill pool size
+m: 3                          # M — chain length (fixed for v1)
+
+# Stage 3 consensus-based calibration (REVISIONS.md):
+#   accept iff p1 in [band_lo, band_hi] AND p2 < ambiguity_threshold AND
+#               unparseable <= max_unparseable
+band_lo: 0.4                  # largest cluster fraction lower bound
+band_hi: 0.6                  # largest cluster fraction upper bound
+ambiguity_threshold: 0.2      # max allowed second-cluster fraction
+max_unparseable: 3            # reject if more critic attempts return no parseable answer
+
+k_calibrate: 10               # critic attempts per generated subproblem
+k_solve: 16                   # solver attempts per accepted subproblem in stage 4
+max_regen: 5                  # regeneration cap per combination
+
+generator_model: "openai/gpt-oss-120b-maas"
+critic_model: "openai/gpt-oss-120b-maas"
+solver_model: "openai/gpt-oss-120b-maas"
+temperature: 0.7
+workers: 8

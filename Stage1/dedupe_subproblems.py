@@ -88,6 +88,33 @@ def _greedy_dedupe(embs, threshold: float) -> list[int]:
     return kept_indices
 
 
+def _target_count_dedupe(embs, target_count: int) -> list[int]:
+    """Drop the most-redundant items until exactly ``target_count`` remain.
+
+    Each iteration: redundancy[i] = max similarity of i to any other still-kept
+    item. Drop arg-max(redundancy). On ties, drop the later index. Returns
+    surviving indices sorted ascending. embs is assumed L2-normalized.
+    """
+    import numpy as np
+    n = embs.shape[0]
+    if target_count >= n:
+        return list(range(n))
+    if target_count <= 0:
+        return []
+    sim = embs @ embs.T
+    np.fill_diagonal(sim, -np.inf)
+    kept = np.ones(n, dtype=bool)
+    while int(kept.sum()) > target_count:
+        masked = np.where(kept[:, None] & kept[None, :], sim, -np.inf)
+        redundancy = masked.max(axis=1)
+        redundancy[~kept] = -np.inf
+        max_red = redundancy.max()
+        candidates = np.where(redundancy == max_red)[0]
+        drop = int(candidates[-1])
+        kept[drop] = False
+    return [i for i in range(n) if kept[i]]
+
+
 def dedupe(
     *,
     input_path: str,
@@ -95,6 +122,7 @@ def dedupe(
     threshold: float,
     model_name: str,
     per_skill: bool,
+    target_count: int | None = None,
 ) -> dict:
     with open(input_path) as f:
         data = json.load(f)
@@ -105,9 +133,21 @@ def dedupe(
             json.dump(data, f, indent=2, ensure_ascii=False)
         return {"input": len(problems), "kept": 0, "dropped": 0}
 
+    if target_count is not None and per_skill:
+        raise SystemExit("--target-count and --per-skill are mutually exclusive")
+
     model = _load_st(model_name)
 
-    if per_skill:
+    if target_count is not None:
+        texts = [p["problem"] for p in problems]
+        print(
+            f"embedding {len(texts)} subproblems (global dedupe, "
+            f"target_count={target_count})",
+            flush=True,
+        )
+        embs = _embed(model, texts)
+        kept_idx = _target_count_dedupe(embs, target_count)
+    elif per_skill:
         by_skill: dict[str, list[int]] = defaultdict(list)
         for i, p in enumerate(problems):
             by_skill[p.get("skill", "__unknown__")].append(i)
@@ -132,15 +172,22 @@ def dedupe(
 
     kept_problems = [problems[i] for i in kept_idx]
     out = {**data, "problems": kept_problems, "n_problems": len(kept_problems)}
-    out["_dedupe"] = {
+    dedupe_meta = {
         "source": os.path.abspath(input_path),
         "model": model_name,
-        "threshold": threshold,
-        "mode": "per_skill" if per_skill else "global",
+        "mode": (
+            "target_count" if target_count is not None
+            else ("per_skill" if per_skill else "global")
+        ),
         "n_in": len(problems),
         "n_out": len(kept_problems),
         "n_dropped": len(problems) - len(kept_problems),
     }
+    if target_count is not None:
+        dedupe_meta["target_count"] = target_count
+    else:
+        dedupe_meta["threshold"] = threshold
+    out["_dedupe"] = dedupe_meta
     with open(output_path + ".tmp", "w") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
     os.replace(output_path + ".tmp", output_path)
@@ -157,6 +204,9 @@ def main():
     p.add_argument("--output", required=True, help="path for deduped JSON")
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD,
                    help="cosine similarity threshold (default 0.88)")
+    p.add_argument("--target-count", type=int, default=None,
+                   help="drop most-redundant items until exactly N remain "
+                        "(overrides --threshold; mutually exclusive with --per-skill)")
     p.add_argument("--per-skill", action="store_true",
                    help="dedupe within each skill independently (default: global)")
     p.add_argument("--fast", action="store_true",
@@ -172,7 +222,14 @@ def main():
         threshold=args.threshold,
         model_name=model_name,
         per_skill=args.per_skill,
+        target_count=args.target_count,
     )
+    if args.target_count is not None:
+        mode = f"target_count={args.target_count}"
+    elif args.per_skill:
+        mode = "per_skill"
+    else:
+        mode = "global"
     print(
         f"\nwrote {args.output}\n"
         f"  in  : {stats['input']}\n"
@@ -180,7 +237,7 @@ def main():
         f"  drop: {stats['dropped']}\n"
         f"  threshold: {args.threshold}\n"
         f"  model: {model_name}\n"
-        f"  mode : {'per_skill' if args.per_skill else 'global'}"
+        f"  mode : {mode}"
     )
 
 

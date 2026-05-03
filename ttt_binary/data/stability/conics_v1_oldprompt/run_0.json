@@ -1,0 +1,76 @@
+{
+  "run_idx": 0,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "intersection_product_chow",
+      "description": "Compute the product of divisor classes in the Chow ring of a product of projective varieties using the known ring relations.",
+      "preconditions": "A product of projective varieties with explicit Chow rings and divisor classes to be multiplied is given.",
+      "postconditions": "The intersection class is expressed as a linear combination of basis classes in the Chow ring.",
+      "example": "In the product of a pair of projective lines, multiply the class of a vertical divisor with the class of a horizontal divisor to obtain the class of a point."
+    },
+    {
+      "name": "generic_smoothness_application",
+      "description": "Apply the generic smoothness theorem to deduce that a morphism is smooth over a dense open subset of the target.",
+      "preconditions": "A morphism of finite type between varieties over an algebraically closed field is given, and the source is smooth.",
+      "postconditions": "There exists a dense open subset of the target over which the morphism is smooth, and the fibers have the expected dimension.",
+      "example": "For the projection from the incidence variety of points lying on a line to the space of lines, generic smoothness yields a smooth morphism over the open set of non\u2011vertical lines."
+    },
+    {
+      "name": "finite_etale_check_via_jacobian",
+      "description": "Verify that a morphism is finite \u00e9tale by checking finiteness and non\u2011vanishing of the Jacobian determinant on the relevant locus.",
+      "preconditions": "A morphism of varieties is known to be finite and the Jacobian matrix can be computed on an open set.",
+      "postconditions": "The morphism is concluded to be \u00e9tale on that open set, implying it is unramified and flat there.",
+      "example": "For the map sending a point on a smooth curve to its image under an isomorphism, the Jacobian determinant is a nonzero constant, showing the map is finite \u00e9tale away from the poles."
+    },
+    {
+      "name": "lang_weil_point_estimate",
+      "description": "Use the Lang\u2013Weil estimate to bound the number of rational points of a geometrically irreducible variety over a finite field in terms of its dimension and degree.",
+      "preconditions": "A geometrically irreducible variety defined over a finite field together with its dimension and degree is given.",
+      "postconditions": "An asymptotic formula is obtained showing the point count equals the field size raised to the dimension plus a lower\u2011order error term.",
+      "example": "For a smooth plane conic defined over a finite field, the estimate gives roughly the size of the field plus a bounded error."
+    },
+    {
+      "name": "average_fiber_size_via_degree",
+      "description": "Relate the average cardinality of fibers over rational points to the geometric degree of a dominant morphism using the fact that the sum of fiber sizes equals the degree times the number of points in the target.",
+      "preconditions": "A dominant finite morphism between varieties over a finite field is given, and point counts on the target are known.",
+      "postconditions": "It is derived that the average fiber size approaches the degree as the field size grows.",
+      "example": "For the map from a finite cover of the projective line to the line itself, the average number of preimages of a rational point tends to the degree of the cover as the field size increases."
+    },
+    {
+      "name": "parameter_space_of_hypersurfaces",
+      "description": "Construct the parameter space of degree\u2011d hypersurfaces in projective space as a projective space of global sections of the corresponding line bundle.",
+      "preconditions": "Projective space of a given dimension and an integer degree d are specified.",
+      "postconditions": "A projective space whose points correspond bijectively to hypersurfaces of that degree is obtained.",
+      "example": "The space of lines in the projective plane is realized as the projective space of linear forms, each point representing a line."
+    },
+    {
+      "name": "tangency_condition_as_linear_subspace",
+      "description": "Translate a tangency condition between two hypersurfaces into a linear condition on the coefficients of one of them by imposing vanishing of the restriction of the differential along the other.",
+      "preconditions": "Two hypersurfaces are given, one fixed and smooth, and the other varies within a linear system.",
+      "postconditions": "The set of hypersurfaces tangent to the fixed one is identified with a linear subspace of the parameter space.",
+      "example": "For a fixed smooth curve of degree d in the plane, the condition that a variable line be tangent translates to the vanishing of the curve\u2019s defining polynomial and its derivative at the point of contact, yielding a linear equation on the line\u2019s coefficients."
+    },
+    {
+      "name": "bezout_intersection_count",
+      "description": "Apply B\u00e9zout\u2019s theorem to compute the number of intersection points of a collection of hypersurfaces in projective space when the intersection is proper and the hypersurfaces are in general position.",
+      "preconditions": "A set of hypersurfaces with known degrees intersect properly in projective space.",
+      "postconditions": "The total number of intersection points, counted with multiplicity, equals the product of the degrees.",
+      "example": "A hypersurface of degree d1 and another of degree d2 intersect in d1\u00b7d2 points (counted with multiplicity) when the intersection is proper."
+    },
+    {
+      "name": "specialization_to_irreducible_components",
+      "description": "Use specialization from a generic fiber to a closed fiber to deduce the number of irreducible components of a family by upper semicontinuity of component count.",
+      "preconditions": "A flat family of varieties over a connected base is given, and the generic fiber is known to be irreducible.",
+      "postconditions": "It is concluded that every fiber has at most the same number of components, allowing inference of component count on specific fibers.",
+      "example": "In a family of plane curves obtained by varying a coefficient, if the generic curve is smooth (hence irreducible), then any specialized curve cannot acquire additional components."
+    },
+    {
+      "name": "limit_of_normalized_point_counts",
+      "description": "Pass to the limit of normalized point counts over growing finite fields to extract a geometric invariant such as the average number of rational points per fiber.",
+      "preconditions": "For each finite field size, a count of rational points on a variety (or on fibers) is available, and the counts satisfy an asymptotic formula.",
+      "postconditions": "The limit of the ratio of the count to the size of the field (or to the point count of the base) exists and equals the desired invariant.",
+      "example": "For a family of elliptic curves parametrized by a line, the limit of the average number of points on the fibers divided by the field size approaches the trace of Frobenius averaged over the family."
+    }
+  ]
+}

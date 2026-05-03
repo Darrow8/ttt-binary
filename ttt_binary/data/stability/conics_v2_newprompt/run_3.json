@@ -1,0 +1,76 @@
+{
+  "run_idx": 3,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "parametrize_conics_as_projective_space",
+      "description": "Identify the set of plane conics with the projective space P^5 by using the coefficients of a homogeneous quadratic form in three variables, modulo scaling.",
+      "preconditions": "Working over a field, consider homogeneous degree\u20112 polynomials in variables x,y,z; two such polynomials represent the same conic iff they differ by a nonzero scalar.",
+      "postconditions": "A bijection between smooth conics and the open subset of P^5 where the discriminant is nonzero; the whole space of (possibly singular) conics is identified with P^5.",
+      "example": "Lines in P^2 are parametrized by P^2*: a linear form a x + b y + c z up to scaling gives a point (a:b:c) in P^2."
+    },
+    {
+      "name": "express_tangency_as_incidence_condition",
+      "description": "Formulate the tangency of two conics C and D as the existence of a point p where both vanish and their gradients are linearly dependent.",
+      "preconditions": "Two conics given by quadratic forms f and g, and a point p \u2208 P^2 with homogeneous coordinates.",
+      "postconditions": "A closed subvariety of P^5 \u00d7 P^5 \u00d7 P^2 defined by the equations f(p)=g(p)=0 and rank of the Jacobian matrix [\u2207f(p); \u2207g(p)] \u2264 1.",
+      "example": "Two circles in the affine plane are tangent iff there is a point where their defining equations vanish and the normals (gradients) are parallel."
+    },
+    {
+      "name": "project_incidence_to_conic_space_to_get_divisor",
+      "description": "Eliminate the point variable from the incidence variety of tangency to obtain a hypersurface in the space of conics representing the tangency condition.",
+      "preconditions": "Incidence subvariety defined as in the previous skill, with the projection map to the factor parametrizing the moving conic being proper and generically finite.",
+      "postconditions": "A divisor in P^5 given by a single homogeneous polynomial (the discriminant of the resultant) whose degree can be computed.",
+      "example": "Projecting the incidence of a line meeting a fixed smooth conic onto the dual projective plane yields the dual conic curve, a degree\u20112 hypersurface."
+    },
+    {
+      "name": "compute_degree_of_tangency_divisor_via_resultant",
+      "description": "Determine the degree of the hypersurface of conics tangent to a fixed conic by forming the resultant of the two quadratic forms and its Jacobian, which yields a homogeneous polynomial of known degree.",
+      "preconditions": "A fixed smooth conic C\u2080, the universal family of conics represented by coefficients (a\u2080:\u2026:a\u2085), and knowledge of the resultant construction for two quadrics in three variables.",
+      "postconditions": "Explicit degree (equal to 2) of the tangency divisor in P^5.",
+      "example": "The discriminant of a binary quadratic form ax\u00b2+ bxy+ cy\u00b2 is b\u00b2\u22124ac, a homogeneous polynomial of degree 2 in (a,b,c)."
+    },
+    {
+      "name": "apply_bezout_to_intersect_multiple_divisors",
+      "description": "Intersect k hypersurfaces of known degrees in projective space P^n and compute the number of isolated intersection points (with multiplicity) as the product of the degrees, assuming a transverse generic intersection.",
+      "preconditions": "Hypersurfaces H\u2081,\u2026,H_k in P^n with degrees d\u2081,\u2026,d_k, where k = n, and the hypersurfaces are in general position so that the intersection is zero\u2011dimensional and transverse.",
+      "postconditions": "The total number of intersection points counted with multiplicity equals d\u2081\u00b7d\u2082\u00b7\u2026\u00b7d_k.",
+      "example": "Two distinct lines (degree\u202f1) in P^2 intersect in exactly 1 point."
+    },
+    {
+      "name": "use_generic_smoothness_to_get_finite_etale_projection",
+      "description": "Invoke the generic smoothness theorem to conclude that the projection from an incidence variety to the parameter space is smooth (hence \u00e9tale) over a dense open subset, giving a finite \u00e9tale morphism.",
+      "preconditions": "A morphism f : X \u2192 Y of finite type between varieties over a field, X smooth, and the generic fiber of f is zero\u2011dimensional.",
+      "postconditions": "Existence of a dense open U \u2282 Y such that f|_{f^{-1}(U)} : f^{-1}(U) \u2192 U is finite \u00e9tale.",
+      "example": "The map (x, y) \u21a6 x from the graph of the polynomial y\u00b2 = x\u00b3 + x over \u2102 is \u00e9tale away from the points where the derivative 2y = 0."
+    },
+    {
+      "name": "relate_geometric_degree_to_average_fiber_size_over_finite_fields",
+      "description": "State that for a finite \u00e9tale morphism of degree d defined over \u2124, the average number of \u2131_p\u2011rational points in its fibers over \u2131_p tends to d as p \u2192 \u221e, by combining \u00e9taleness with the Lang\u2013Weil estimate.",
+      "preconditions": "A finite \u00e9tale morphism f : X \u2192 Y of degree d, both X and Y defined over \u2124, and p a prime of good reduction (i.e., f remains \u00e9tale modulo p).",
+      "postconditions": "lim_{p\u2192\u221e} (1/|Y(\u2131_p)|) \u03a3_{y\u2208Y(\u2131_p)} |f^{-1}(y)(\u2131_p)| = d.",
+      "example": "The map \u2119\u00b9 \u2192 \u2119\u00b9 given by t \u21a6 t\u00b2 is finite \u00e9tale away from t=0,\u221e; the average number of square roots of a random element of \u2131_p is 2 as p grows."
+    },
+    {
+      "name": "apply_lang_weil_estimate_for_point_counts",
+      "description": "Use the Lang\u2013Weil theorem to approximate the number of \u2131_q\u2011points on a variety of dimension m and degree \u03b4 by q^m plus an error term of order q^{m-1/2}.",
+      "preconditions": "A geometrically irreducible variety V defined over a finite field \u2131_q, with known dimension m and degree \u03b4.",
+      "postconditions": "An estimate |V(\u2131_q) - q^m| \u2264 C\u00b7\u03b4\u00b7q^{m-1/2} for some constant C depending only on m.",
+      "example": "A smooth plane curve of degree 3 (an elliptic curve) over \u2131_p has p + O(p^{1/2}) rational points."
+    },
+    {
+      "name": "compute_enumerative_number_of_conics_tangent_to_five_conics",
+      "description": "Intersect the five tangency divisors (each of degree\u202f2) in the parameter space P^5 and apply B\u00e9zout\u2019s theorem to obtain the classical enumerative invariant \u2013 the number of smooth conics tangent to five generic conics.",
+      "preconditions": "Degree\u202f2 of each tangency divisor (from Skill\u202f4), generic choice of the five fixed conics so that the intersection is transverse and zero\u2011dimensional.",
+      "postconditions": "An integer count equal to 2\u2075 = 32 multiplied by the appropriate multiplicity coming from the geometry, yielding the known number 3264 of conics tangent to five generic conics.",
+      "example": "The number of lines meeting four general lines in \u2119\u00b3 is 2, obtained by intersecting four hyperplane classes of degree\u202f1 in the Grassmannian G(1,3)."
+    },
+    {
+      "name": "convert_enumerative_count_to_floor_of_scaled_limit",
+      "description": "Given the integer enumerative count N that equals the limit L, compute floor(100\u202fL) by ordinary arithmetic.",
+      "preconditions": "The limit L is known exactly (often an integer) from previous enumerative calculation.",
+      "postconditions": "The integer \u230a100\u202fL\u230b is obtained.",
+      "example": "If the enumerative count is N = 42, then floor(100\u00b7L) = floor(4200) = 4200."
+    }
+  ]
+}

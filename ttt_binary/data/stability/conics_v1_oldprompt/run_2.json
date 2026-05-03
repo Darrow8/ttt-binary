@@ -1,0 +1,76 @@
+{
+  "run_idx": 2,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "compute_chow_ring_of_projective_space",
+      "description": "Compute the Chow ring of a projective space by using the standard generator of divisor classes and the relation given by the top power.",
+      "preconditions": "A projective space of any dimension is given.",
+      "postconditions": "An explicit presentation of the Chow ring as a polynomial ring modulo the top-degree relation.",
+      "example": "For the projective line, the Chow ring is \u2124[h]/(h\u00b2) where h is the class of a point."
+    },
+    {
+      "name": "translate_tangency_to_dual_incidence",
+      "description": "Express a tangency condition between two plane curves as an incidence condition in the dual projective plane.",
+      "preconditions": "Two plane curves are given, at least one of which is smooth, and the dual map is defined.",
+      "postconditions": "A subvariety of the dual plane representing lines tangent to the smooth curve is obtained.",
+      "example": "The set of lines tangent to a smooth cubic in the plane corresponds to a curve of degree six in the dual plane."
+    },
+    {
+      "name": "construct_incidence_scheme",
+      "description": "Form an incidence scheme parametrising tuples that satisfy a list of geometric constraints and compute its expected dimension by subtracting codimensions.",
+      "preconditions": "A product of parameter spaces and a list of algebraic conditions are given.",
+      "postconditions": "A closed subscheme defined by the conditions together with its expected dimension.",
+      "example": "The incidence scheme of a line meeting a fixed point and a fixed conic in the plane has expected dimension zero."
+    },
+    {
+      "name": "apply_generic_finiteness_of_projection",
+      "description": "Deduce that the projection from an incidence scheme to a subset of its factors is finite over a dense open locus where the fibers have the expected dimension zero.",
+      "preconditions": "An incidence scheme with a projection map is given, and the expected fiber dimension is zero.",
+      "postconditions": "Identification of an open subset of the base over which the projection is finite.",
+      "example": "Projecting the scheme of pairs (line, point) with the point on the line onto the space of lines is finite over the open set of lines not passing through a fixed point."
+    },
+    {
+      "name": "use_etale_local_isomorphism_for_fiber_count",
+      "description": "When a morphism is \u00e9tale over a point, replace the fiber by a disjoint union of copies of the base field to count geometric points.",
+      "preconditions": "A morphism is known to be \u00e9tale at a rational point of the base.",
+      "postconditions": "The number of geometric points in the fiber equals the degree of the morphism at that point.",
+      "example": "An \u00e9tale double cover of a smooth curve has exactly two points over each rational point of the base."
+    },
+    {
+      "name": "apply_lefschetz_fixed_point_formula",
+      "description": "Relate the count of rational points of a smooth proper variety over a finite field to traces of Frobenius on its cohomology.",
+      "preconditions": "A smooth proper variety over a finite field is given.",
+      "postconditions": "An expression for the point count as a sum of alternating traces of Frobenius.",
+      "example": "For a smooth projective curve of genus g, the number of \ud835\udd3d_q\u2011points equals q + 1 \u2013 \u03a3_{i=1}^{2g} \u03b1_i where the \u03b1_i are Frobenius eigenvalues."
+    },
+    {
+      "name": "use_chebotarev_density_for_average_fiber_size",
+      "description": "Estimate the average size of fibers of a finite morphism by applying Chebotarev density to the distribution of Frobenius conjugacy classes.",
+      "preconditions": "A finite, generically \u00e9tale morphism of varieties over a number field is given.",
+      "postconditions": "An asymptotic formula for the average number of points in fibers over finite fields of increasing size.",
+      "example": "For a degree\u2011three covering of the projective line, the average number of points in fibers over \ud835\udd3d_p tends to three as p \u2192 \u221e."
+    },
+    {
+      "name": "apply_birational_invariance_of_chow_classes",
+      "description": "Replace a variety by a birational model without changing its Chow class computations for cycles of codimension one.",
+      "preconditions": "Two varieties are birational and a divisor class on one is to be computed.",
+      "postconditions": "The divisor class can be computed on the simpler birational model.",
+      "example": "A blow\u2011up of the plane at a point is birational to the plane; the class of the exceptional divisor pulls back to the class of a point."
+    },
+    {
+      "name": "compute_intersection_number_via_schubert_calculus",
+      "description": "Calculate a top\u2011degree intersection product in a Grassmannian or flag variety using Schubert classes and their multiplication rules.",
+      "preconditions": "An intersection problem is expressed in terms of Schubert cycles in a homogeneous space.",
+      "postconditions": "A numerical intersection number obtained by expanding the product in the Schubert basis.",
+      "example": "In the Grassmannian of lines in three\u2011space, the product of two Schubert classes of codimension one equals the class of a point, giving intersection number one."
+    },
+    {
+      "name": "deduce_asymptotic_average_from_point_counts",
+      "description": "Derive the limiting average of a quantity defined via point counts over finite fields by taking the ratio of sums and applying a limit as the field size grows.",
+      "preconditions": "A sequence of finite sets indexed by prime powers with known cardinalities is given.",
+      "postconditions": "The limit of the average value of a function on those sets is obtained.",
+      "example": "If the number of solutions to a polynomial equation over \ud835\udd3d_q is q + O(1), then the average number of solutions per field element tends to one as q \u2192 \u221e."
+    }
+  ]
+}

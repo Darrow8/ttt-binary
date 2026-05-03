@@ -577,7 +577,7 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--group-size", type=int, default=None,
                     help="Override train_one group_size (default 16)")
     tr.add_argument("--max-tokens", type=int, default=None,
-                    help="Override train_one max_tokens (default 16384)")
+                    help="Override train_one max_tokens (default 100000)")
     tr.add_argument("--save-every", type=int, default=None,
                     help="Override train_one save_every (default 5)")
     tr.set_defaults(func=cmd_train)

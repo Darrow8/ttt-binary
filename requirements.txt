@@ -13,3 +13,5 @@ wandb
 python-dotenv
 orjson
 pytest>=7
+anthropic
+pyyaml

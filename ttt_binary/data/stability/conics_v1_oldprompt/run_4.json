@@ -1,0 +1,76 @@
+{
+  "run_idx": 4,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "compute_intersection_number_in_chow_ring",
+      "description": "Calculate the intersection product of divisor classes in the Chow ring of a product of projective spaces to obtain an enumerative integer.",
+      "preconditions": "A projective variety expressed as a product of projective spaces with known divisor class relations; cycles to intersect are represented by classes in the Chow ring.",
+      "postconditions": "An integer equal to the degree of the zero\u2011dimensional cycle representing the intersection.",
+      "example": "In \\(\\mathbb{P}^1 \\times \\mathbb{P}^1\\), intersect the divisor class \\(\\mathcal{O}(1,0)\\) with \\(\\mathcal{O}(0,1)\\); the Chow ring computation yields the number one, reflecting that a horizontal line meets a vertical line in a single point."
+    },
+    {
+      "name": "apply_bertini_smoothness",
+      "description": "Use Bertini's theorem to guarantee that a general member of a base\u2011point\u2011free linear system is smooth.",
+      "preconditions": "A base\u2011point\u2011free linear system on a smooth variety over an algebraically closed field of characteristic zero (or sufficiently large characteristic).",
+      "postconditions": "Existence of a smooth divisor representing a generic element of the linear system.",
+      "example": "On a smooth quadric surface, the linear system of hyperplane sections is base\u2011point\u2011free; Bertini implies a general hyperplane section is a smooth curve of genus zero."
+    },
+    {
+      "name": "use_frobenius_trace_formula",
+      "description": "Apply the Grothendieck\u2013Lefschetz trace formula to express the number of rational points over a finite field in terms of the trace of Frobenius on \u00e9tale cohomology.",
+      "preconditions": "A proper variety defined over a finite field.",
+      "postconditions": "An equality \\(\\#X(\\mathbb{F}_q)=\\sum_i (-1)^i \\operatorname{Tr}(\\mathrm{Frob}_q\\mid H^i_{\\text{\u00e9t}}(X_{\\overline{\\mathbb{F}}_q},\\mathbb{Q}_\\ell))\\).",
+      "example": "For a smooth projective curve of genus one, the trace formula relates \\(\\#C(\\mathbb{F}_q)\\) to the eigenvalues of Frobenius on its first cohomology group."
+    },
+    {
+      "name": "estimate_point_counts_via_weil_bounds",
+      "description": "Use the Weil conjectures to bound the deviation of point counts from the expected main term given by the dimension of the variety.",
+      "preconditions": "A smooth projective variety over a finite field with known Betti numbers.",
+      "postconditions": "Inequalities of the form \\(|\\#X(\\mathbb{F}_q)-q^{\\dim X}| \\leq C\\,q^{\\dim X-1/2}\\) where \\(C\\) depends on the Betti numbers.",
+      "example": "For a smooth surface, the bound \\(|\\#S(\\mathbb{F}_q)-q^2| \\leq (b_1+2b_2)q^{3/2}\\) follows from the Weil estimates."
+    },
+    {
+      "name": "compute_degree_of_finite_etale_map",
+      "description": "Determine the degree of a finite \u00e9tale morphism by counting points in a geometric fiber.",
+      "preconditions": "A finite \u00e9tale morphism between integral schemes, with at least one geometric point of the target where the fiber is known.",
+      "postconditions": "An integer equal to the number of points in any geometric fiber, i.e., the degree of the covering.",
+      "example": "The map \\(\\mathbb{A}^1 \\to \\mathbb{A}^1\\) given by \\(t \\mapsto t^2\\) is finite \u00e9tale over the complement of the origin; each fiber consists of two points, so the degree is two."
+    },
+    {
+      "name": "use_chebotarev_density_for_fiber_statistics",
+      "description": "Apply Chebotarev density to relate the average size of fibers over rational points of varying finite fields to the degree of a finite \u00e9tale cover.",
+      "preconditions": "A finite \u00e9tale cover defined over the integers, and a family of finite fields of increasing size.",
+      "postconditions": "The limit of the average fiber cardinality equals the degree of the cover.",
+      "example": "For the cover \\(\\mathbb{G}_m \\to \\mathbb{G}_m\\) given by \\(x \\mapsto x^n\\), Chebotarev implies that the average number of \\(n\\)th roots of a random element in \\(\\mathbb{F}_p^\\times\\) tends to \\(n\\) as \\(p\\) grows."
+    },
+    {
+      "name": "apply_hilbert_scheme_parameterization",
+      "description": "Construct the Hilbert scheme to parametrize subschemes of projective space with a fixed Hilbert polynomial.",
+      "preconditions": "A projective space and a prescribed Hilbert polynomial.",
+      "postconditions": "A projective scheme representing the functor of families of subschemes with that Hilbert polynomial.",
+      "example": "The Hilbert scheme of points of length three in \\(\\mathbb{P}^2\\) is a smooth six\u2011dimensional variety parametrizing zero\u2011dimensional subschemes of degree three."
+    },
+    {
+      "name": "use_deformation_to_generic_fiber",
+      "description": "Transfer enumerative information from the generic fiber of a flat family to special fibers by deformation invariance.",
+      "preconditions": "A flat family over an irreducible base with a known count on the generic fiber.",
+      "postconditions": "The same count holds for every fiber, provided the conditions defining the count vary continuously in the family.",
+      "example": "A family of plane curves of degree three degenerating to a union of a line and a conic preserves the number of inflection points, which is nine on the smooth generic fiber."
+    },
+    {
+      "name": "perform_inclusion_exclusion_on_incidence_conditions",
+      "description": "Count objects satisfying several incidence conditions by applying the inclusion\u2013exclusion principle to the corresponding subsets.",
+      "preconditions": "Finite sets of objects and a collection of incidence conditions whose intersections can be enumerated.",
+      "postconditions": "An integer equal to the number of objects meeting all conditions simultaneously.",
+      "example": "To count lines in \\(\\mathbb{P}^3\\) meeting two given skew lines, apply inclusion\u2013exclusion to the sets of lines meeting each line individually and their intersection."
+    },
+    {
+      "name": "apply_monodromy_transitivity_to_irreducibility",
+      "description": "Use the transitivity of the monodromy group on the fibers of a family to deduce that the covering is irreducible.",
+      "preconditions": "A connected base, a finite \u00e9tale cover, and a monodromy action that is transitive on a generic fiber.",
+      "postconditions": "The total space of the cover is irreducible (or geometrically connected).",
+      "example": "For the family of square roots of a generic polynomial, the Galois group acts transitively on the two roots, implying the corresponding double cover of the parameter space is irreducible."
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "run_idx": 3,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "compute_chow_class_of_incidence_condition",
+      "description": "Determines the class of a divisor representing a geometric incidence such as tangency in the Chow ring of a product of parameter spaces.",
+      "preconditions": "A smooth parameter space is given together with a geometric condition defined by a regular section of a vector bundle.",
+      "postconditions": "Produces the Chow class of the incidence divisor expressed in terms of the generators of the Chow ring.",
+      "example": "In the product P^2 \u00d7 P^2, the class of pairs (p,\u2113) with p lying on \u2113 is the product of the hyperplane class from the first factor and the hyperplane class from the second factor."
+    },
+    {
+      "name": "apply_bezout_to_intersection_product",
+      "description": "Uses B\u00e9zout's theorem to compute the degree of the intersection of hypersurfaces given their classes in a projective space.",
+      "preconditions": "The intersection is proper and the varieties are defined by homogeneous equations of known degrees.",
+      "postconditions": "Returns the product of the degrees as the number of points counted with multiplicity.",
+      "example": "Two plane curves of degrees a and b intersect in a\u00b7b points counted with multiplicity."
+    },
+    {
+      "name": "use_generic_finiteness_of_projection",
+      "description": "Shows that the projection from a closed subscheme to a factor is generically finite by checking dimension equality and dominance.",
+      "preconditions": "A closed subscheme of a product has expected codimension equal to the dimension of its fibers.",
+      "postconditions": "Establishes the existence of a dense open where the projection is finite.",
+      "example": "For the incidence correspondence of lines meeting a fixed line in P^3, the projection to the Grassmannian of lines is generically finite."
+    },
+    {
+      "name": "compute_etale_monodromy_group",
+      "description": "Determines the monodromy group acting on the fibers of a finite \u00e9tale map by analyzing how loops in the base permute the points.",
+      "preconditions": "A finite \u00e9tale cover over a connected base is given.",
+      "postconditions": "Provides the permutation group describing the action on a generic fiber.",
+      "example": "The cover of the space of binary cubics by the set of their roots has full symmetric monodromy."
+    },
+    {
+      "name": "derive_average_fiber_size_via_chebotarev",
+      "description": "Relates the average cardinality of fibers over finite fields to the proportion of elements fixing a point in the monodromy group using Chebotarev density.",
+      "preconditions": "A finite \u00e9tale cover is defined over the integers and its monodromy group is known.",
+      "postconditions": "Gives the limiting average fiber size as the ratio of fixed\u2011point elements in the group.",
+      "example": "For a cover of some degree with full symmetric monodromy, the average number of rational points in fibers tends to one."
+    },
+    {
+      "name": "apply_grothendieck_lefschetz_trace_formula",
+      "description": "Computes the number of rational points of a variety over a finite field by summing traces of Frobenius on \u00e9tale cohomology.",
+      "preconditions": "The variety is separated of finite type over a finite field.",
+      "postconditions": "Expresses the point count in terms of cohomological data.",
+      "example": "For a smooth projective curve of genus g, the point count equals q+1 minus the sum of the Frobenius eigenvalues on the first cohomology."
+    },
+    {
+      "name": "perform_deformation_to_transverse_configuration",
+      "description": "Replaces a given geometric configuration by a nearby one where conditions become transverse, preserving enumerative invariants.",
+      "preconditions": "The original configuration lies in a parameter space where generic members satisfy transversality.",
+      "postconditions": "Yields a configuration for which intersection numbers can be computed directly.",
+      "example": "Deforming a set of concurrent lines to a general position so that each pair meets in a distinct point."
+    },
+    {
+      "name": "use_hilbert_scheme_of_curves_as_parameter_space",
+      "description": "Models families of curves of fixed degree and genus as points of a Hilbert scheme to apply scheme\u2011theoretic tools.",
+      "preconditions": "Curves are embedded in a projective space with a fixed Hilbert polynomial.",
+      "postconditions": "Provides a fine moduli space representing families of such curves.",
+      "example": "The Hilbert scheme of lines in P^3 is isomorphic to the Grassmannian Gr(1,3)."
+    },
+    {
+      "name": "apply_inclusion_exclusion_to_multiple_incidence_conditions",
+      "description": "Computes the class or count of objects satisfying several possibly overlapping conditions by alternating sums over intersections.",
+      "preconditions": "Each individual condition is represented by a class or count, and intersections of any subset are understood.",
+      "postconditions": "Produces the corrected total count avoiding over\u2011counting.",
+      "example": "Counting points lying on at least one of two lines in the plane by adding the counts on each line and subtracting the count on their intersection."
+    },
+    {
+      "name": "evaluate_limit_of_rational_point_ratios_using_hasse_weil_estimates",
+      "description": "Shows that the ratio of point counts to the size of the base field approaches a constant by bounding error terms via Weil conjectures.",
+      "preconditions": "Families are defined over finite fields and have fixed dimensions and smooth fibers.",
+      "postconditions": "Guarantees convergence of the average to the expected value.",
+      "example": "For a family of smooth conics over a finite field, the number of rational points divided by the field size approaches one as the field grows."
+    }
+  ]
+}

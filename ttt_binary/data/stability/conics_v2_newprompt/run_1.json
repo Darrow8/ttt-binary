@@ -1,0 +1,76 @@
+{
+  "run_idx": 1,
+  "n_skills": 10,
+  "skills": [
+    {
+      "name": "average_fiber_size_via_degree",
+      "description": "For a finite \u00e9tale morphism \u03c0\u202f:\u202fX\u202f\u2192\u202fY of varieties defined over \u2124, the limit of the average size of the fibers over Y(\ud835\udd3d_p) as p\u2192\u221e equals the geometric degree of \u03c0.",
+      "preconditions": "\u03c0 is finite \u00e9tale over a dense open subset of Y, and both X and Y are defined over \u2124 with well\u2011defined reductions modulo p for all sufficiently large primes.",
+      "postconditions": "The asymptotic average \n\\(\\lim_{p\\to\\infty}\\frac{1}{\\#Y(\ud835\udd3d_p)}\\sum_{y\\in Y(\ud835\udd3d_p)}\\#\u03c0^{-1}(y)\\) is identified with deg(\u03c0).",
+      "example": "Let X\u2282A^2 be defined by y^2 = x^3 + x and \u03c0(x,y)=x. Over \u2124 this map is finite \u00e9tale away from the discriminant \u0394=\u22124. Its geometric degree is 2, so the average number of solutions to y^2 = x^3 + x modulo p tends to 2 as p\u2192\u221e."
+    },
+    {
+      "name": "lang_weil_point_estimate",
+      "description": "Give an estimate for the number of \ud835\udd3d_q\u2011points of a variety V of dimension d and degree D, namely \\(\\#V(\ud835\udd3d_q)=q^d+O(q^{d-1/2})\\), using the Lang\u2013Weil theorem.",
+      "preconditions": "V is a geometrically irreducible projective (or affine) variety defined over \ud835\udd3d_q, with known dimension d and degree D.",
+      "postconditions": "An asymptotic formula for \\(\\#V(\ud835\udd3d_q)\\) with an explicit error term O(q^{d-1/2}) is obtained.",
+      "example": "For the smooth plane conic C: x^2 + y^2 = 1 in \u2119^2 over \ud835\udd3d_q, d=1 and D=2, so \\(\\#C(\ud835\udd3d_q)=q+1+O(\\sqrt{q})\\)."
+    },
+    {
+      "name": "chebotarev_density_for_fiber_sizes",
+      "description": "Use the Chebotarev density theorem to relate the distribution of Frobenius conjugacy classes in the Galois group of a finite cover to the frequencies of different fiber cardinalities over \ud835\udd3d_p\u2011points.",
+      "preconditions": "A finite Galois cover f\u202f:\u202fX\u202f\u2192\u202fY defined over a number field, with Galois group G, and a description of how each conjugacy class determines the cycle type of the fiber over a rational point.",
+      "postconditions": "Statistical proportions of each possible fiber size are expressed in terms of the proportion of corresponding conjugacy classes in G.",
+      "example": "For the cover of the line given by the polynomial t^3\u20112, the Galois group is S_3. Chebotarev tells us that over \ud835\udd3d_p, the polynomial splits completely (fiber size 3) for 1/6 of the primes, has one linear and one quadratic factor (fiber size 2) for 1/2 of the primes, and remains irreducible (fiber size 1) for 1/3 of the primes."
+    },
+    {
+      "name": "tangency_condition_as_resultant",
+      "description": "Express the condition that two plane conics C\u2081 and C\u2082 are tangent by requiring the discriminant of the intersection polynomial to vanish, equivalently the resultant of their defining quadrics and a linear combination equals zero.",
+      "preconditions": "Two conics given by homogeneous quadratic forms Q\u2081(x,y,z) and Q\u2082(x,y,z) in \u2119^2.",
+      "postconditions": "A single homogeneous polynomial equation R(Q\u2081,Q\u2082)=0 in the coefficients of Q\u2081 and Q\u2082, which cuts out the tangency locus in the product of the parameter spaces.",
+      "example": "If C\u2081: x^2 + y^2 = z^2 and C\u2082: ax^2 + by^2 = cz^2, the tangency condition reduces to (a\u2212b)^2 = 4c(a+b), the vanishing of a resultant of the two quadrics."
+    },
+    {
+      "name": "compute_degree_of_projection",
+      "description": "Determine the degree of a projection map from an incidence variety to a parameter space by counting the number of solutions of the defining equations for a generic point of the target.",
+      "preconditions": "An incidence variety I\u2282X\u00d7Y defined by algebraic equations, and the projection \u03c0\u202f:\u202fI\u2192Y is dominant and generically finite.",
+      "postconditions": "The geometric degree deg(\u03c0) is obtained as the number of points in the fiber over a generic y\u2208Y, often computed by solving a zero\u2011dimensional system.",
+      "example": "Let I\u2282(\u2119^2)^{*}\u00d7\u2119^2 be the set of pairs (\u2113,P) with P\u2208\u2113. The projection to the dual projective plane has degree 1 because a generic line \u2113 meets the plane in exactly one point of the incidence variety."
+    },
+    {
+      "name": "generic_finiteness_and_etaleness_criterion",
+      "description": "Apply the Jacobian (or differential) criterion to a morphism to identify a dense open subset of the target over which the map is finite and \u00e9tale.",
+      "preconditions": "A morphism f\u202f:\u202fX\u2192Y of varieties over a field, with X and Y smooth, and the relative dimension of X over Y is zero at generic points.",
+      "postconditions": "An explicit open subset U\u2282Y where the Jacobian matrix has full rank, guaranteeing that f|_{f^{-1}(U)} is finite \u00e9tale.",
+      "example": "For the map \u03c0:\u202f\u2119^1\u00d7\u2119^1 \u2192 \u2119^1 given by (s,t)\u21a6s^2+t^2, the Jacobian determinant 2s\u00b72t is non\u2011zero away from the coordinate axes, so \u03c0 is \u00e9tale over the complement of {s=0}\u222a{t=0}."
+    },
+    {
+      "name": "grothendieck_ltrace_point_count",
+      "description": "Use the Grothendieck\u2013Lefschetz trace formula to express the number of \ud835\udd3d_q\u2011points of a variety as an alternating sum of traces of Frobenius on its \u2113\u2011adic cohomology groups.",
+      "preconditions": "A separated scheme X of finite type over \ud835\udd3d_q, and a prime \u2113\u2260char\u202f\ud835\udd3d_q.",
+      "postconditions": "An equality \\(\\#X(\ud835\udd3d_q)=\\sum_{i\\ge0}(-1)^i\\operatorname{Tr}(\\mathrm{Frob}_q\\mid H^i_c(X_{\\overline{\ud835\udd3d}_q},\\mathbb Q_\\ell))\\).",
+      "example": "For X=\u2119^1 over \ud835\udd3d_q, the only non\u2011zero compactly supported cohomology groups are H^0_c\u2245\u211a_\u2113 and H^2_c\u2245\u211a_\u2113(-1); the trace formula gives \\(\\#\u2119^1(\ud835\udd3d_q)=q+1\\)."
+    },
+    {
+      "name": "determine_monodromy_group",
+      "description": "Compute the monodromy (Galois) group of a family of covers by analyzing how loops in the base permute the points in a generic fiber, often showing it is the full symmetric group.",
+      "preconditions": "A dominant, generically finite morphism f\u202f:\u202fX\u2192Y with X irreducible and Y smooth, and a description of the branch locus.",
+      "postconditions": "Identification of the monodromy group G\u2282S_n (n=deg\u202ff), which can be used to infer uniformity of fiber sizes and transitivity properties.",
+      "example": "For the cover of the line given by y^n = x(x-1), the monodromy group is the full cyclic group \u2124/n\u2124 acting transitively on the n sheets."
+    },
+    {
+      "name": "bertini_smoothness_for_parameter_spaces",
+      "description": "Apply Bertini\u2019s theorem to guarantee that a general member of a linear system (e.g., a conic) is smooth, thereby defining a dense open subset of the parameter space.",
+      "preconditions": "A linear system of divisors on a smooth projective variety, and a base field that is infinite (or sufficiently large finite).",
+      "postconditions": "Existence of a non\u2011empty Zariski open subset U of the parameter space such that every point corresponds to a smooth divisor.",
+      "example": "In the projective space \u2119^5 parametrizing plane conics, the discriminant hypersurface \u0394\u2282\u2119^5 cuts out singular conics; its complement U=\u2119^5\\\u0394 is the open set of smooth conics."
+    },
+    {
+      "name": "inclusion_exclusion_to_remove_degenerate_fibers",
+      "description": "Use the principle of inclusion\u2013exclusion to subtract contributions from fibers where the morphism fails to be \u00e9tale (e.g., where tangency conditions become degenerate).",
+      "preconditions": "A finite morphism \u03c0\u202f:\u202fX\u2192Y with a known closed subset D\u2282Y where \u03c0 is not \u00e9tale, and point\u2011count formulas for both X and \u03c0^{-1}(D).",
+      "postconditions": "An adjusted count \\(\\#\u03c0^{-1}(Y\\setminus D)(\ud835\udd3d_q)=\\#X(\ud835\udd3d_q)-\\#\u03c0^{-1}(D)(\ud835\udd3d_q)\\), leading to a refined average fiber size.",
+      "example": "For the map \u03c0:\u202fA^1\u2192A^1 given by t\u21a6t^2, the branch point 0 is degenerate. Over \ud835\udd3d_p, \\#\u03c0^{-1}(\ud835\udd3d_p)=p, and \\#\u03c0^{-1}(0)=1, so after exclusion the average over non\u2011branch points is (p\u20111)/ (p\u20111)=1, matching the degree away from the branch."
+    }
+  ]
+}

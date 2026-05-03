@@ -1,0 +1,77 @@
+{
+  "problem_id": "conics-v3-full",
+  "n_skills": 10,
+  "model": "openai/gpt-oss-120b-maas",
+  "skills": [
+    {
+      "name": "construct_incidence_correspondence",
+      "description": "Form a closed subscheme of a product of parameter spaces that encodes a geometric relation such as tangency, incidence, or containment.",
+      "preconditions": "Parameter spaces for families of varieties are given together with a relation describable by polynomial equations.",
+      "postconditions": "Obtains an incidence variety whose points correspond exactly to tuples satisfying the prescribed relation.",
+      "example": "Consider the set of pairs consisting of a line in the projective plane and a point lying on that line; this defines a closed subscheme of the product of the space of lines and the plane."
+    },
+    {
+      "name": "compute_chow_ring_product",
+      "description": "Perform intersection product calculations in the Chow ring of a smooth projective variety using known divisor classes.",
+      "preconditions": "The Chow ring of the variety has a known presentation and the divisor classes representing the conditions are identified.",
+      "postconditions": "Produces the class of the intersection, from which degrees and other numerical invariants can be extracted.",
+      "example": "In the projective plane, intersect the class of a line with itself; the result is the class of a point."
+    },
+    {
+      "name": "apply_bezout_theorem_for_tangency",
+      "description": "Use B\u00e9zout\u2019s theorem to compute the total intersection number of hypersurfaces, incorporating appropriate multiplicities when tangency occurs.",
+      "preconditions": "Two hypersurfaces in projective space are given with known degrees, and the intersection is proper after accounting for tangency multiplicities.",
+      "postconditions": "Gives the total intersection number, counting each solution with its appropriate multiplicity.",
+      "example": "Compute the intersection number of a conic and a line when the line is tangent to the conic, counting the tangency with the appropriate multiplicity."
+    },
+    {
+      "name": "verify_finite_etale_via_jacobian",
+      "description": "Check that a morphism is finite \u00e9tale at a point by confirming that the Jacobian matrix has maximal rank and that the fiber is zero\u2011dimensional.",
+      "preconditions": "A morphism between varieties is presented explicitly by polynomial maps, and a point in the source is specified.",
+      "postconditions": "Concludes that the morphism is unramified and flat at that point, hence \u00e9tale locally.",
+      "example": "For the map (x, y) \u21a6 (x\u00b2, y\u00b2) from affine plane to itself, verify \u00e9taleness away from the coordinate axes by checking that the Jacobian determinant does not vanish."
+    },
+    {
+      "name": "compute_degree_of_projection_map",
+      "description": "Determine the degree of a projection from an incidence variety to one factor by counting points in a generic fiber.",
+      "preconditions": "An incidence variety is defined as a closed subscheme of a product, together with the projection onto a chosen factor, and the projection is known to be finite.",
+      "postconditions": "Provides the integer degree, i.e., the cardinality of a generic fiber of the projection.",
+      "example": "Project the incidence variety of pairs (line, point on line) onto the space of lines; a generic fiber consists of a single point, so the degree is one."
+    },
+    {
+      "name": "use_lang_weil_estimates_for_point_counts",
+      "description": "Apply the Lang\u2013Weil estimate to bound the number of rational points on a geometrically irreducible variety over a finite field in terms of its dimension and degree.",
+      "preconditions": "A geometrically irreducible variety defined over a finite field is given together with its dimension and degree.",
+      "postconditions": "Yields an approximation of the point count up to an error term of order the field size raised to one less than the dimension.",
+      "example": "Estimate the number of points on a smooth plane cubic over a large prime field using its degree and dimension."
+    },
+    {
+      "name": "pass_to_generic_fiber_via_flatness",
+      "description": "Use generic flatness to replace a family by its generic fiber, ensuring that properties verified on the generic fiber hold over a dense open subset of the base.",
+      "preconditions": "A morphism of finite type between Noetherian schemes is given.",
+      "postconditions": "Identifies a dense open subset of the base where the morphism is flat, allowing reduction to the generic fiber for further analysis.",
+      "example": "For a family of curves parametrized by a line, find an open set where all fibers are smooth by invoking generic flatness."
+    },
+    {
+      "name": "apply_schwartz_zippel_to_estimate_fiber_sizes",
+      "description": "Use the Schwartz\u2013Zippel lemma to bound the probability that a random specialization of variables satisfies a nonzero polynomial, thereby estimating the size of fibers over finite fields.",
+      "preconditions": "A nonzero polynomial in several variables over a finite field is given, together with a random choice of values for a subset of the variables.",
+      "postconditions": "Provides an upper bound on the proportion of specializations that lie in the zero set, useful for estimating average fiber cardinalities.",
+      "example": "Estimate how often a random pair (a, b) in a finite field satisfies a\u00b7b = 0 by applying the Schwartz\u2013Zippel bound."
+    },
+    {
+      "name": "employ_inclusion_exclusion_on_component_counts",
+      "description": "Apply the inclusion\u2013exclusion principle to express the count of components satisfying multiple conditions in terms of counts for individual and intersecting conditions.",
+      "preconditions": "A finite collection of closed subsets of a variety is given, and the goal is to count components meeting all of them.",
+      "postconditions": "Produces a formula combining individual component counts and counts of their intersections to obtain the desired total.",
+      "example": "Count the number of lines in the plane that pass through at least one of a pair of given points by subtracting the line that passes through both."
+    },
+    {
+      "name": "translate_average_over_finite_fields_to_geometric_degree",
+      "description": "Relate the limit of average numbers of rational points over growing finite fields to the geometric degree of a generically finite morphism.",
+      "preconditions": "A morphism of varieties that is generically finite is given, and one considers the average size of fibers over rational points of the base as the field size grows.",
+      "postconditions": "Concludes that the limit of the average fiber cardinality equals the degree of the morphism.",
+      "example": "For the projection from a curve embedded in a product to one factor, the average number of points in fibers over large finite fields approaches the degree of the projection."
+    }
+  ]
+}

@@ -2,12 +2,13 @@
 GRPO training on subproblems derived from a hard source problem.
 
 Workflow:
-    1. keeps.json contains a hard problem the model can't solve (0/100)
-       and 21 easier subproblems with majority-vote ground truth.
-    2. This script runs GRPO on those 21 subproblems for several epochs
+    1. keeps_deduped_100.json contains a hard problem the model can't solve
+       and 100 diversity-deduped subproblems (across 10 reasoning skills)
+       with majority-vote ground truth.
+    2. This script runs GRPO on those subproblems for several epochs
        so the model learns the component reasoning skills.
     3. After training, evaluate the hard problem again to see if the
-       model can now produce correct answers (target: >0/100).
+       model can now produce correct answers.
 
 Usage::
 
@@ -39,12 +40,13 @@ logging.getLogger("httpx").setLevel(logging.WARN)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
-# 21 subproblems → batch_size=21 means 1 step per epoch.
+# 100 deduped subproblems → batch_size=50 means exactly 2 batches/epoch with
+# all 100 used (trainer.py uses n_batches = len(problems) // batch_size).
 # Run enough epochs for the model to learn all subproblems.
 
 config = GRPOConfig(
     model_name="openai/gpt-oss-120b",
-    log_dir=str(_REPO_ROOT / "subproblems-run"),
+    log_dir=str(_REPO_ROOT / "subproblems-run-deduped100"),
 
     batch_size=50,
     group_size=16,
@@ -54,7 +56,7 @@ config = GRPOConfig(
 
     save_every=5,
 
-    wandb_project="c-100-run-originalbatch-2",
+    wandb_project="conics-tangent-5-v2-deduped100",
 
     temperature=0.7,
     system_prompt="""
@@ -77,7 +79,9 @@ EPOCHS = 50
 
 # ── Problems ───────────────────────────────────────────────────────────────
 
-problems = load_problems(str(_REPO_ROOT / "problems" / "conics-100.jsonl"))
+problems = load_problems(
+    str(_REPO_ROOT / "runs" / "conics-tangent-5-v2" / "subproblems.jsonl")
+)
 
 
 # ── Reward function ────────────────────────────────────────────────────────
