@@ -430,41 +430,77 @@ def decide_multipart(
 
 
 def regen_feedback_multipart(decision: MultipartDecision) -> str:
-    """Concrete instruction for the next generation attempt, given a multipart outcome."""
+    """Concrete generic feedback for the next generation attempt. Names the
+    bottleneck part and points to specific structural levers (parameter
+    magnitudes, depth, ambiguity sources) rather than generic harder/easier
+    advice. Pairs with the data-driven judge feedback (`_observe_shortcuts`)
+    in stage3."""
     if decision.kind == "REJECT_TOO_EASY":
         per_part_summary = ", ".join(
             f"{p.label}={p.p1:.0%}" for p in decision.per_part
         )
+        easiest = max(decision.per_part, key=lambda p: p.p1) if decision.per_part else None
+        easiest_str = (
+            f"part ({easiest.label}) was solved {easiest.p1:.0%} of the time"
+            if easiest else ""
+        )
         return (
-            f"- The previous problem was too easy: r_bar={decision.r_bar:.2f} "
-            f"(per-part solve rates: {per_part_summary}). At least one part "
-            "must require a nontrivial computation: increase the depth of one "
-            "part's required derivation, ensure it cannot be solved by recall, "
-            "or replace a textbook setup with a non-canonical instance."
+            f"- TOO EASY: r_bar={decision.r_bar:.2f} > 0.6 ceiling "
+            f"(per-part: {per_part_summary}). {easiest_str}. To recalibrate: "
+            "(i) replace any part that asks for a textbook constant or named "
+            "result; (ii) increase the magnitude of at least one numerical "
+            "parameter so the answer cannot be guessed by inspection; "
+            "(iii) ensure each part's input genuinely changes its output, "
+            "not just its name. Keep all skills in the chain."
         )
     if decision.kind == "REJECT_AMBIGUOUS":
+        ambig = max(decision.per_part, key=lambda p: p.p2) if decision.per_part else None
+        ambig_loc = (
+            f"part ({ambig.label}) had p1={ambig.p1:.0%}, p2={ambig.p2:.0%}"
+            if ambig else "one part split ~50/50"
+        )
         return (
-            f"- {decision.reason}. The ambiguous part has multiple valid "
-            "interpretations or its answer depends on a representative choice. "
-            "Re-state that part so the answer is uniquely determined by the "
-            "stated conditions."
+            f"- AMBIGUOUS: {ambig_loc}. Two valid answers exist for this "
+            "part. Pick ONE by: (i) restricting to a specific root "
+            "('the unique POSITIVE x ...' / 'the smaller of the two ...'); "
+            "(ii) fixing a convention (principal value, ascending order, "
+            "smallest absolute value); (iii) tightening the wording so "
+            "only one interpretation is admissible. Keep the skill chain "
+            "intact."
         )
     if decision.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS":
-        # Find the worst part for diagnosis.
         worst = min(decision.per_part, key=lambda p: p.p1) if decision.per_part else None
         if worst is None:
             return (
-                "- No parseable consensus on any part. The problem may be "
-                "ill-posed or unsolvable. Simplify the framing and ensure "
-                "every part has a single real-number answer rounded to 4 "
-                "decimal places inside \\boxed{}."
+                "- TOO HARD / ILL-POSED: no parseable consensus on any part. "
+                "Simplify the framing and ensure every part has a single "
+                "real-number answer reportable inside \\boxed{} rounded to 4 "
+                "decimals. Reduce numerical parameters by ~10x and remove "
+                "any free parameters or unbound variables."
             )
+        # Distinguish failure modes encoded by REJECT_TOO_HARD_OR_AMBIGUOUS.
+        if worst.n_unparseable >= 5 and worst.p1 == 0.0:
+            cause = (
+                "critics produced no parseable answer for that part — the "
+                "wording or output format is likely unclear"
+            )
+        elif worst.p1 < 0.3:
+            cause = (
+                "critics scattered across many wrong answers — likely "
+                "arithmetic overload or a missing constraint"
+            )
+        else:
+            cause = "aggregate r_bar fell below band despite parts being parseable"
         return (
-            f"- The previous problem was too hard or ill-posed: "
-            f"r_bar={decision.r_bar:.2f}, weakest part {worst.label!r} had "
-            f"p1={worst.p1:.2f}. Simplify that part — reduce parameter sizes, "
-            "remove a source of bookkeeping complexity, or clarify the "
-            "wording. Keep all skills in the chain."
+            f"- TOO HARD: r_bar={decision.r_bar:.2f} < 0.4 floor. Weakest part "
+            f"({worst.label}) had p1={worst.p1:.0%}, "
+            f"unparseable={worst.n_unparseable}/{decision.n_total}. "
+            f"Likely cause: {cause}. To recalibrate: "
+            f"(i) shrink the largest numerical parameter in part ({worst.label}) "
+            "by ~10x; (ii) if the part has free choices (roots, signs, "
+            "conventions), pin them with a uniqueness clause; (iii) if the "
+            "part requires multi-case reasoning, replace with the simplest "
+            "representative case. Keep all skills in the chain."
         )
     return "- Aim for r_bar near 0.5 with each part well-posed."
 

@@ -180,53 +180,125 @@ def _hint_from_decision(prev: MultipartDecision | None,
     return "\n".join(parts)
 
 
-SHORTCUT_JUDGE_SYSTEM = """\
-You analyze how an LLM solved a multi-part math problem. Given the problem, \
-the m intended skills, and a sample of solution traces (all of which produced \
-the correct final answers), identify the most common SHORTCUT — i.e., a step \
-or technique the solver used that bypassed one or more of the intended \
-skills, leveraging memorized facts or simpler arguments instead of the \
-intended chain.
+DIAGNOSE_JUDGE_SYSTEM = """\
+You diagnose why a multi-part math problem fell outside its target difficulty \
+band, given the problem, the m intended skills, and a sample of solver traces.
 
-Output a single, concrete description of the dominant shortcut, suitable \
-for inclusion in a regeneration prompt asking the generator to block this \
-approach in the next problem."""
+You produce a CONCRETE one-sentence diagnosis and a CONCRETE one-sentence regen \
+instruction the generator can use to fix the next attempt. Generic advice \
+("simplify it", "make it harder") is not useful — always name WHICH part is the \
+bottleneck and WHAT specific structural change addresses it. If the diagnosis \
+isn't clear from the traces, respond with nulls so the generator gets generic \
+band-based feedback instead.
+"""
 
 
-SHORTCUT_JUDGE_PROMPT = """\
-A multi-part math problem and {n_traces} of its correct solution traces are \
-below. The problem was designed to require chaining the {m} listed skills, \
-but the solver found a way to reach the correct answers without genuinely \
-chaining them.
+# --- TOO_EASY: identify the shortcut across correct traces ----------------
+SHORTCUT_PROMPT = """\
+A multi-part math problem with intended {m}-skill chain is below. {n_traces} \
+critic traces all reached the CORRECT answers, but r_bar={r_bar:.2f} (well above \
+the 0.6 ceiling), suggesting they bypassed the chain via a shortcut.
 
-Your task: identify the DOMINANT SHORTCUT that appears across the traces \
-and return a one-sentence description of it, plus the list of intended \
-skills it bypassed.
+Identify the DOMINANT SHORTCUT across these traces.
 
 Problem:
 ---
 {rendered_problem}
 ---
 
-Intended skills (the author's chain):
+Intended skills:
 {skills_block}
 
-Sample of correct solution traces:
+Per-part solve rates: {per_part_rates}
+
+Correct solution traces:
 {traces_block}
 
-Respond as a single JSON object (no prose around it):
+Respond as a JSON object:
 {
-  "dominant_shortcut": "<concrete one-sentence description of how the traces bypass the intended chain — name the technique they used instead, e.g. 'recognize that the n-th root cover has fiber size n directly without invoking monodromy transitivity'>",
-  "blocked_skills": ["<skill_name>", ...],
-  "regen_instruction": "<one-sentence instruction to the generator: how to modify the next problem so this shortcut no longer reaches the answer>"
+  "diagnosis":          "<one-sentence: what shortcut do these traces share that bypasses the intended chain — name the alternative technique>",
+  "responsible_parts":  ["<labels of parts the shortcut bypasses>"],
+  "regen_instruction":  "<one-sentence concrete fix: e.g. 'In part (c), replace the n-th root cover with a quotient by a non-cyclic group so the fiber size cannot be read off the equation.'>"
 }
+If no clear common shortcut, respond with all three keys null.
+"""
 
-If no consistent shortcut is detectable across the traces, respond with:
+
+# --- TOO_HARD: identify why critics fail ----------------------------------
+DIFFICULTY_PROMPT = """\
+A multi-part math problem with intended {m}-skill chain is below. {n_traces} \
+critic traces are shown. The problem was REJECT_TOO_HARD_OR_AMBIGUOUS: \
+r_bar={r_bar:.2f} (below 0.4) or some part had too many unparseable answers.
+
+Identify the DOMINANT cause of failure. Common categories:
+  (1) ARITHMETIC OVERLOAD: solvers know the technique but the numbers are too \
+      large / too many decimal places / too many cases.
+  (2) WORDING AMBIGUITY: the problem is interpretable in multiple ways and \
+      different solvers go down different paths.
+  (3) MISSING CONSTRAINT: the answer is underdetermined (multiple valid roots, \
+      free parameters, conventions).
+  (4) SKILL MISFIT: solvers don't know which technique to use, so they thrash.
+  (5) BAD COMPOSITION: an earlier part's answer makes a later part \
+      ill-defined (e.g. division by zero, log of negative).
+
+Problem:
+---
+{rendered_problem}
+---
+
+Intended skills:
+{skills_block}
+
+Per-part solve rates: {per_part_rates}
+Per-part unparseable counts: {per_part_unparseable}
+
+Solver traces (mixed correctness):
+{traces_block}
+
+Respond as a JSON object:
 {
-  "dominant_shortcut": null,
-  "blocked_skills": [],
-  "regen_instruction": null
+  "diagnosis":          "<one-sentence: which category, which part, what specifically>",
+  "responsible_parts":  ["<labels of the bottleneck parts>"],
+  "regen_instruction":  "<one-sentence concrete simplification: name parameters to shrink, an ambiguity to disambiguate, a constraint to add, etc.>"
 }
+If no clear cause, respond with all three keys null.
+"""
+
+
+# --- AMBIGUOUS: a specific part has two competing answers -----------------
+AMBIGUITY_PROMPT = """\
+A multi-part math problem with intended {m}-skill chain is below. {n_traces} \
+solver traces are shown. The problem was REJECT_AMBIGUOUS: at least one part \
+has two competing answer clusters near 50/50. Per-part stats: \
+{per_part_summary}.
+
+Identify WHY the ambiguous part admits two valid answers. Common causes:
+  (a) TWO REAL ROOTS: an equation has multiple solutions and the problem \
+      doesn't specify which to take.
+  (b) CONVENTION: e.g. principal vs. signed value, branch of complex log, \
+      orientation, ordering.
+  (c) UNCLEAR INPUT: the previous part's answer is itself ambiguous, \
+      cascading into this part.
+  (d) WORDING: the problem statement is interpretable in two senses.
+
+Problem:
+---
+{rendered_problem}
+---
+
+Intended skills:
+{skills_block}
+
+Solver traces (showing the disagreement):
+{traces_block}
+
+Respond as a JSON object:
+{
+  "diagnosis":          "<one-sentence: which part, which two answers, which cause>",
+  "responsible_parts":  ["<labels of ambiguous parts>"],
+  "regen_instruction":  "<one-sentence concrete disambiguation: pin the convention, restrict to one root, add a uniqueness clause, etc.>"
+}
+If unclear, respond with all three keys null.
 """
 
 
@@ -239,6 +311,106 @@ def _format_skills_for_judge(parts_objs: list[dict], per_skill_role: dict) -> st
     return "\n".join(lines)
 
 
+def _format_per_part_rates(decision: MultipartDecision) -> str:
+    return ", ".join(f"{p.label}={p.p1:.2f}" for p in decision.per_part)
+
+
+def _format_per_part_unparseable(decision: MultipartDecision) -> str:
+    return ", ".join(f"{p.label}={p.n_unparseable}" for p in decision.per_part)
+
+
+def _format_per_part_summary(decision: MultipartDecision) -> str:
+    return ", ".join(
+        f"{p.label}: p1={p.p1:.2f}, p2={p.p2:.2f}, "
+        f"top2={list(p.clusters.keys())[:2]}"
+        for p in decision.per_part
+    )
+
+
+def _sample_fully_correct_traces(cal_attempts: list[dict],
+                                 decision: MultipartDecision) -> list[str]:
+    """Traces where every per-part answer matches its consensus."""
+    from ttt_binary.cluster import _canonicalize
+    consensus_canon = {p.label: p.consensus_answer for p in decision.per_part
+                       if p.consensus_answer is not None}
+    out = []
+    for a in cal_attempts:
+        if not a.get("ok") or not a.get("text"):
+            continue
+        pp = a.get("predicted_parts") or {}
+        ok = True
+        for label, cons in consensus_canon.items():
+            pred = pp.get(label)
+            if pred is None or _canonicalize(str(pred)) != cons:
+                ok = False
+                break
+        if ok:
+            out.append(a["text"])
+    return out
+
+
+def _sample_failed_traces(cal_attempts: list[dict],
+                          decision: MultipartDecision) -> list[str]:
+    """Traces that did NOT fully match consensus — the diverse/wrong ones.
+    Includes traces with some parseable answers (informative) but excludes
+    fully-empty failures."""
+    from ttt_binary.cluster import _canonicalize
+    consensus_canon = {p.label: p.consensus_answer for p in decision.per_part
+                       if p.consensus_answer is not None}
+    out = []
+    for a in cal_attempts:
+        if not a.get("ok") or not a.get("text"):
+            continue
+        pp = a.get("predicted_parts") or {}
+        # Trace counts as "failed" if at least one part doesn't match consensus
+        # OR consensus didn't exist for some part (which is itself the failure
+        # signal).
+        any_wrong = False
+        for label in [p.label for p in decision.per_part]:
+            pred = pp.get(label)
+            cons = consensus_canon.get(label)
+            if cons is None:
+                any_wrong = True
+                break
+            if pred is None or _canonicalize(str(pred)) != cons:
+                any_wrong = True
+                break
+        if any_wrong:
+            out.append(a["text"])
+    return out
+
+
+def _sample_competing_cluster_traces(cal_attempts: list[dict],
+                                     decision: MultipartDecision,
+                                     ambiguous_label: str) -> list[str]:
+    """For an ambiguous part, sample traces from BOTH top clusters so the judge
+    can see the disagreement directly."""
+    from ttt_binary.cluster import _canonicalize, UNPARSEABLE
+    # Find the ambiguous part's top two cluster keys.
+    target = next((p for p in decision.per_part if p.label == ambiguous_label), None)
+    if target is None:
+        return []
+    parseable = [(k, v) for k, v in target.clusters.items() if k != UNPARSEABLE]
+    parseable.sort(key=lambda kv: -kv[1])
+    if len(parseable) < 2:
+        return []
+    cluster_a, cluster_b = parseable[0][0], parseable[1][0]
+    in_a, in_b = [], []
+    for a in cal_attempts:
+        if not a.get("ok") or not a.get("text"):
+            continue
+        pp = a.get("predicted_parts") or {}
+        pred = pp.get(ambiguous_label)
+        if pred is None:
+            continue
+        canon = _canonicalize(str(pred))
+        if canon == cluster_a and len(in_a) < 3:
+            in_a.append(a["text"])
+        elif canon == cluster_b and len(in_b) < 3:
+            in_b.append(a["text"])
+    return in_a + in_b
+
+
 def _observe_shortcuts(
     parts_objs: list[dict],
     per_skill_role: dict,
@@ -248,82 +420,102 @@ def _observe_shortcuts(
     judge_model: str,
     max_traces: int = 5,
 ) -> str | None:
-    """Step 2 — observation-driven adversarial regeneration feedback.
+    """Data-driven feedback loop for ALL three rejection modes (symmetric).
 
-    When the decision is REJECT_TOO_EASY, sample up to *max_traces* fully-
-    correct traces (every per-part answer matches consensus), ask a judge
-    to identify the dominant SHORTCUT, and return a one-sentence hint to
-    append to the next generator prompt.
+    Routes by decision.kind:
+      - REJECT_TOO_EASY            -> identify the shortcut (correct traces)
+      - REJECT_TOO_HARD_OR_AMBIGUOUS -> identify the difficulty cause (failed traces)
+      - REJECT_AMBIGUOUS           -> identify why the ambiguous part splits
+                                       (traces from both competing clusters)
+      - ACCEPT or other            -> None
 
-    Returns None if:
-      * the decision wasn't REJECT_TOO_EASY (other failure modes need
-        directional hints, not shortcut blocking)
-      * we have fewer than 2 fully-correct traces (insufficient signal)
-      * the judge call fails or returns no clear shortcut
+    Returns a one-sentence regen hint or None if signal is too weak / judge
+    call fails. The name is preserved for backwards compatibility but the
+    function now handles all failure modes, not just shortcuts.
     """
-    # Only meaningful when the problem was solved by too many attempts.
-    if decision.kind != "REJECT_TOO_EASY":
+    if decision.kind == "ACCEPT" or not decision.per_part:
         return None
 
-    # Build the canonical per-part consensus map for fully-correct filtering.
-    from ttt_binary.cluster import _canonicalize
-    consensus_canon = {}
-    for stat in decision.per_part:
-        if stat.consensus_answer is not None:
-            consensus_canon[stat.label] = stat.consensus_answer
-
-    full_correct: list[str] = []
-    for a in cal_attempts:
-        if not a.get("ok") or not a.get("text"):
-            continue
-        pp = a.get("predicted_parts") or {}
-        all_match = True
-        for label, cons in consensus_canon.items():
-            pred = pp.get(label)
-            if pred is None or _canonicalize(str(pred)) != cons:
-                all_match = False
-                break
-        if all_match:
-            full_correct.append(a["text"])
-
-    if len(full_correct) < 2:
-        return None
-
-    sampled = full_correct[:max_traces]
     rendered = _render_full_problem(parts_objs)
     skills_block = _format_skills_for_judge(parts_objs, per_skill_role or {})
-    traces_block = "\n\n--- TRACE ---\n".join(t[:3500] for t in sampled)
+    per_part_rates = _format_per_part_rates(decision)
+    m = len(parts_objs)
 
-    prompt = (
-        SHORTCUT_JUDGE_PROMPT
-        .replace("{n_traces}", str(len(sampled)))
-        .replace("{m}", str(len(parts_objs)))
-        .replace("{rendered_problem}", rendered)
-        .replace("{skills_block}", skills_block)
-        .replace("{traces_block}", traces_block)
-    )
+    if decision.kind == "REJECT_TOO_EASY":
+        traces = _sample_fully_correct_traces(cal_attempts, decision)[:max_traces]
+        if len(traces) < 2:
+            return None
+        traces_block = "\n\n--- TRACE ---\n".join(t[:3500] for t in traces)
+        prompt = (
+            SHORTCUT_PROMPT
+            .replace("{n_traces}", str(len(traces)))
+            .replace("{m}", str(m))
+            .replace("{r_bar:.2f}", f"{decision.r_bar:.2f}")
+            .replace("{rendered_problem}", rendered)
+            .replace("{skills_block}", skills_block)
+            .replace("{per_part_rates}", per_part_rates)
+            .replace("{traces_block}", traces_block)
+        )
+        tag = "OBSERVED SHORTCUT"
+    elif decision.kind == "REJECT_TOO_HARD_OR_AMBIGUOUS":
+        traces = _sample_failed_traces(cal_attempts, decision)[:max_traces]
+        if len(traces) < 2:
+            return None
+        traces_block = "\n\n--- TRACE ---\n".join(t[:3500] for t in traces)
+        prompt = (
+            DIFFICULTY_PROMPT
+            .replace("{n_traces}", str(len(traces)))
+            .replace("{m}", str(m))
+            .replace("{r_bar:.2f}", f"{decision.r_bar:.2f}")
+            .replace("{rendered_problem}", rendered)
+            .replace("{skills_block}", skills_block)
+            .replace("{per_part_rates}", per_part_rates)
+            .replace("{per_part_unparseable}", _format_per_part_unparseable(decision))
+            .replace("{traces_block}", traces_block)
+        )
+        tag = "OBSERVED DIFFICULTY ISSUE"
+    elif decision.kind == "REJECT_AMBIGUOUS":
+        # Find the ambiguous part (largest p2).
+        ambig = max(decision.per_part, key=lambda p: p.p2)
+        traces = _sample_competing_cluster_traces(cal_attempts, decision, ambig.label)[:max_traces]
+        if len(traces) < 2:
+            return None
+        traces_block = "\n\n--- TRACE ---\n".join(t[:3500] for t in traces)
+        prompt = (
+            AMBIGUITY_PROMPT
+            .replace("{n_traces}", str(len(traces)))
+            .replace("{m}", str(m))
+            .replace("{rendered_problem}", rendered)
+            .replace("{skills_block}", skills_block)
+            .replace("{per_part_summary}", _format_per_part_summary(decision))
+            .replace("{traces_block}", traces_block)
+        )
+        tag = "OBSERVED AMBIGUITY"
+    else:
+        return None
 
     try:
         response = call_openai(
             prompt,
             model=judge_model,
-            system=SHORTCUT_JUDGE_SYSTEM,
+            system=DIAGNOSE_JUDGE_SYSTEM,
             temperature=0.0,
         )
         obj = parse_json_loose(response)
     except Exception:
         return None
 
-    shortcut = obj.get("dominant_shortcut") if isinstance(obj, dict) else None
-    blocked = obj.get("blocked_skills") if isinstance(obj, dict) else []
-    instruction = obj.get("regen_instruction") if isinstance(obj, dict) else None
-    if not shortcut or not instruction:
+    if not isinstance(obj, dict):
+        return None
+    diagnosis = obj.get("diagnosis")
+    responsible = obj.get("responsible_parts") or []
+    instruction = obj.get("regen_instruction")
+    if not diagnosis or not instruction:
         return None
 
-    blocked_str = ", ".join(blocked) if blocked else "(unspecified)"
+    parts_str = ", ".join(responsible) if responsible else "(unspecified)"
     return (
-        f"- OBSERVED SHORTCUT in the previous attempt: {shortcut} "
-        f"(this bypassed: {blocked_str}). "
+        f"- {tag} in the previous attempt (parts {parts_str}): {diagnosis} "
         f"For the next attempt: {instruction}"
     )
 
