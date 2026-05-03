@@ -180,23 +180,152 @@ def _hint_from_decision(prev: MultipartDecision | None,
     return "\n".join(parts)
 
 
+SHORTCUT_JUDGE_SYSTEM = """\
+You analyze how an LLM solved a multi-part math problem. Given the problem, \
+the m intended skills, and a sample of solution traces (all of which produced \
+the correct final answers), identify the most common SHORTCUT — i.e., a step \
+or technique the solver used that bypassed one or more of the intended \
+skills, leveraging memorized facts or simpler arguments instead of the \
+intended chain.
+
+Output a single, concrete description of the dominant shortcut, suitable \
+for inclusion in a regeneration prompt asking the generator to block this \
+approach in the next problem."""
+
+
+SHORTCUT_JUDGE_PROMPT = """\
+A multi-part math problem and {n_traces} of its correct solution traces are \
+below. The problem was designed to require chaining the {m} listed skills, \
+but the solver found a way to reach the correct answers without genuinely \
+chaining them.
+
+Your task: identify the DOMINANT SHORTCUT that appears across the traces \
+and return a one-sentence description of it, plus the list of intended \
+skills it bypassed.
+
+Problem:
+---
+{rendered_problem}
+---
+
+Intended skills (the author's chain):
+{skills_block}
+
+Sample of correct solution traces:
+{traces_block}
+
+Respond as a single JSON object (no prose around it):
+{
+  "dominant_shortcut": "<concrete one-sentence description of how the traces bypass the intended chain — name the technique they used instead, e.g. 'recognize that the n-th root cover has fiber size n directly without invoking monodromy transitivity'>",
+  "blocked_skills": ["<skill_name>", ...],
+  "regen_instruction": "<one-sentence instruction to the generator: how to modify the next problem so this shortcut no longer reaches the answer>"
+}
+
+If no consistent shortcut is detectable across the traces, respond with:
+{
+  "dominant_shortcut": null,
+  "blocked_skills": [],
+  "regen_instruction": null
+}
+"""
+
+
+def _format_skills_for_judge(parts_objs: list[dict], per_skill_role: dict) -> str:
+    lines: list[str] = []
+    for p in parts_objs:
+        sk = p["skill"]
+        role = per_skill_role.get(sk, "(no role provided)")
+        lines.append(f"- part ({p['label']}): {sk}\n    role: {role}")
+    return "\n".join(lines)
+
+
 def _observe_shortcuts(
-    parts: list[dict],
+    parts_objs: list[dict],
+    per_skill_role: dict,
     cal_attempts: list[dict],
     decision: MultipartDecision,
+    *,
+    judge_model: str,
+    max_traces: int = 5,
 ) -> str | None:
-    """STEP 2 STUB — observation-driven adversarial regeneration feedback.
+    """Step 2 — observation-driven adversarial regeneration feedback.
 
-    Future implementation: for each correct critic trace, run a lightweight
-    audit judge to identify which skills were actually invoked and whether
-    the trace took a SHORTCUT around the chain. If a dominant shortcut is
-    detected (e.g. "60% of solvers bypassed skill 2 via Lang-Weil"), return
-    a one-sentence hint to be appended to the next generator prompt:
-        "- Previous attempts were solved via {shortcut}; modify the chain
-         so {shortcut} no longer reaches the answer."
-    For now this returns None — step 2 lives in a follow-up commit.
+    When the decision is REJECT_TOO_EASY, sample up to *max_traces* fully-
+    correct traces (every per-part answer matches consensus), ask a judge
+    to identify the dominant SHORTCUT, and return a one-sentence hint to
+    append to the next generator prompt.
+
+    Returns None if:
+      * the decision wasn't REJECT_TOO_EASY (other failure modes need
+        directional hints, not shortcut blocking)
+      * we have fewer than 2 fully-correct traces (insufficient signal)
+      * the judge call fails or returns no clear shortcut
     """
-    return None
+    # Only meaningful when the problem was solved by too many attempts.
+    if decision.kind != "REJECT_TOO_EASY":
+        return None
+
+    # Build the canonical per-part consensus map for fully-correct filtering.
+    from ttt_binary.cluster import _canonicalize
+    consensus_canon = {}
+    for stat in decision.per_part:
+        if stat.consensus_answer is not None:
+            consensus_canon[stat.label] = stat.consensus_answer
+
+    full_correct: list[str] = []
+    for a in cal_attempts:
+        if not a.get("ok") or not a.get("text"):
+            continue
+        pp = a.get("predicted_parts") or {}
+        all_match = True
+        for label, cons in consensus_canon.items():
+            pred = pp.get(label)
+            if pred is None or _canonicalize(str(pred)) != cons:
+                all_match = False
+                break
+        if all_match:
+            full_correct.append(a["text"])
+
+    if len(full_correct) < 2:
+        return None
+
+    sampled = full_correct[:max_traces]
+    rendered = _render_full_problem(parts_objs)
+    skills_block = _format_skills_for_judge(parts_objs, per_skill_role or {})
+    traces_block = "\n\n--- TRACE ---\n".join(t[:3500] for t in sampled)
+
+    prompt = (
+        SHORTCUT_JUDGE_PROMPT
+        .replace("{n_traces}", str(len(sampled)))
+        .replace("{m}", str(len(parts_objs)))
+        .replace("{rendered_problem}", rendered)
+        .replace("{skills_block}", skills_block)
+        .replace("{traces_block}", traces_block)
+    )
+
+    try:
+        response = call_openai(
+            prompt,
+            model=judge_model,
+            system=SHORTCUT_JUDGE_SYSTEM,
+            temperature=0.0,
+        )
+        obj = parse_json_loose(response)
+    except Exception:
+        return None
+
+    shortcut = obj.get("dominant_shortcut") if isinstance(obj, dict) else None
+    blocked = obj.get("blocked_skills") if isinstance(obj, dict) else []
+    instruction = obj.get("regen_instruction") if isinstance(obj, dict) else None
+    if not shortcut or not instruction:
+        return None
+
+    blocked_str = ", ".join(blocked) if blocked else "(unspecified)"
+    return (
+        f"- OBSERVED SHORTCUT in the previous attempt: {shortcut} "
+        f"(this bypassed: {blocked_str}). "
+        f"For the next attempt: {instruction}"
+    )
 
 
 def _generate_one(
@@ -351,6 +480,7 @@ def _process_combo(
     max_regen: int,
     generator_model: str,
     critic_model: str,
+    judge_model: str,
     temperature: float,
     max_unparseable: int = 3,
     write_attempt=None,  # callable(record: dict, accepted: bool) -> None
@@ -372,9 +502,15 @@ def _process_combo(
     per_iteration: list[dict] = []
     n_transient_errors = 0
     attempt = 0
-    shortcut_hint: str | None = None
+    # Cumulative shortcut log: every observed shortcut across all regen
+    # iterations is passed forward, so the generator sees the full list of
+    # bypass techniques to block on the next attempt.
+    shortcut_history: list[str] = []
 
     while attempt <= max_regen:
+        # Concatenate ALL prior shortcut hints into one block so the generator
+        # cannot reintroduce a previously-blocked shortcut.
+        shortcut_hint = "\n".join(shortcut_history) if shortcut_history else None
         try:
             gen = _generate_one(
                 skills_in_combo,
@@ -429,9 +565,18 @@ def _process_combo(
         )
         last_decision = decision
 
-        # Step 2 stub: would inspect cal_attempts traces and decision and produce
-        # a shortcut-aware regen hint. Currently always returns None.
-        shortcut_hint = _observe_shortcuts(gen_parts, cal_attempts, decision)
+        # Step 2: when the problem was too easy, ask the judge what shortcut
+        # the critic used and append that to the cumulative shortcut log so
+        # subsequent regens block all previously-observed bypass techniques.
+        new_shortcut = _observe_shortcuts(
+            gen_parts,
+            gen.get("per_skill_role") or {},
+            cal_attempts,
+            decision,
+            judge_model=judge_model,
+        )
+        if new_shortcut:
+            shortcut_history.append(new_shortcut)
 
         per_iteration.append({
             "attempt": attempt,
@@ -599,6 +744,7 @@ def generate_subproblems(
     temperature: float,
     workers: int,
     out_path: Path,
+    judge_model: str | None = None,   # step 2: model for shortcut-detection judge
     keeps_path: Path | None = None,
     skips_path: Path | None = None,
     max_unparseable: int = 3,
@@ -670,6 +816,10 @@ def generate_subproblems(
                 f.write(line)
                 f.flush()
 
+    # Default judge_model to the critic model so a single-model setup just
+    # works without extra config; users can override for cross-model judging.
+    judge_model_resolved = judge_model or critic_model
+
     def task(item):
         i, idx_tuple = item
         return _process_combo(
@@ -681,6 +831,7 @@ def generate_subproblems(
             max_regen=max_regen,
             generator_model=generator_model,
             critic_model=critic_model,
+            judge_model=judge_model_resolved,
             temperature=temperature,
             max_unparseable=max_unparseable,
             write_attempt=write_attempt,
@@ -753,6 +904,8 @@ def main():
                     help="process at most N of the C(X,M) combinations (smoke-test mode)")
     ap.add_argument("--generator-model", default="openai/gpt-oss-120b-maas")
     ap.add_argument("--critic-model", default="openai/gpt-oss-120b-maas")
+    ap.add_argument("--judge-model", default=None,
+                    help="Step 2 shortcut-detection judge model (default: same as critic)")
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--out-dir", default="ttt_binary/data/subproblems")
@@ -777,6 +930,7 @@ def main():
         max_regen=args.max_regen,
         generator_model=args.generator_model,
         critic_model=args.critic_model,
+        judge_model=args.judge_model,
         temperature=args.temperature,
         workers=args.workers,
         out_path=out_path,

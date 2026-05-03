@@ -15,9 +15,9 @@ ambiguity_threshold: 0.2      # per-part max allowed second-cluster fraction
 # anything <=50% unparseable is normal cascade, >50% is a real quality signal.
 max_unparseable: 5
 
-k_calibrate: 10               # critic attempts per generated subproblem
+k_calibrate: 20               # critic attempts per generated subproblem (sharper consensus, more reliable per-part p1)
 k_solve: 16                   # solver attempts per accepted subproblem in stage 4
-max_regen: 5                  # regeneration cap per combination
+max_regen: 10                 # regeneration cap per combination (lets shortcut-aware feedback iterate)
 
 generator_model: "openai/gpt-oss-120b-maas"
 critic_model: "openai/gpt-oss-120b-maas"

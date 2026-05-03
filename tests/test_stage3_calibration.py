@@ -366,3 +366,61 @@ class TestExtractMultipart:
         text = 'ANSWERS: {"a": "1.0000", "b": "2.0000", "extra": "999"}'
         out = extract_answers_multipart(text, ["a", "b"])
         assert out == {"a": "1.0000", "b": "2.0000"}
+
+
+# ---------------------------------------------------------------------------
+# _observe_shortcuts — step 2 gating logic (LLM call not exercised)
+# ---------------------------------------------------------------------------
+
+from ttt_binary.pipeline.stage3_generate_subproblems import _observe_shortcuts
+from ttt_binary.cluster import MultipartDecision, PerPartStats
+
+
+def _easy_decision_with_consensus():
+    return MultipartDecision(
+        kind="REJECT_TOO_EASY",
+        per_part=[
+            PerPartStats(label="a", consensus_answer="1.0000", p1=1.0, p2=0.0,
+                         n_unparseable=0, clusters={"1.0000": 10}),
+            PerPartStats(label="b", consensus_answer="2.0000", p1=1.0, p2=0.0,
+                         n_unparseable=0, clusters={"2.0000": 10}),
+        ],
+        r_bar=1.0,
+        n_total=10,
+        reason="r_bar=1.0 > 0.6",
+    )
+
+
+class TestObserveShortcutsGating:
+    """The actual judge call requires a live LLM — only test early returns."""
+
+    def test_returns_none_when_decision_is_not_too_easy(self):
+        d = MultipartDecision(
+            kind="REJECT_AMBIGUOUS",
+            per_part=[],
+            r_bar=0.5,
+            n_total=10,
+            reason="ambiguous",
+        )
+        assert _observe_shortcuts([], {}, [], d, judge_model="x") is None
+
+    def test_returns_none_when_decision_is_accept(self):
+        d = MultipartDecision(
+            kind="ACCEPT",
+            per_part=[],
+            r_bar=0.5,
+            n_total=10,
+            reason="ok",
+        )
+        assert _observe_shortcuts([], {}, [], d, judge_model="x") is None
+
+    def test_returns_none_when_too_few_correct_traces(self):
+        d = _easy_decision_with_consensus()
+        # Only one fully-correct trace -> below the 2-trace threshold
+        cal = [
+            {"ok": True, "text": "trace 1", "predicted_parts": {"a": "1.0000", "b": "2.0000"}},
+            {"ok": True, "text": "trace 2", "predicted_parts": {"a": "9.9999", "b": "2.0000"}},
+        ]
+        parts = [{"label": "a", "skill": "s1", "text": "..."},
+                 {"label": "b", "skill": "s2", "text": "..."}]
+        assert _observe_shortcuts(parts, {"s1": "r1", "s2": "r2"}, cal, d, judge_model="x") is None

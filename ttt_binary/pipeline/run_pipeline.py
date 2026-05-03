@@ -35,11 +35,12 @@ DEFAULT_CONFIG = {
     "band_hi": 0.6,
     "ambiguity_threshold": 0.2,   # per-part max allowed second-cluster fraction
     "max_unparseable": 5,         # per-part cap; 50% allows for multi-part cascade failures
-    "k_calibrate": 10,
+    "k_calibrate": 20,
     "k_solve": 16,
-    "max_regen": 5,
+    "max_regen": 10,
     "generator_model": "openai/gpt-oss-120b-maas",
     "critic_model": "openai/gpt-oss-120b-maas",
+    "judge_model": "openai/gpt-oss-120b-maas",   # step 2 shortcut-detection judge
     "solver_model": "openai/gpt-oss-120b-maas",
     "temperature": 0.7,
     "workers": 8,
@@ -154,6 +155,7 @@ def main():
             max_regen=cfg["max_regen"],
             generator_model=cfg["generator_model"],
             critic_model=cfg["critic_model"],
+            judge_model=cfg.get("judge_model") or cfg["critic_model"],
             temperature=cfg["temperature"],
             workers=cfg["workers"],
             max_unparseable=cfg["max_unparseable"],
