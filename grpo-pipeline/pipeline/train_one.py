@@ -157,7 +157,11 @@ def main():
     parser.add_argument("--group-size", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--lora-rank", type=int, default=32)
-    parser.add_argument("--max-tokens", type=int, default=100000)
+    parser.add_argument("--max-tokens", type=int, default=30000,
+                        help="Max generation tokens per rollout. Must satisfy "
+                             "prompt_tokens + max_tokens <= model context. For "
+                             "gpt-oss-120b (32768 ctx), 30000 leaves ~2.7k for "
+                             "prompts and is safe for our problem set.")
     parser.add_argument("--save-every", type=int, default=5)
     parser.add_argument("--wandb-run-name", type=str, default=None)
     parser.add_argument("--subproblems", type=Path, default=None,
