@@ -1,0 +1,772 @@
+{
+  "metadata": {
+    "timestamp": "2026-04-30T22:07:39.813398+00:00",
+    "models": {
+      "claude": null,
+      "gpt55": "gpt-5.5-1"
+    },
+    "gpt55_reasoning_effort": "high",
+    "dataset": "problems/conics-50.jsonl",
+    "n_problems": 50,
+    "n_total": 50,
+    "claude": {
+      "n_answered": 50,
+      "n_correct": 36,
+      "accuracy": 72.0
+    },
+    "gpt55": {
+      "n_answered": 47,
+      "n_correct": 25,
+      "accuracy": 53.19
+    },
+    "samples_per_problem": 1,
+    "completed": true,
+    "elapsed_s": 922.0
+  },
+  "results": [
+    {
+      "id": 2,
+      "prompt": "Let $f(t)=t^4-2\\in\\mathbb{Q}[t]$ and let $K$ be its splitting field.  The Galois group $\\mathrm{Gal}(K/\\mathbb{Q})$ is the dihedral group $D_4$, acting on the four roots of $f$.  For a prime $p$ where $f$ remains separable modulo $p$, let $\\sigma_p\\in D_4$ be the Frobenius permutation on the roots, and let $N(p)$ be the number of fixed points of $\\sigma_p$.  Define\n\\[ L = \\lim_{X\\to\\infty}\\;\\frac{1}{\\pi(X)}\\sum_{p\\le X}\\! N(p)\\,, \\]\nwhere the sum runs over all such primes $p$ and $\\pi(X)$ is the number of primes $\\le X$.  Compute $\\bigl\\lfloor 100L\\bigr\\rfloor$.",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 3,
+      "prompt": "Let $E/\\mathbb{Q}$ be the elliptic curve $y^2 = x^3 + x + 1$.  The multiplication‑by‑$3$ map $[3]:E\\to E$ is a finite étale morphism of degree $9$.  For a prime $p$ of good reduction, define $N_p(P)=\\#\\bigl([3]^{-1}(P)\\bigr)$ for $P\\in E(\\mathbb{F}_p)$.  Set\n\\[ L = \\lim_{p\\to\\infty}\\;\\frac{1}{\\#E(\\mathbb{F}_p)}\\sum_{P\\in E(\\mathbb{F}_p)} N_p(P)\\,. \\]\nCompute $\\bigl\\lfloor 100L\\bigr\\rfloor$.",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 4,
+      "prompt": "A classical result of Chasles states that the number of (complex) smooth conics tangent to four given general smooth conics in the plane is a fixed integer. Determine this integer without consulting external sources, by interpreting the tangency condition as a quadratic condition on the space \\(\\mathbb P^5\\) of conics and applying Bézout’s theorem. Give the integer answer.",
+      "reference": "16",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "infinitely many"
+      ],
+      "gpt55_best_answer": "infinitely many",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 5,
+      "prompt": "Let \\(Q_1,Q_2,Q_3,Q_4\\) be four generic quadric hypersurfaces in \\(\\mathbb P^3\\). By Bézout's theorem, the intersection \\(Q_1\\cap Q_2\\cap Q_3\\cap Q_4\\) is zero‑dimensional. Compute the total number of (geometric) points in this intersection, counting multiplicities, and give the answer as an integer.",
+      "reference": "16",
+      "claude_answers": [
+        "16"
+      ],
+      "claude_best_answer": "16",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 6,
+      "prompt": "Let \\(V\\subset \\mathbb A^4_{\\mathbb Z}\\) be the closed subscheme defined by the two equations \\(f_1(x,y,z,w)=x^3+y^3+z^3-w^3=0\\) and \\(f_2(x,y,z,w)=x^2y+yz^2+z w^2 -1=0\\). For a prime \\(p\\) where the reduction \\(V_{\\mathbb F_p}\\) is smooth and the projection \\(\\pi:V_{\\mathbb F_p}\\to \\mathbb A^2_{\\mathbb F_p}\\) onto the \\((x,y)\\)-coordinates is finite étale, let \\(N_p\\) be the average number of \\(\\mathbb F_p\\)-points in a fibre of \\(\\pi\\). Using Bézout’s theorem to compute the generic degree of \\(\\pi\\), determine the limit \\(L=\\lim_{p\\to\\infty} N_p\\). Give the integer value of \\(L\\).",
+      "reference": "9",
+      "claude_answers": [
+        "9"
+      ],
+      "claude_best_answer": "9",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "9"
+      ],
+      "gpt55_best_answer": "9",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 8,
+      "prompt": "Let \\(\\pi : X \\to \\mathbb{P}^1\\) be a finite étale morphism of degree 7 defined over \\(\\mathbb{F}_p\\). For each \\(p\\) let \\(V(\\mathbb{F}_p)=\\mathbb{P}^1(\\mathbb{F}_p)\\). Define \\(L=\\displaystyle\\lim_{p\\to\\infty}\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{x\\in V(\\mathbb{F}_p)}\\#\\pi^{-1}(x)\\). Compute L and give the integer answer.",
+      "reference": "7",
+      "claude_answers": [
+        "7"
+      ],
+      "claude_best_answer": "7",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "7"
+      ],
+      "gpt55_best_answer": "7",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 10,
+      "prompt": "Consider five homogeneous quadratic polynomials $Q_1,\\dots,Q_5\\in\\mathbb{Z}[x_0,x_1,x_2,x_3,x_4]$ that are generic (i.e., the corresponding quadrics in $\\mathbb{P}^4$ intersect transversely). Let $X\\subset\\mathbb{P}^4$ be the closed subscheme defined by $Q_1=\\dots=Q_5=0$. For a prime $p$ where the reduction $X_{\\mathbb{F}_p}$ is zero‑dimensional and reduced, let $N(p)=\\#X(\\mathbb{F}_p)$ be the number of $\\mathbb{F}_p$‑rational points of $X_{\\mathbb{F}_p}$. Define\n\\[\nL\\;=\\;\\lim_{p\\to\\infty} N(p).\n\\]\nCompute $\\bigl\\lfloor 100L\\bigr\\rfloor$.\n\n(You may use Bézout's theorem: the intersection of five quadrics in $\\mathbb{P}^4$ consists of $2^5$ points over an algebraically closed field, counted with multiplicity.)",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 11,
+      "prompt": "Work in complex projective space $\\mathbb{P}^{4}$ with homogeneous coordinates $[x_{0}:x_{1}:x_{2}:x_{3}:x_{4}]$. Let $Q_{1},\\dots,Q_{5}$ be five homogeneous quadratic polynomials that are *generic*, i.e. their coefficients are chosen so that the corresponding quadric hypersurfaces intersect transversely.\n\nAssuming the intersection $X = V(Q_{1},\\dots,Q_{5})\\subset \\mathbb{P}^{4}$ is zero‑dimensional, determine the number of points of $X$, counted with multiplicity, over $\\mathbb{C}$.\n\nProvide the answer as a decimal number.",
+      "reference": "32",
+      "claude_answers": [
+        "32"
+      ],
+      "claude_best_answer": "32",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 14,
+      "prompt": "Let $\\mathbb P^6$ be the projective space over $\\mathbb Z$ with homogeneous coordinates $[X_0:\\dots:X_6]$.  Choose three general homogeneous quadratic polynomials $Q_1,Q_2,Q_3$ and three general homogeneous cubic polynomials $C_1,C_2,C_3$ in these variables.  Consider the closed subscheme\n\\[\nZ = V(Q_1,Q_2,Q_3,C_1,C_2,C_3) \\subset \\mathbb P^6.\n\\]\nFor a point $x\\in (\\mathbb P^6)^{5}$, let $\\pi$ be the projection that forgets the first coordinate, i.e. $\\pi:Z\\to (\\mathbb P^6)^{5}$.\nLet $V\\subset (\\mathbb P^6)^{5}$ be the dense open subset where the six hypersurfaces intersect transversely, so that $\\pi$ is finite étale of some constant degree $N$.\nDefine\n\\[\nL = \\lim_{p\\to\\infty}\\frac{1}{\\#V(\\mathbb F_p)}\\sum_{x\\in V(\\mathbb F_p)}\\#\\pi^{-1}(x).\n\\]\nAssuming the quadrics and cubics are generic, compute $L$ and give your answer rounded to four decimal places.",
+      "reference": "216",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "216.0000"
+      ],
+      "gpt55_best_answer": "216.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 18,
+      "prompt": "Consider the projective space \\(\\mathbb{P}^5\\) that parametrises plane conics in \\(\\mathbb{P}^2\\). For a smooth conic \\(C\\subset \\mathbb{P}^2\\), the condition that a conic \\(D\\) be tangent to \\(C\\) is given by a single quadratic equation in the homogeneous coordinates of \\(\\mathbb{P}^5\\); thus it defines a quadric hypersurface \\(Q_C\\subset \\mathbb{P}^5\\). Let \\(C_1,\\dots,C_5\\) be five general smooth conics in \\(\\mathbb{P}^2\\), and set\n\\[ Z = Q_{C_1}\\cap Q_{C_2}\\cap Q_{C_3}\\cap Q_{C_4}\\cap Q_{C_5} \\subset \\mathbb{P}^5. \\]\nDefine \\(L = \\# Z\\), the number of geometric points of \\(Z\\) (counted without multiplicity). Compute \\(\\bigl\\lfloor 100 L \\bigr\\rfloor\\).",
+      "reference": "326400",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "3200"
+      ],
+      "gpt55_best_answer": "3200",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 20,
+      "prompt": "Let $\\mathbb{P}^5$ be the projective space over $\\mathbb{Q}$ with homogeneous coordinates $[x_0:\\dots:x_5]$. Choose five general quadratic homogeneous polynomials $Q_1,\\dots,Q_5$ defining five quadric hypersurfaces $V(Q_i)\\subset \\mathbb{P}^5$. Consider the incidence variety\n\\[\nZ = \\{(p, (Q_1,\\dots,Q_5)) \\mid p \\in \\mathbb{P}^5,\\; Q_i(p)=0\\text{ for }i=1,\\dots,5\\}\\subset \\mathbb{P}^5 \\times (\\mathbb{P}^{20})^5,\n\\]\nwhere each $Q_i$ is viewed as a point of the $20$‑dimensional projective space of quadrics.\nLet $\\pi : Z \\to (\\mathbb{P}^{20})^5$ be the projection onto the second factor and let $V\\subset (\\mathbb{P}^{20})^5$ be the dense open subset over which $\\pi$ is finite étale (i.e., the five quadrics intersect transversely). For a prime $p$ of good reduction define\n\\[\nL = \\lim_{p\\to\\infty}\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{x\\in V(\\mathbb{F}_p)}\\#\\pi^{-1}(x).\n\\]\nCompute $\\lfloor 1000 L \\rfloor$, rounding the final answer to four decimal places.\n(Note: you may use Bézout's theorem for the intersection of hypersurfaces in projective space.)",
+      "reference": "1000",
+      "claude_answers": [
+        "1000"
+      ],
+      "claude_best_answer": "1000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "32000"
+      ],
+      "gpt55_best_answer": "32000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 26,
+      "prompt": "Let $C_1,\\dots, C_5\\subset\\mathbb{P}^2_{\\mathbb{C}}$ be five general smooth conics (i.e., the defining quadratic forms are generic so that all tangency conditions are transverse).  Determine the number of smooth plane conics $D\\subset\\mathbb{P}^2_{\\mathbb{C}}$ that are tangent to each of the five given conics.  Give your answer as an integer.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [],
+      "gpt55_best_answer": null,
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 27,
+      "prompt": "Let $U\\subset \\mathbb{P}\\big(H^0(\\mathbb{P}^2,\\mathcal{O}(2))\\big)\\cong \\mathbb{P}^5$ be the open subset parametrising smooth plane conics. For a smooth conic $C\\subset\\mathbb{P}^2$ the condition that a conic $D$ be tangent to $C$ is a single quadratic equation in the homogeneous coordinates of $\\mathbb{P}^5$, i.e. it defines a quadric hypersurface $Q_C\\subset\\mathbb{P}^5$.\n\nDefine\n\\[\nZ = \\{(C_0, C_1, C_2, C_3, C_4)\\in U^5 \\mid C_0\\text{ is tangent to }C_1,\\dots, C_0\\text{ is tangent to }C_4\\}.\n\\]\nLet $\\pi : Z \\to U^4$ be the projection onto the last four coordinates.\nFor a point $x=(C_1,\\dots,C_4)\\in U^4$, the fibre $\\pi^{-1}(x)$ is the set of smooth conics $C_0$ tangent to each of the four given conics; equivalently it is the intersection $Q_{C_1}\\cap\\dots\\cap Q_{C_4}$ inside $\\mathbb{P}^5$.\n\nLet $V\\subset U^4$ be the dense open where the four quadrics meet transversely (so $\\pi$ is finite étale over $V$). Define\n\\[\nL = \\lim_{p\\to\\infty}\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{x\\in V(\\mathbb{F}_p)}\\#\\pi^{-1}(x).\n\\]\nCompute $L$, rounded to four decimal places.\n\n(Note: you may use that for four general smooth conics the transversal intersection $Q_{C_1}\\cap\\dots\\cap Q_{C_4}$ consists of $560$ distinct points.)",
+      "reference": "1",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "undefined"
+      ],
+      "gpt55_best_answer": "undefined",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 34,
+      "prompt": "Let $\\mathbb{P}^{4}$ be projective $4$‑space over an algebraically closed field. The space of all homogeneous quadratic equations in five variables is a $15$‑dimensional vector space, so the set of quadrics is the projective space $\\mathbb{P}^{14}$.\n\nChoose five quadrics $Q_{1},\\dots,Q_{5}$ generically; denote by $V\\subset (\\mathbb{P}^{14})^{5}$ the dense open subset of tuples $(Q_{1},\\dots,Q_{5})$ for which the intersection $Q_{1}\\cap\\dots\\cap Q_{5}$ is zero‑dimensional and smooth.\n\nDefine the incidence variety\n\\[ Z = \\{ (x, (Q_{1},\\dots,Q_{5})) \\in \\mathbb{P}^{4}\\times (\\mathbb{P}^{14})^{5}\\;:\\; x\\in Q_{i}\\text{ for }i=1,\\dots,5 \\}. \\]\nLet $\\pi: Z\\to (\\mathbb{P}^{14})^{5}$ be the projection onto the tuple of quadrics. Over $V$ the map $\\pi$ is finite étale; for a point $t=(Q_{1},\\dots,Q_{5})\\in V$ the fibre $\\pi^{-1}(t)$ consists of the finitely many points of the intersection $Q_{1}\\cap\\dots\\cap Q_{5}$.\n\nFor each prime $p$, let $V(\\mathbb{F}_{p})$ be the set of $\\mathbb{F}_{p}$‑rational points of $V$, and define\n\\[ B(p)=\\frac{1}{\\#V(\\mathbb{F}_{p})}\\sum_{t\\in V(\\mathbb{F}_{p})}\\#\\pi^{-1}(t). \\]\n\nUsing Bézout's theorem to compute the degree of $\\pi$, and the fact that for a finite étale cover the average size of the fibre over $\\mathbb{F}_{p}$ tends to the degree, determine\n\\[ L=\\lim_{p\\to\\infty} B(p) \\]\nand give $\\bigl\\lfloor 100L\\bigr\\rfloor$ as an integer.",
+      "reference": "3200",
+      "claude_answers": [
+        "3200"
+      ],
+      "claude_best_answer": "3200",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "3200"
+      ],
+      "gpt55_best_answer": "3200",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 36,
+      "prompt": "Let $\\mathcal{H}$ be the Hilbert scheme of smooth rational curves of degree $3$ (twisted cubics) in projective $3$‑space $\\mathbb{P}^3$ over an algebraically closed field of characteristic $0$. A general line $\\ell\\subset\\mathbb{P}^3$ imposes two independent conditions on a twisted cubic. Determine the exact number of twisted cubic curves that meet six given general lines $\\ell_1,\\dots,\\ell_6$ in $\\mathbb{P}^3$. Provide the integer answer.",
+      "reference": "12",
+      "claude_answers": [
+        "80160"
+      ],
+      "claude_best_answer": "80160",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "infinitely many"
+      ],
+      "gpt55_best_answer": "infinitely many",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 37,
+      "prompt": "Let $Q_1,\\dots,Q_5\\subset\\mathbb{P}^4_{\\mathbb Z}$ be five quadrics defined by homogeneous quadratic polynomials with integer coefficients, chosen generically so that the intersection\n\\[ X\\;=\\;Q_1\\cap Q_2\\cap Q_3\\cap Q_4\\cap Q_5 \\]\nis a smooth zero‑dimensional subscheme of $\\mathbb{P}^4_{\\mathbb Q}$. For each prime $p$ denote by $X_{\\mathbb F_p}$ the reduction of $X$ modulo $p$, and let $N(p)=\\#X_{\\mathbb F_p}(\\mathbb F_p)$ be the number of $\\mathbb F_p$‑rational points of this reduction.\nDefine\n\\[ L\\;=\\;\\lim_{p\\to\\infty}\\,N(p), \\]\nwhere the limit runs over all prime numbers $p$ for which $X$ has good reduction.\n\nCompute $\\displaystyle \\bigl\\lfloor 100\\,L\\bigr\\rfloor$.\n\n(Note: Use Bézout's theorem to determine the degree of the zero‑dimensional scheme $X$, and apply the Lang–Weil estimates to justify that $N(p)$ approaches this degree as $p\\to\\infty$.)",
+      "reference": "3200",
+      "claude_answers": [
+        "3200"
+      ],
+      "claude_best_answer": "3200",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 41,
+      "prompt": "Let f(x)=x^5-2 \\in \\mathbb{Z}[x]. For a prime p let \\Delta_f be the discriminant of f. If p \\nmid \\Delta_f, denote by N(p) the number of solutions of the congruence f(x)\\equiv 0 \\pmod p in \\mathbb{F}_p. Define\n\\[\nL = \\lim_{X\\to \\infty}\\; \\frac{1}{\\pi(X)}\\sum_{\\substack{p\\le X\\\\ p\\nmid \\Delta_f}} N(p),\n\\]\nwhere \\pi(X) is the number of primes \\le X. Compute \\(\\bigl\\lfloor 100 L \\bigr\\rfloor\\).",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 57,
+      "prompt": "Let $\\mathbb P^5$ be the projective space parametrising plane conics in $\\mathbb P^2$ (each point corresponds to a homogeneous quadratic form up to scaling). For a fixed smooth conic $C\\subset\\mathbb P^2$, the locus $T_C\\subset\\mathbb P^5$ of conics tangent to $C$ is a divisor whose class in $\\operatorname{Pic}(\\mathbb P^5)\\cong\\mathbb Z\\cdot H$ is $6H$, where $H$ is the hyperplane class. \n\nConsider five general smooth conics $C_1,\\dots,C_5$ and the corresponding five divisors $T_{C_i}$. The naïve intersection number of the five divisors is $6^5$, but this counts also singular conics, which lie on the discriminant hypersurface $\\Delta\\subset\\mathbb P^5$ of degree $3$.\n\nUsing the excess‑intersection formula (or any equivalent method from intersection theory or characteristic classes), compute the number of *smooth* plane conics that are simultaneously tangent to the five given general smooth conics. Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "3264.0000"
+      ],
+      "gpt55_best_answer": "3264.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 58,
+      "prompt": "Plane conics in \\(\\mathbb{P}^2\\) are parametrised by the projective space \\(\\mathbb{P}^5\\) of homogeneous quadratic forms in three variables. For a smooth conic \\(C\\subset \\mathbb{P}^2\\) the condition that another conic \\(D\\) be tangent to \\(C\\) is given by a single quadratic equation in the coordinates of \\(\\mathbb{P}^5\\); denote the corresponding quadric hypersurface by \\(T_C\\subset \\mathbb{P}^5\\).\n\nLet \\(C_1,\\dots, C_5\\) be five general smooth conics in \\(\\mathbb{P}^2\\). Consider the intersection\n\\[X = T_{C_1}\\cap T_{C_2}\\cap T_{C_3}\\cap T_{C_4}\\cap T_{C_5}\\subset \\mathbb{P}^5.\n\\]\nBecause the \\(C_i\\) are general, the five quadrics intersect transversely, so \\(X\\) is a zero‑dimensional scheme.\n\nCompute the total number of (geometric) points of \\(X\\), counted with multiplicity. Give your answer as a decimal integer.",
+      "reference": "32",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "32"
+      ],
+      "gpt55_best_answer": "32",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 59,
+      "prompt": "Let $U\\subset \\mathbb{P}\\bigl(H^0(\\mathbb{P}^2,\\mathcal{O}(3))\\bigr)\\cong\\mathbb{P}^9$ be the open subset parametrising smooth plane cubic curves.  For a tuple of eight points $P=(p_1,\\dots,p_8)\\in (\\mathbb{P}^2)^8$ write $U_P\\subset U$ for the set of smooth cubics that pass through all $p_i$.  Define the incidence variety\n\\[ Z\\;=\\;\\{\\,(C, p_1,\\dots,p_8)\\mid C\\in U,\\;p_i\\in\\mathbb{P}^2,\\; C\\text{ smooth and }p_i\\in C\\,\\}\\subset U\\times (\\mathbb{P}^2)^8.\\]\nLet $\\pi\\colon Z\\to (\\mathbb{P}^2)^8$ be the projection onto the eight points.\nThere is a dense open subset $V\\subset (\\mathbb{P}^2)^8$ on which $\\pi$ is finite étale.\nFor a prime $p$ write $V(\\mathbb{F}_p)$ for the $\\mathbb{F}_p$‑points of $V$ and, for $x\\in V(\\mathbb{F}_p)$, let $\\#\\pi^{-1}(x)$ be the number of $\\mathbb{F}_p$‑rational smooth cubics passing through the eight points of $x$.\nDefine\n\\[ L\\;=\\;\\lim_{p\\to\\infty}\\;\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{x\\in V(\\mathbb{F}_p)}\\#\\pi^{-1}(x).\\]\nUsing the fact that a generic collection of eight points in the plane lies on exactly $12$ smooth cubic curves, compute $\\displaystyle \\bigl\\lfloor 100L\\bigr\\rfloor$.\n(Note: you may use the Grothendieck–Lefschetz trace formula and Deligne’s bounds for the error term of a finite étale cover.)",
+      "reference": "1200",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "1200"
+      ],
+      "gpt55_best_answer": "1200",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 62,
+      "prompt": "Let \\(\\mathbb{P}^3\\) have homogeneous coordinates \\((x_0:x_1:x_2:x_3)\\).\n\n* Let \\(L\\) be the line defined by \\(x_0 = x_1 = 0\\).\n* Let \\(Q_1\\) and \\(Q_2\\) be two generic quadric surfaces (degree 2) that both contain \\(L\\).\n  Their intersection is a curve of degree \\(4\\); because they share the line \\(L\\), this intersection consists of \\(L\\) together with a residual curve \\(C\\).\n* Let \\(S\\) be a generic cubic surface (degree 3) that also contains the line \\(L\\).\n\nConsider the zero‑dimensional scheme \\(C \\cap S\\) obtained by intersecting the residual curve \\(C\\) with the cubic surface \\(S\\) (the common component \\(L\\) is removed).\n\nLet \\(N\\) be the number of points in \\(C \\cap S\\), counted with multiplicity.\n\nCompute \\(\\displaystyle \\left\\lfloor 100\\,N \\right\\rfloor\\).",
+      "reference": "900",
+      "claude_answers": [
+        "900"
+      ],
+      "claude_best_answer": "900",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "900"
+      ],
+      "gpt55_best_answer": "900",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 63,
+      "prompt": "Let U be the parameter space of smooth plane quartic curves over \\(\\mathbb{Z}\\); equivalently U is the open subset of \\(\\mathbb{P}^{14}\\) corresponding to homogeneous degree‑4 polynomials in three variables that define a smooth curve. Define\n\\[\nZ = \\{\\,(C, L)\\mid C\\in U,\\; L\\subset \\mathbb{P}^2 \\text{ a line that is tangent to } C \\text{ at two distinct points}\\,\\}.\n\\]\nThe projection \\(\\pi : Z \\to U\\) sends \\((C,L)\\) to \\(C\\). Over a dense open subset \\(V\\subset U\\) the map \\(\\pi\\) is finite étale.\nDefine\n\\[\nL = \\lim_{p\\to\\infty}\\;\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{C\\in V(\\mathbb{F}_p)} \\#\\pi^{-1}(C).\n\\]\nCompute \\(\\bigl\\lfloor 100 L \\bigr\\rfloor\\).",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 65,
+      "prompt": "Consider the projective space \\(\\mathbb{P}^5\\) with homogeneous coordinates \\((a_0:\\dots:a_5)\\) representing the coefficients of a plane conic \\(a_0x^2 + a_1xy + a_2y^2 + a_3xz + a_4yz + a_5z^2 = 0\\). The discriminant \\(\\Delta(a_0,\\dots,a_5)\\) of a conic is a homogeneous cubic polynomial; a conic is smooth iff \\(\\Delta \\neq 0\\).\n\nFor a fixed smooth conic \\(C\\) the condition that a variable conic \\(D\\) be tangent to \\(C\\) is a single homogeneous quadratic equation \\(Q_C(a_0,\\dots,a_5)=0\\) in the coefficients of \\(D\\).\n\nLet \\(C_1, C_2, C_3, C_4\\) be four general smooth conics in the plane, and let \\(P_1, P_2\\) be two distinct points in \\(\\mathbb{P}^2\\). A conic \\(D\\) is said to satisfy the following conditions:\n1. \\(D\\) is smooth (i.e., \\(\\Delta \\neq 0\\)).\n2. \\(D\\) is tangent to each of \\(C_1, C_2, C_3, C_4\\).\n3. \\(D\\) passes through both points \\(P_1\\) and \\(P_2\\).\n\nAssuming the conics \\(C_i\\) and the points \\(P_j\\) are chosen generically so that all imposed conditions are independent, determine the number of conics \\(D\\) (counted with multiplicity) satisfying all six conditions. Give your answer as an integer.",
+      "reference": "16",
+      "claude_answers": [
+        "0"
+      ],
+      "claude_best_answer": "0",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 70,
+      "prompt": "In projective 3‑space $\\mathbb{P}^3$ over a field, a general hypersurface of degree $d$ is defined by a homogeneous polynomial of degree $d$ whose zero set is smooth and irreducible.  Let $H_2$, $H_3$, and $H_4$ be three *general* hypersurfaces of degrees $2$, $3$, and $4$ respectively in $\\mathbb{P}^3_{\\mathbb{F}_p}$.  Their intersection $X = H_2\\cap H_3\\cap H_4$ is a zero‑dimensional scheme.\n\nAssume $p$ is a prime large enough that the three hypersurfaces intersect transversely, so $X$ is a reduced finite set of $\\mathbb{F}_p$‑rational points.  Define\n\\[N(p)=\\# X(\\mathbb{F}_p),\\]\nthe number of $\\mathbb{F}_p$‑points of $X$.  Let\n\\[L = \\lim_{p\\to\\infty}\\frac{1}{\\#\\{\\text{primes }p\\}}\\sum_{p}\\! N(p),\\]\nwhere the limit is taken over all primes $p$ for which the above transversality holds (the limit exists by the Lang–Weil estimates).\nCompute $\\displaystyle \\left\\lfloor 100L\\right\\rfloor$.",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "2400"
+      ],
+      "gpt55_best_answer": "2400",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 73,
+      "prompt": "Plane conics are parametrised by the projective space \\(\\mathbb{P}^{5}\\).  For a fixed smooth conic \\(C\\subset\\mathbb{P}^{2}\\), the subset of \\(\\mathbb{P}^{5}\\) consisting of conics tangent to \\(C\\) is a hypersurface \\(D_{C}\\).  Assuming the five hypersurfaces \\(D_{C_{1}},\\dots,D_{C_{5}}\\) corresponding to five general smooth conics \\(C_{1},\\dots,C_{5}\\) intersect transversely, the number of (complex) smooth conics tangent to all five \\(C_{i}\\) equals the intersection number \\(D_{C_{1}}\\cdot\\dots\\cdot D_{C_{5}}\\) in the Chow ring of \\(\\mathbb{P}^{5}\\).\n\nUsing classical intersection‑theoretic calculations (e.g., the class of a tangency divisor in \\(A^{1}(\\mathbb{P}^{5})\\) and the fact that \\(\\int_{\\mathbb{P}^{5}} H^{5}=1\\) where \\(H\\) is the hyperplane class), determine the number of smooth plane conics tangent to five given general smooth conics.  Give your answer as a decimal rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "7776.0000"
+      ],
+      "claude_best_answer": "7776.0000",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "7776.0000"
+      ],
+      "gpt55_best_answer": "7776.0000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 74,
+      "prompt": "Let \\(\\mathcal{C}\\) be the 5‑dimensional projective space that parametrises plane conics in \\(\\mathbb{P}^2\\) (i.e. \\(\\mathcal{C}=\\mathbb{P}(H^0(\\mathbb{P}^2,\\mathcal{O}(2)))\\)).\n\nFor a fixed smooth conic \\(Q\\subset\\mathbb{P}^2\\) the locus of conics tangent to \\(Q\\) is a hypersurface \\(T_Q\\subset\\mathcal{C}\\).  It is known that the class of \\(T_Q\\) in the Chow ring \\(A^1(\\mathcal{C})\\cong \\mathbb{Z}[h]\\) (where \\(h\\) is the hyperplane class) is \\(6h\\).\n\nAssume five smooth conics \\(Q_1,\\dots,Q_5\\) are general, so that the hypersurfaces \\(T_{Q_i}\\) intersect transversely.\n\nCompute the number of (geometric) plane conics that are tangent to each of the five given conics.  Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "7776.0000"
+      ],
+      "gpt55_best_answer": "7776.0000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 75,
+      "prompt": "Let $\\mathcal{G}=G(1,3)$ be the Grassmannian of lines in $\\mathbb{P}^3$ over an algebraically closed field of characteristic $0$.  A line $\\ell\\subset \\mathbb{P}^3$ lies on a cubic surface $S\\subset\\mathbb{P}^3$ iff the homogeneous cubic polynomial defining $S$ vanishes identically on $\\ell$.  This condition is equivalent to the vanishing of a section of the vector bundle $\\mathcal{O}_{\\mathcal{G}}(3)^{\\oplus 4}$ of rank $4$ on $\\mathcal{G}$.  The class of the zero‑locus of a generic such section is $c_4\\big(\\mathcal{O}_{\\mathcal{G}}(3)^{\\oplus 4}\\big)=3^4\\,\\sigma_{1,1,1,1}$, where $\\sigma_{1,1,1,1}$ is the Schubert class of codimension $4$ in $\\mathcal{G}$.\n\nUsing the Schubert calculus on $G(1,3)$ (with $\\int_{\\mathcal{G}}\\sigma_{1,1,1,1}=1$) compute the number of lines contained in a smooth cubic surface.  Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "27",
+      "claude_answers": [
+        "27.0000"
+      ],
+      "claude_best_answer": "27.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "27.0000"
+      ],
+      "gpt55_best_answer": "27.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 76,
+      "prompt": "In the complex projective plane \\mathbb{P}^2, a plane conic can be identified with a point of the projective space \\mathbb{P}^5 that parametrises homogeneous quadratic forms in three variables.\n\nFor a fixed smooth conic C \\subset \\mathbb{P}^2, the condition that another conic D be tangent to C defines a hypersurface of degree 2 in \\mathbb{P}^5 (the so‑called dual conic condition).\n\nLet C_1,\\dots,C_5 be five general smooth conics in \\mathbb{P}^2. Denote by N the number of smooth conics that are tangent to each of the five given conics, counted with multiplicity (i.e., the degree of the zero‑dimensional scheme obtained by intersecting the five corresponding degree‑2 hypersurfaces in \\mathbb{P}^5).\n\nCompute N and output it as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "32.0000"
+      ],
+      "gpt55_best_answer": "32.0000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 77,
+      "prompt": "Let $\\mathbb P^5$ be the projective space that parametrises plane conics (the coefficients of a homogeneous quadratic form in three variables, up to scaling). For a smooth conic $Q\\subset\\mathbb P^2$, the condition that a conic $C$ be tangent to $Q$ defines a quadric hypersurface $\\mathcal Q_Q\\subset\\mathbb P^5$ (the discriminant of the restriction of $C$ to $Q$). \n\nConsider five smooth conics $Q_1,\\dots,Q_5$ that are general enough so that the corresponding quadrics $\\mathcal Q_{Q_i}$ intersect transversely.  The intersection\n\\[\\mathcal Q_{Q_1}\\cap\\mathcal Q_{Q_2}\\cap\\cdots\\cap\\mathcal Q_{Q_5}\\subset\\mathbb P^5\\]\nconsists of finitely many points, each point representing a smooth conic tangent to all five $Q_i$.\n\nUsing the theory of characteristic numbers of plane conics (or equivalently, Schubert calculus on the space of conics), compute the number $N$ of smooth conics that are tangent to five given general smooth conics in $\\mathbb P^2$. \n\nFinally, output $\\lfloor 100\\,N \\rfloor$.\n\n(Your answer should be a single integer.)",
+      "reference": "326400",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "326400"
+      ],
+      "gpt55_best_answer": "326400",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 78,
+      "prompt": "Let 𝔓⁵ be the projective space parametrising plane conics in ℙ² (each point corresponds to a homogeneous quadratic form up to scaling).  For a fixed smooth conic Q⊂ℙ² the condition that a conic C∈𝔓⁵ be tangent to Q is given by a single quadratic equation in the coordinates of 𝔓⁵, i.e. it defines a quadric hypersurface Q_Q⊂𝔓⁵.  Choose five general smooth conics Q₁, … , Q₅ in ℙ² and consider the intersection\n\\[X = Q_{Q_{1}}\\cap Q_{Q_{2}}\\cap Q_{Q_{3}}\\cap Q_{Q_{4}}\\cap Q_{Q_{5}}\\subset 𝔓^{5}.\\]\nThe scheme X is zero‑dimensional and reduced for a generic choice of the Q_i.  Let L be the (complex) cardinality of X, i.e. the number of smooth plane conics that are tangent to all five given general conics.  Compute\n\\[\\left\\lfloor 100\\,L\\right\\rfloor.\\]\n(Answer as an integer.)",
+      "reference": "326400",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "326400"
+      ],
+      "gpt55_best_answer": "326400",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 84,
+      "prompt": "Consider the projective space \\(\\mathbb{P}^5\\) over an algebraically closed field of characteristic 0, with homogeneous coordinates \\([z_0:\\dots:z_5]\\). Let \\(Q_1,Q_2,Q_3\\) be three generic homogeneous quadratic polynomials and \\(C_1,C_2\\) be two generic homogeneous cubic polynomials in these variables. Define the zero‑dimensional scheme\n\\[ X = \\{[z]\\in \\mathbb{P}^5 \\mid Q_1([z]) = Q_2([z]) = Q_3([z]) = C_1([z]) = C_2([z]) = 0\\}.\\]\nLet \\(\\mathcal{Q}\\) be the parameter space of ordered 5‑tuples \\((Q_1,Q_2,Q_3,C_1,C_2)\\) of such polynomials (each up to scaling), which is a dense open subset of a product of projective spaces. Define the incidence variety\n\\[ Z = \\{(x,\\mathbf{Q}) \\in \\mathbb{P}^5 \\times \\mathcal{Q} \\mid x \\text{ satisfies all five equations of } \\mathbf{Q}\\} \\]\nand let \\(\\pi : Z \\to \\mathcal{Q}\\) be the projection onto the second factor. Over a dense open subset \\(V\\subset \\mathcal{Q}\\) the map \\(\\pi\\) is finite étale.\nDefine\n\\[ L = \\lim_{p\\to\\infty} \\frac{1}{\\#V(\\mathbb{F}_p)} \\sum_{\\mathbf{Q}\\in V(\\mathbb{F}_p)} \\#\\pi^{-1}(\\mathbf{Q}).\\]\nCompute \\(\\lfloor 100L \\rfloor\\).",
+      "reference": "7200",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 85,
+      "prompt": "In the complex projective space \\(\\mathbb{P}^3\\), a *twisted cubic* is a smooth rational curve of degree 3 (the image of \\(\\mathbb{P}^1\\) under the 3‑uple Veronese embedding).  Given six general lines \\(L_1,\\dots, L_6\\) in \\(\\mathbb{P}^3\\), how many twisted cubic curves intersect each of the six lines?  Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "12",
+      "claude_answers": [
+        "80160.0000"
+      ],
+      "claude_best_answer": "80160.0000",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "infinitely many"
+      ],
+      "gpt55_best_answer": "infinitely many",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 86,
+      "prompt": "Let $G=\\mathrm{Gr}(1,\\mathbb{P}^3)$ be the Grassmannian of lines in projective 3‑space over a finite field $\\mathbb{F}_p$.  For a fixed line $\\ell\\subset\\mathbb{P}^3$, the set of lines meeting $\\ell$ is a Schubert divisor $\\Sigma_\\ell\\subset G$, a hypersurface of codimension 1.\n\nFor four lines $\\ell_1,\\dots,\\ell_4$ in general position the intersection\n\\[ S(\\ell_1,\\dots,\\ell_4)=\\Sigma_{\\ell_1}\\cap\\Sigma_{\\ell_2}\\cap\\Sigma_{\\ell_3}\\cap\\Sigma_{\\ell_4} \\]\nis zero‑dimensional.  Over an algebraically closed field this intersection consists of exactly **two** distinct lines (the classical Schubert count).  Let $V\\subset (\\mathrm{Gr}(1,\\mathbb{P}^3))^4$ be the dense open subset parametrising 4‑tuples of lines for which the intersection is transverse, so that $S(\\ell_1,\\dots,\\ell_4)$ is reduced of size 2.\n\nFor a prime $p$, write $V(\\mathbb{F}_p)$ for the $\\mathbb{F}_p$‑points of $V$, and for $(\\ell_1,\\dots,\\ell_4)\\in V(\\mathbb{F}_p)$ let $N_p(\\ell_1,\\dots,\\ell_4)$ be the number of $\\mathbb{F}_p$‑rational lines that meet all four $\\ell_i$ (i.e. the number of $\\mathbb{F}_p$‑points of $S(\\ell_1,\\dots,\\ell_4)$).\n\nDefine\n\\[ L\\;=\\;\\lim_{p\\to\\infty}\\;\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{(\\ell_1,\\dots,\\ell_4)\\in V(\\mathbb{F}_p)} N_p(\\ell_1,\\dots,\\ell_4)\\,. \\]\nCompute $\\bigl\\lfloor 100L \\bigr\\rfloor$.\n\n(Note: the answer requires using the fact that the map sending a 4‑tuple of lines to the finite étale set $S(\\ell_1,\\dots,\\ell_4)$ has constant degree 2 over $V$, and that for a finite étale cover the average size of the fibre over $\\mathbb{F}_p$ tends to the degree as $p\\to\\infty$.)",
+      "reference": "200",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "200"
+      ],
+      "gpt55_best_answer": "200",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 87,
+      "prompt": "Let $V\\subset \\mathbb{A}^{n}_\\mathbb{Z}$ be the open subscheme parametrising monic degree $n$ polynomials $f(t)=t^{n}+a_{n-1}t^{n-1}+\\dots +a_0$ with distinct roots (i.e. discriminant $\\neq 0$).  Define\n    \\[ Z = \\{(a_0,\\dots ,a_{n-1}, x_1,\\dots ,x_n)\\in V\\times (\\mathbb{A}^1)^n : f(x_i)=0\\text{ for all }i\\}. \\]\n    The projection $\\pi:Z\\to V$ forgetting the roots is a finite étale morphism of degree $n!$, and its geometric Galois group is the full symmetric group $S_n$ acting by permuting the $n$ ordered roots.\n\n    For a prime $p$, let $V(\\mathbb{F}_p)$ be the set of $\\mathbb{F}_p$‑points of $V$, and for $x\\in V(\\mathbb{F}_p)$ let $\\#\\pi^{-1}(x)$ denote the number of $\\mathbb{F}_p$‑rational ordered $n$‑tuples of roots of the corresponding polynomial.\n\n    Define\n    \\[ L_n = \\lim_{p\\to\\infty}\\frac{1}{\\#V(\\mathbb{F}_p)}\\sum_{x\\in V(\\mathbb{F}_p)}\\#\\pi^{-1}(x).\\]\n    Compute $L_n$, rounded to four decimal places, for any fixed integer $n\\ge 2$.\n\n    (Hint: use the Chebotarev density theorem for the $S_n$‑Galois cover $\\pi$.)",
+      "reference": "1",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "1.0000"
+      ],
+      "gpt55_best_answer": "1.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 92,
+      "prompt": "A smooth plane conic is a degree‑$2$ curve in $\\mathbb{P}^{2}$.  It is well known that the space of all plane conics is the projective space $\\mathbb{P}^{5}$.\n\nFor a fixed smooth conic $C\\subset\\mathbb{P}^{2}$, the condition that another conic $D$ be tangent to $C$ defines a divisor of degree $2$ on $\\mathbb{P}^{5}$.\n\nLet $C_{1},C_{2},C_{3},C_{4}\\subset\\mathbb{P}^{2}$ be four *general* smooth conics.  Using intersection theory on $\\mathbb{P}^{5}$ (e.g. Schubert calculus or Chern class calculations) compute the number of smooth plane conics that are simultaneously tangent to all four given conics.\n\nGive your answer as a decimal rounded to four decimal places.",
+      "reference": "16",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "infinitely many"
+      ],
+      "gpt55_best_answer": "infinitely many",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 93,
+      "prompt": "Let \\(f(x)\\in\\mathbb{Q}[x]\\) be an irreducible quartic polynomial whose splitting field over \\(\\mathbb{Q}\\) has Galois group isomorphic to the dihedral group \\(D_4\\) of order 8, acting on the four roots of \\(f\\). For a prime \\(p\\) of good reduction (i.e., \\(p\\) does not divide the discriminant of \\(f\\)), let \\(\\rho(p)\\) be 1 if \\(f\\) has at least one linear factor modulo \\(p\\) (equivalently, if \\(f\\) has a root in \\(\\mathbb{F}_p\\)) and 0 otherwise.\n\nDefine\n\\[ L = \\lim_{X\\to\\infty}\\frac{1}{\\pi(X)}\\sum_{p\\le X}\\rho(p), \\]\nwhere \\(\\pi(X)\\) is the number of primes \\(p\\le X\\).\n\nUsing the Chebotarev density theorem, compute \\(L\\) and then give the integer\n\\[ \\left\\lfloor 100\\,L \\right\\rfloor .\\]\n\nProvide only the final integer answer.",
+      "reference": "37",
+      "claude_answers": [
+        "37"
+      ],
+      "claude_best_answer": "37",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "37"
+      ],
+      "gpt55_best_answer": "37",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 94,
+      "prompt": "Let $Q_1,Q_2,Q_3\\subset \\mathbb P^5$ be three quadric hypersurfaces defined over $\\mathbb Z$ by the homogeneous equations\n\n$$\n\\begin{aligned}\nQ_1:&\\; X_0^2+X_1^2+X_2^2- X_3^2- X_4^2- X_5^2 =0,\\\\\nQ_2:&\\; X_0X_3+ X_1X_4+ X_2X_5 =0,\\\\\nQ_3:&\\; X_0X_1+ X_2X_3+ X_4X_5 =0.\n\\end{aligned}\n$$\n\nIt is known that over $\\mathbb C$ the three quadrics intersect transversely, so the scheme $X:=Q_1\\cap Q_2\\cap Q_3$ is zero‑dimensional of degree $2\\cdot2\\cdot2=8$.\n\nFor a prime $p$ of good reduction (i.e. $p$ does not divide the discriminant of the three quadrics), let $X_p$ denote the reduction of $X$ modulo $p$, and let $N(p)=\\#X_p(\\mathbb F_p)$ be the number of $\\mathbb F_p$‑rational points of $X_p$.\n\nDefine\n\\[\nL\\;=\\;\\lim_{P\\to\\infty}\\;\\frac{1}{\\#\\{p\\le P\\;:\\;p\\text{ good}\\}}\\;\\sum_{\\substack{p\\le P\\\\ p\\text{ good}}} N(p).\n\\]\n\nAssuming the standard facts from étale cohomology (Lefschetz trace formula and Deligne’s bounds) that guarantee the limit exists and equals the geometric degree of the zero‑dimensional étale cover, compute $L$ and give the answer as a decimal number rounded to four decimal places.\n\n(Your answer should be a single number, e.g. `8.0000`.)",
+      "reference": "8",
+      "claude_answers": [
+        "8.0000"
+      ],
+      "claude_best_answer": "8.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "8.0000"
+      ],
+      "gpt55_best_answer": "8.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 95,
+      "prompt": "Consider the polynomial $f(x)=x^4-2\\in\\mathbb Z[x]$. Its splitting field over $\\mathbb Q$ has Galois group $G\\cong D_4$, the dihedral group of order $8$, acting on the four roots of $f$.\n\nFor a prime $p\\neq2$ let $N(p)$ be the number of solutions of the congruence $f(x)\\equiv0\\pmod p$ in $\\mathbb F_p$ (i.e. the number of $\\mathbb F_p$‑rational roots of $x^4\\equiv2$).\n\nDefine\n\\[\nL\\;=\\;\\lim_{P\\to\\infty}\\;\\frac{1}{\\pi(P)}\\;\\sum_{\\substack{p\\le P\\\\ p\\neq2}} N(p),\n\\]\nwhere $\\pi(P)$ is the number of primes $\\le P$ (the prime $2$ is omitted because $f$ is inseparable modulo $2$).\n\nUsing the Chebotarev Density Theorem, determine the limiting average $L$.  Give your answer as a decimal number rounded to four decimal places (e.g. `1.5000`).",
+      "reference": "1",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "1.0000"
+      ],
+      "gpt55_best_answer": "1.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 96,
+      "prompt": "In the projective space \\(\\mathbb P^5\\) that parametrises plane conics (homogeneous quadratic forms in three variables up to scaling), the condition that a conic be tangent to a fixed smooth conic is a single quadratic equation; thus it defines a quadric hypersurface \\(Q_i\\subset\\mathbb P^5\\).  Let \\(Q_1,\\dots,Q_5\\) be five such quadrics corresponding to five *generic* smooth conics in \\(\\mathbb P^2\\).  The discriminant cubic \\(\\Delta\\subset\\mathbb P^5\\) parametrises singular (i.e. reducible or double) conics.\n\nDetermine the number of smooth conics that are simultaneously tangent to all five given generic conics, i.e. the number of points in the set\n\\[\\bigcap_{i=1}^5 Q_i \\;\\setminus\\; \\Delta.\\]\nGive your answer as a decimal number.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [],
+      "gpt55_best_answer": null,
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 98,
+      "prompt": "Let $U$ be the open subset of the projective space $\\mathbb P^5$ parametrising smooth plane conics (i.e. non‑degenerate homogeneous quadratic forms in three variables up to scaling). For a smooth conic $C\\subset\\mathbb P^2$, the condition that a conic $D$ be tangent to $C$ is a single quadratic equation in the coordinates of $\\mathbb P^5$, defining a quadric hypersurface $Q_C\\subset\\mathbb P^5$. \n\nFix five *general* smooth conics $C_1,\\dots,C_5\\subset\\mathbb P^2$. Denote by $N(C_1,\\dots,C_5)$ the number of smooth conics $D$ that are tangent to each $C_i$ (counted with multiplicity). \n\nFor a prime $p$, let $U(\\mathbb F_p)$ be the set of $\\mathbb F_p$‑points of $U$ and consider the sum\n\\[ S(p)=\\sum_{(C_1,\\dots,C_5)\\in U(\\mathbb F_p)^5}\\! N(C_1,\\dots,C_5). \\]\nDefine\n\\[ L = \\lim_{p\\to\\infty}\\frac{S(p)}{\\#U(\\mathbb F_p)^5}. \\]\nCompute $\\bigl\\lfloor 100 L \\bigr\\rfloor$.\n\n(Provide the integer answer.)",
+      "reference": "3200",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [],
+      "gpt55_best_answer": null,
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 99,
+      "prompt": "Consider the following parameter space over \\(\\mathbb{Z}\\). Let \\(\\mathcal{C}\\) be the projective space \\(\\mathbb{P}(H^0(\\mathbb{P}^2,\\mathcal{O}(2)))\\) parametrising plane conics, \\(\\mathcal{D}\\) the projective space \\(\\mathbb{P}(H^0(\\mathbb{P}^2,\\mathcal{O}(3)))\\) parametrising plane cubics, and \\(\\mathcal{E}\\) the projective space \\(\\mathbb{P}(H^0(\\mathbb{P}^2,\\mathcal{O}(4)))\\) parametrising plane quartics. Let \\(U\\subset \\mathcal{C}\\times\\mathcal{D}\\times\\mathcal{E}\\) be the dense open subscheme consisting of triples \\((C,D,E)\\) such that:\n1. \\(C,D,E\\) are smooth curves; and\n2. the three curves intersect transversely (i.e., the scheme‑theoretic intersection \\(C\\cap D\\cap E\\) is zero‑dimensional and reduced).\nDefine the incidence variety\n\\[ Z\\;=\\;\\{(C,D,E,P)\\mid (C,D,E)\\in U,\\; P\\in C\\cap D\\cap E\\}\\subset U\\times \\mathbb{P}^2,\\]\nand let \\(\\pi: Z\\to U\\) be the projection forgetting the point \\(P\\).\nFor a prime \\(p\\) of good reduction, write \\(U(\\mathbb{F}_p)\\) for the \\(\\mathbb{F}_p\\)-points of \\(U\\) and \\(\\#\\pi^{-1}(x)\\) for the number of \\(\\mathbb{F}_p\\)-points in the fibre over \\(x\\in U(\\mathbb{F}_p)\\).\nDefine\n\\[ L\\;=\\;\\lim_{p\\to\\infty}\\;\\frac{1}{\\#U(\\mathbb{F}_p)}\\sum_{x\\in U(\\mathbb{F}_p)}\\#\\pi^{-1}(x). \\]\nCompute \\(\\bigl\\lfloor 100L\\bigr\\rfloor\\). (Give the exact integer.)",
+      "reference": "0",
+      "claude_answers": [
+        "0"
+      ],
+      "claude_best_answer": "0",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0"
+      ],
+      "gpt55_best_answer": "0",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 100,
+      "prompt": "Let $\\mathbb{P}^5$ be complex projective $5$‑space. Choose six general hypersurfaces $H_1,\\dots,H_6\\subset\\mathbb{P}^5$ of degrees\n\\[\\deg H_1=\\deg H_2=\\deg H_3=2,\\qquad \\deg H_4=\\deg H_5=\\deg H_6=3.\\]\nAssuming the hypersurfaces intersect transversely (so the intersection is zero‑dimensional), determine the number of points in $H_1\\cap H_2\\cap H_3\\cap H_4\\cap H_5\\cap H_6$.\nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "0",
+      "claude_answers": [
+        "216.0000"
+      ],
+      "claude_best_answer": "216.0000",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "0.0000"
+      ],
+      "gpt55_best_answer": "0.0000",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 101,
+      "prompt": "Let f_2, f_3, f_4 \\in \\mathbb{Z}[X_0,X_1,X_2,X_3] be three homogeneous polynomials of degrees 2, 3 and 4 respectively such that the common zero locus Z \\subset \\mathbb{P}^3_{\\mathbb{Q}} defined by f_2 = f_3 = f_4 = 0 is zero‑dimensional and consists of 24 distinct points over \\mathbb{C}. For a prime p at which the reductions \\overline{f}_2, \\overline{f}_3, \\overline{f}_4 remain a transverse complete intersection (so that \\overline{Z} \\subset \\mathbb{P}^3_{\\mathbb{F}_p} is also zero‑dimensional and reduced), let N(p) be the number of \\mathbb{F}_p‑rational points of \\overline{Z}. Define\n\\[ L = \\lim_{p \\to \\infty} N(p). \\]\nAssuming the above transversality holds for all sufficiently large primes, compute \\( \\bigl\\lfloor 100 L \\bigr\\rfloor \\).",
+      "reference": "2400",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": false,
+      "gpt55_answers": [
+        "not well-defined"
+      ],
+      "gpt55_best_answer": "not well-defined",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 102,
+      "prompt": "Let $\\mathbb F_p$ be a finite field with $p$ prime.  For a monic square‑free quartic polynomial\n\\[f(t)=t^4+a_3t^3+a_2t^2+a_1t+a_0\\in\\mathbb F_p[t]$$\nlet $\\alpha_1,\\dots,\\alpha_4$ be its four distinct roots in $\\overline{\\mathbb F}_p$.\nDefine $N(f)$ to be the number of unordered pairs $\\{\\alpha_i,\\alpha_j\\}$ (with $i<j$) that are **fixed by the Frobenius automorphism $x\\mapsto x^p$**; equivalently, the number of pairs of roots that both lie in $\\mathbb F_p$.\n\nFor each prime $p$ let $\\mathcal{M}_p$ be the set of all monic square‑free quartic polynomials over $\\mathbb F_p$.\nDefine\n\\[L\\;=\\;\\lim_{p\\to\\infty}\\;\\frac{1}{\\#\\mathcal{M}_p}\\sum_{f\\in\\mathcal{M}_p} N(f)\\;.\n\\]\nCompute $100L$ and give the answer rounded to four decimal places.\n\n(Note: the limit exists because the Galois group of a generic quartic is $S_4$, which acts on the six unordered pairs of roots.  The Frobenius element for a random polynomial is equidistributed in $S_4$ by Chebotarev.)",
+      "reference": "50",
+      "claude_answers": [
+        "50.0000"
+      ],
+      "claude_best_answer": "50.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100.0000"
+      ],
+      "gpt55_best_answer": "100.0000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 104,
+      "prompt": "A smooth cubic surface $S\\subset \\mathbb{P}^3_{\\mathbb{C}}$ contains a finite set of lines.  Let $\\mathcal{F}$ be the Fano scheme of lines on $S$; it is a zero‑dimensional scheme whose length equals the number of lines on $S$ (counted with multiplicity).\n\nUsing Schubert calculus on the Grassmannian $G(1,3)$, compute the length of $\\mathcal{F}$, i.e., the total number of lines contained in a smooth cubic surface.\n\nLet $L$ denote this number.  Finally, output $\\bigl\\lfloor 100L \\bigr\\rfloor$.\n\n(You may use that the class of a cubic surface in $\\mathbb{P}^3$ corresponds to the divisor $3H$ where $H$ is the hyperplane class, and that the Plücker embedding of $G(1,3)$ has Picard group generated by the Schubert cycles $\\sigma_1$ and $\\sigma_{1,1}$.)",
+      "reference": "2700",
+      "claude_answers": [
+        "2700"
+      ],
+      "claude_best_answer": "2700",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "2700"
+      ],
+      "gpt55_best_answer": "2700",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 7,
+      "prompt": "The polynomial \\(x^5-2\\) is irreducible over \\(\\mathbb{Q}\\) and its splitting field has Galois group \\(S_5\\). How many intermediate fields (including \\(\\mathbb{Q}\\) and the full splitting field) does this extension have? Give the exact integer answer.",
+      "reference": "156",
+      "claude_answers": [
+        "156"
+      ],
+      "claude_best_answer": "156",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "14"
+      ],
+      "gpt55_best_answer": "14",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 19,
+      "prompt": "Let $U\\subset \\mathbb{A}^1_{\\mathbb{Z}}$ be the open subscheme obtained by removing the points $t=0,1,\\infty$ (i.e., $U=\\operatorname{Spec}\\mathbb{Z}[t, t^{-1}, (t-1)^{-1}]$). Consider the degree‑$4$ finite étale Galois cover $\\pi\\colon X\\to U$ corresponding to the splitting field over $\\mathbb{Q}(t)$ of the polynomial\n$$f_T(x)=x^4-2Tx^2+T^2-1,$$\nwhere $T$ is the coordinate on $U$. The Galois group of the covering is the dihedral group $D_4$ of order $8$, acting naturally on the four roots of $f_T$ (the vertices of a square).\n\nFor each prime $p$ of good reduction (i.e. $p\\neq2$) let $U(\\mathbb{F}_p)$ denote the set of $\\mathbb{F}_p$‑points of $U$ and for $t\\in U(\\mathbb{F}_p)$ let $\\#\\pi^{-1}(t)(\\mathbb{F}_p)$ be the number of $\\mathbb{F}_p$‑points in the fibre over $t$.\nDefine\n$$M_p=\\frac{1}{\\#U(\\mathbb{F}_p)}\\sum_{t\\in U(\\mathbb{F}_p)}\\#\\pi^{-1}(t)(\\mathbb{F}_p)$$\nand let\n$$L=\\lim_{p\\to\\infty} M_p,$$ the limit taken over all odd primes $p$.\nUsing the Chebotarev density theorem (i.e., the equidistribution of Frobenius elements in $D_4$) compute $\\lfloor 100L\\rfloor$.",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    },
+    {
+      "id": 56,
+      "prompt": "In complex projective $4$‑space $\\mathbb{P}^4$, let $Q_1,\\dots,Q_4$ be four general quadric hypersurfaces (each defined by a homogeneous polynomial of degree $2$) and let $C$ be a general cubic hypersurface (degree $3$). Assume that the intersection\n$$X = Q_1\\cap Q_2\\cap Q_3\\cap Q_4\\cap C$$\nis zero‑dimensional and transverse, so that $X$ consists of finitely many points counted with multiplicity. Determine the number of points of $X$. Give the answer as a decimal number rounded to four decimal places.",
+      "reference": "48",
+      "claude_answers": [
+        "48.0000"
+      ],
+      "claude_best_answer": "48.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "0.0000"
+      ],
+      "gpt55_best_answer": "0.0000",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 81,
+      "prompt": "In projective three‑space \\(\\mathbb{P}^{3}\\) over an algebraically closed field, a line \\(\\ell\\) is said to *meet* a surface \\(S\\) if \\(\\ell\\cap S \\neq \\emptyset\\).  Consider four general smooth quadric surfaces \\(Q_{1},Q_{2},Q_{3},Q_{4}\\) (each defined by a homogeneous polynomial of degree 2).\n\nHow many distinct lines in \\(\\mathbb{P}^{3}\\) meet all four quadrics simultaneously?  Give the exact number, expressed as a decimal rounded to four decimal places.",
+      "reference": "32",
+      "claude_answers": [
+        "32.0000"
+      ],
+      "claude_best_answer": "32.0000",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "infinitely many"
+      ],
+      "gpt55_best_answer": "infinitely many",
+      "gpt55_agrees_with_reference": false
+    },
+    {
+      "id": 45,
+      "prompt": "Let \\(f(x)=x^{4}-2\\). For a prime \\(p\\) such that the reduction of \\(f\\) modulo \\(p\\) is separable, let \\(N(p)\\) denote the number of solutions of \\(f(x)\\equiv 0\\pmod p\\) in \\(\\mathbb{F}_{p}\\). Define\n\\[\nL \\;=\\; \\lim_{X\\to\\infty}\\;\\frac{1}{\\pi(X)}\\;\\sum_{\\substack{p\\le X\\\\ f\\text{ separable mod }p}} N(p),\n\\]\nwhere \\(\\pi(X)\\) is the number of primes \\(\\le X\\).\nAssuming the Galois group of \\(f\\) over \\(\\mathbb{Q}\\) is the dihedral group \\(D_{4}\\) (order 8) acting on the four complex roots, compute \\(\\bigl\\lfloor 100 L \\bigr\\rfloor\\).",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true,
+      "gpt55_answers": [
+        "100"
+      ],
+      "gpt55_best_answer": "100",
+      "gpt55_agrees_with_reference": true
+    }
+  ]
+}

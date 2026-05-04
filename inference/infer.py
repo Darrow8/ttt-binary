@@ -53,9 +53,17 @@ calculations, and intermediate steps IN YOUR RESPONSE — do not skip ahead \
 to the answer. Think carefully and work through the math explicitly. \
 Write out every key derivation.
 
-Round your answer to 4 decimal places if necessary. \
-Your answer must be a number, not an expression. \
-Put your final answer inside \\boxed{{}}.
+After you have fully worked through the solution, write your final answer \
+on the very last line in exactly this format:
+
+\\boxed{{<answer>}}
+
+For example: \\boxed{{0.6079}} or \\boxed{{42}}
+
+If the answer is a finite number, write it as a decimal rounded to 4 decimal \
+places (e.g. 0.6079, 42.0000). Do NOT write symbolic expressions like 1/π² or √2. \
+If the answer is infinite, write \\boxed{{\\infty}} or \\boxed{{-\\infty}}. \
+If the problem is ill-posed or the answer does not exist, write \\boxed{{\\text{{undefined}}}}.
 
 """
 

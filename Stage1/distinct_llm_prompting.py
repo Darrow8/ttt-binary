@@ -375,18 +375,24 @@ SOLVE_PROMPT = """\
 
 {problem}
 
-When you are done, write your final numerical answer on the very last line \
-in exactly this format:
+## Instructions
+
+Solve this problem step by step. You MUST show all of your reasoning, \
+calculations, and intermediate steps IN YOUR RESPONSE — do not skip ahead \
+to the answer. Think carefully and work through the math explicitly. \
+Write out every key derivation.
+
+After you have fully worked through the solution, write your final answer \
+on the very last line in exactly this format:
 
 \\boxed{{<answer>}}
 
 For example: \\boxed{{0.6079}} or \\boxed{{42}}
 
-Your answer MUST be a single decimal number (e.g. 0.6079, 42, 3.1416). \
-Do NOT write symbolic expressions like 1/π², 6/π², √2, or ln 2. \
-If the answer is irrational or a fraction, round to 4 decimal places.
-
-Solve the problem above step by step.
+If the answer is a finite number, write it as a decimal rounded to 4 decimal \
+places (e.g. 0.6079, 42.0000). Do NOT write symbolic expressions like 1/π² or √2. \
+If the answer is infinite, write \\boxed{{\\infty}} or \\boxed{{-\\infty}}. \
+If the problem is ill-posed or the answer does not exist, write \\boxed{{\\text{{undefined}}}}.
 
 """
 
