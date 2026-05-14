@@ -56,24 +56,44 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+# Boto3 (Bedrock) calls run in a thread pool via run_in_executor — make sure
+# we have enough threads to actually run MAX_CONCURRENT_BEDROCK in parallel.
+import concurrent.futures
+asyncio_default_executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
+
 import anthropic
 import boto3
 from openai import AsyncAzureOpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
+try:
+    from google import genai
+    from google.genai.types import GenerateContentConfig, ThinkingConfig
+except ImportError:
+    genai = None
+    GenerateContentConfig = None
+    ThinkingConfig = None
+
 # ── Model config ──────────────────────────────────────────────────────────────
-DEFAULT_CLAUDE_MODEL = "claude-opus-4-7"
+DEFAULT_CLAUDE_MODEL = "claude-opus-4-6"
+CLAUDE_THINKING_BUDGET = 32000
 MAX_TOKENS = 65536
-MAX_CONCURRENT = 10       # concurrent requests in flight per provider
-MAX_CONCURRENT_BEDROCK = 2  # Bedrock has strict TPM limits
+MAX_CONCURRENT = 10        # concurrent requests in flight per provider
+MAX_CONCURRENT_BEDROCK = 6 # Bedrock TPM is tight with 32k thinking
+MAX_CONCURRENT_GEMINI = 3  # Gemini Vertex AI has TPM limits
 
 DEFAULT_AZURE_ENDPOINT = "https://hdarrow3-8892-resource.openai.azure.com"
 DEFAULT_AZURE_API_VERSION = "2025-04-01-preview"
 DEFAULT_AZURE_DEPLOYMENT = "gpt-5.5-1"
 DEFAULT_GPT55_REASONING_EFFORT = "high"
 
-BEDROCK_CLAUDE_MODEL = "arn:aws:bedrock:us-east-1:322356185166:inference-profile/us.anthropic.claude-opus-4-7"
-BEDROCK_REGION = "us-east-1"
+BEDROCK_CLAUDE_MODEL = "us.anthropic.claude-opus-4-6-v1"
+BEDROCK_REGION = "us-east-2"  # primary region (for logging)
+BEDROCK_REGIONS = ["us-east-2", "us-east-1", "us-west-2", "us-west-1"]  # rotate on throttle
+BEDROCK_THINKING_BUDGET = 16000
+
+GEMINI_MODEL = "gemini-3.1-pro-preview"
+GEMINI_THINKING_BUDGET = 32768
 
 # Same prompt as eval_frontier_models.py / eval_gpt54_repeat.py so results are
 # directly comparable to the rest of the eval suite.
@@ -89,17 +109,9 @@ calculations, and intermediate steps IN YOUR RESPONSE — do not skip ahead \
 to the answer. Think carefully and work through the math explicitly. \
 Write out every key derivation.
 
-After you have fully worked through the solution, write your final answer \
-on the very last line in exactly this format:
-
-\\boxed{{<answer>}}
-
-For example: \\boxed{{0.6079}} or \\boxed{{42}}
-
-If the answer is a finite number, write it as a decimal rounded to 4 decimal \
-places (e.g. 0.6079, 42.0000). Do NOT write symbolic expressions like 1/π² or √2. \
-If the answer is infinite, write \\boxed{{\\infty}} or \\boxed{{-\\infty}}. \
-If the problem is ill-posed or the answer does not exist, write \\boxed{{\\text{{undefined}}}}.
+Round your answer to 4 decimal places if necessary. \
+Your answer must be a number, not an expression. \
+Put your final answer inside \\boxed{{}}.
 
 """
 
@@ -114,6 +126,29 @@ def answers_match(a: str, b: str) -> bool:
         return abs(fa - fb) < 1e-6
     except (ValueError, AttributeError):
         return False
+
+
+def _is_non_numeric_answer(ans: str) -> bool:
+    """True if the answer is empty / infinity / undefined / not parseable as a number."""
+    s = str(ans).lower().strip()
+    if not s:
+        return True
+    if "undefined" in s or "infty" in s or "infinity" in s:
+        return True
+    try:
+        float(s.replace(",", ""))
+        return False
+    except ValueError:
+        return True
+
+
+def _normalize_numeric_answer(ans: str) -> str:
+    """Canonicalize numeric answers so '32' and '32.0000' bucket together."""
+    try:
+        f = float(str(ans).replace(",", ""))
+        return str(int(f)) if f == int(f) else str(round(f, 4))
+    except (ValueError, AttributeError):
+        return str(ans)
 
 
 # ── Answer extraction (matches inference/infer.py / eval_frontier_models.py) ──
@@ -216,26 +251,38 @@ async def query_gpt55(
     sem: asyncio.Semaphore,
     reasoning_effort: str = DEFAULT_GPT55_REASONING_EFFORT,
 ) -> str:
-    """One GPT-5.5 completion via the Azure Responses API with reasoning."""
+    """One GPT-5.5 completion via the Azure Responses API with reasoning.
+    Retries on bare refusals from the content filter (no math content)."""
     async with sem:
         t0 = time.time()
-        resp = await client.responses.create(
-            model=deployment,
-            input=[
-                {"role": "system", "content": "You are an expert mathematician. Answer all academic math problems fully and completely."},
-                {"role": "user", "content": prompt},
-            ],
-            reasoning={"effort": reasoning_effort},
-            max_output_tokens=MAX_TOKENS,
+
+        @retry(
+            wait=wait_random_exponential(multiplier=1, max=30),
+            stop=stop_after_attempt(4),
+            reraise=True,
         )
+        async def _call():
+            resp = await client.responses.create(
+                model=deployment,
+                input=[{"role": "user", "content": prompt}],
+                reasoning={"effort": reasoning_effort},
+                max_output_tokens=MAX_TOKENS,
+            )
+            parts: list[str] = []
+            for item in resp.output:
+                if item.type == "message":
+                    for content in item.content:
+                        if content.type == "output_text":
+                            parts.append(content.text)
+            text = "\n".join(parts)
+            # Detect Azure content-filter refusals so retry kicks in
+            if text.strip().lower().startswith("i'm sorry") and len(text) < 200:
+                raise RuntimeError(f"Azure content filter refusal: {text!r}")
+            return text
+
+        text = await _call()
         print(f"    [gpt55]  {time.time()-t0:.1f}s", flush=True)
-        parts: list[str] = []
-        for item in resp.output:
-            if item.type == "message":
-                for content in item.content:
-                    if content.type == "output_text":
-                        parts.append(content.text)
-        return "\n".join(parts)
+        return text
 
 
 # ── AWS Bedrock Claude query ──────────────────────────────────────────────────
@@ -246,23 +293,62 @@ async def query_claude_bedrock(api_key: str, prompt: str, sem: asyncio.Semaphore
 
         def _call():
             os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
-            client = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
+            from botocore.config import Config
+            cfg = Config(retries={"max_attempts": 1}, read_timeout=600, connect_timeout=30)
+            clients = {r: boto3.client("bedrock-runtime", region_name=r, config=cfg) for r in BEDROCK_REGIONS}
+            attempt = {"n": 0}
+            max_attempts = max(10, len(BEDROCK_REGIONS) * 3)
 
-            @retry(wait=wait_random_exponential(multiplier=2, max=120), stop=stop_after_attempt(8))
+            @retry(wait=wait_random_exponential(multiplier=2, max=120), stop=stop_after_attempt(max_attempts))
             def _invoke():
-                return client.converse(
-                    modelId=BEDROCK_CLAUDE_MODEL,
-                    messages=[{"role": "user", "content": [{"text": prompt}]}],
-                    inferenceConfig={"maxTokens": 32000},
-                    performanceConfig={"latency": "standard"},
-                )
+                attempt["n"] += 1
+                region = BEDROCK_REGIONS[(attempt["n"] - 1) % len(BEDROCK_REGIONS)]
+                if attempt["n"] > 1:
+                    print(f"    [bedrock] retry {attempt['n']}/{max_attempts} ({region})", flush=True)
+                try:
+                    return clients[region].converse(
+                        modelId=BEDROCK_CLAUDE_MODEL,
+                        messages=[{"role": "user", "content": [{"text": prompt}]}],
+                        inferenceConfig={"maxTokens": 64000, "temperature": 1.0},
+                        additionalModelRequestFields={
+                            "thinking": {"type": "enabled", "budget_tokens": BEDROCK_THINKING_BUDGET},
+                        },
+                        performanceConfig={"latency": "standard"},
+                    )
+                except Exception as e:
+                    print(f"    [bedrock] attempt {attempt['n']} ({region}) failed: {type(e).__name__}: {str(e)[:120]}", flush=True)
+                    raise
 
             resp = _invoke()
-            return resp["output"]["message"]["content"][0]["text"]
+            # With thinking enabled, content has a reasoningContent block before text.
+            for block in resp["output"]["message"]["content"]:
+                if "text" in block:
+                    return block["text"]
+            return ""
 
-        result = await loop.run_in_executor(None, _call)
+        result = await loop.run_in_executor(asyncio_default_executor, _call)
         print(f"    [bedrock] {time.time()-t0:.1f}s", flush=True)
         return result
+
+
+# ── Gemini query (Vertex AI) ──────────────────────────────────────────────────
+async def query_gemini(client, prompt: str, sem: asyncio.Semaphore) -> str:
+    async with sem:
+        t0 = time.time()
+
+        @retry(wait=wait_random_exponential(multiplier=2, max=120), stop=stop_after_attempt(8))
+        async def _call():
+            return await client.aio.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=GenerateContentConfig(
+                    thinking_config=ThinkingConfig(thinking_budget=GEMINI_THINKING_BUDGET),
+                ),
+            )
+
+        resp = await _call()
+        print(f"    [gemini] {time.time()-t0:.1f}s", flush=True)
+        return resp.text or ""
 
 
 # ── Per-provider helper: gather n_samples in parallel and pick best answer ───
@@ -271,21 +357,31 @@ async def _gather_provider(
     coro_factory,
     n_samples: int,
     pid,
+    on_sample=None,
 ) -> tuple[list[str], list[str], str | None]:
-    """Run n_samples concurrent calls; return (answers, raw_outputs, best)."""
-    tasks = [coro_factory() for _ in range(n_samples)]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    """Run n_samples concurrent calls; return (answers, raw_outputs, best).
+    If `on_sample` is provided, it is called after each sample lands with
+    (provider_name, answer_str, raw_output_str)."""
+    async def _one(idx):
+        try:
+            r = await coro_factory()
+        except Exception as e:
+            print(f"  [!] {name} error on problem {pid}: {e}", file=sys.stderr)
+            return idx, None, f"ERROR: {e}"
+        ans = extract_answer(r)
+        print(f"    pid={pid} {name} sample {idx+1}: {ans!r}", flush=True)
+        return idx, ans, r
+
+    tasks = [asyncio.create_task(_one(i)) for i in range(n_samples)]
     answers: list[str] = []
     raw_outputs: list[str] = []
-    for r in results:
-        if isinstance(r, Exception):
-            print(f"  [!] {name} error on problem {pid}: {r}", file=sys.stderr)
-            raw_outputs.append(f"ERROR: {r}")
-            continue
-        raw_outputs.append(r)
-        ans = extract_answer(r)
+    for fut in asyncio.as_completed(tasks):
+        idx, ans, raw = await fut
+        raw_outputs.append(raw)
         if ans:
             answers.append(ans)
+        if on_sample is not None:
+            await on_sample(name, ans, raw)
     best = Counter(answers).most_common(1)[0][0] if answers else None
     return answers, raw_outputs, best
 
@@ -318,12 +414,14 @@ async def evaluate_problem(
     claude_client: anthropic.AsyncAnthropic | None,
     azure_client: AsyncAzureOpenAI | None,
     bedrock_api_key: str | None,
+    gemini_client,
     claude_model: str,
     azure_deployment: str,
     gpt55_reasoning_effort: str,
     sems: dict[str, asyncio.Semaphore],
     n_samples: int,
     existing_record: dict | None = None,
+    on_sample=None,
 ) -> dict:
     """Query whichever providers are enabled-and-not-yet-recorded, then merge
     their results into ``existing_record`` (if provided) so that prior work is
@@ -340,13 +438,19 @@ async def evaluate_problem(
         "raw_outputs": {},
     }
 
+    # Per-provider sample-landed callback (forwards to the run-level callback,
+    # passing the problem id so run_dataset can patch the right record).
+    async def _wrap_on_sample(provider, ans, raw):
+        if on_sample is not None:
+            await on_sample(pid, provider, ans, raw)
+
     # Decide which providers actually need to be (re-)queried for this problem.
     coros = {}
     if claude_client is not None and not _has_provider_result(existing, "claude"):
         coros["claude"] = _gather_provider(
             "claude",
             lambda: query_claude(claude_client, claude_model, prompt, sems["claude"]),
-            n_samples, pid,
+            n_samples, pid, on_sample=_wrap_on_sample,
         )
     if azure_client is not None and not _has_provider_result(existing, "gpt55"):
         coros["gpt55"] = _gather_provider(
@@ -355,13 +459,19 @@ async def evaluate_problem(
                 azure_client, azure_deployment, prompt, sems["gpt55"],
                 gpt55_reasoning_effort,
             ),
-            n_samples, pid,
+            n_samples, pid, on_sample=_wrap_on_sample,
         )
     if bedrock_api_key is not None and not _has_provider_result(existing, "bedrock"):
         coros["bedrock"] = _gather_provider(
             "bedrock",
             lambda: query_claude_bedrock(bedrock_api_key, prompt, sems["bedrock"]),
-            n_samples, pid,
+            n_samples, pid, on_sample=_wrap_on_sample,
+        )
+    if gemini_client is not None and not _has_provider_result(existing, "gemini"):
+        coros["gemini"] = _gather_provider(
+            "gemini",
+            lambda: query_gemini(gemini_client, prompt, sems["gemini"]),
+            n_samples, pid, on_sample=_wrap_on_sample,
         )
 
     if coros:
@@ -378,7 +488,7 @@ async def evaluate_problem(
         "reference": reference,
         "raw_outputs": dict(existing.get("raw_outputs") or {}),
     }
-    for provider in ("claude", "gpt55", "bedrock"):
+    for provider in ("claude", "gpt55", "bedrock", "gemini"):
         out[f"{provider}_answers"] = existing.get(f"{provider}_answers")
         out[f"{provider}_best_answer"] = existing.get(f"{provider}_best_answer")
         out[f"{provider}_agrees_with_reference"] = existing.get(f"{provider}_agrees_with_reference")
@@ -395,6 +505,37 @@ async def evaluate_problem(
         out[f"{provider}_agrees_with_reference"] = correct
         out["raw_outputs"][provider] = raw_outputs
 
+    # Cross-model majority vote, filtering out infinity / undefined responses.
+    all_samples = []
+    for provider in ("claude", "gpt55", "bedrock", "gemini"):
+        for ans in (out.get(f"{provider}_answers") or []):
+            all_samples.append({"provider": provider, "answer": ans})
+
+    n_infinity = sum(
+        1 for s in all_samples
+        if "infty" in str(s["answer"]).lower() or "infinity" in str(s["answer"]).lower()
+    )
+    n_undefined = sum(
+        1 for s in all_samples
+        if "undefined" in str(s["answer"]).lower()
+    )
+    numeric_norm = [
+        _normalize_numeric_answer(s["answer"])
+        for s in all_samples
+        if not _is_non_numeric_answer(s["answer"])
+    ]
+    counter = Counter(numeric_norm)
+    majority = counter.most_common(1)[0][0] if counter else None
+
+    out["all_samples"] = all_samples
+    out["n_infinity"] = n_infinity
+    out["n_undefined"] = n_undefined
+    out["pooled_distribution"] = dict(counter)
+    out["majority_vote"] = majority
+    out["majority_count"] = counter[majority] if majority else 0
+    out["pooled_n"] = len(all_samples)
+    out["pooled_n_numeric"] = len(numeric_norm)
+
     return out
 
 
@@ -405,6 +546,7 @@ async def run_dataset(
     claude_client: anthropic.AsyncAnthropic | None,
     azure_client: AsyncAzureOpenAI | None,
     bedrock_api_key: str | None,
+    gemini_client,
     claude_model: str,
     azure_deployment: str,
     gpt55_reasoning_effort: str,
@@ -450,6 +592,8 @@ async def run_dataset(
         enabled_providers.append("gpt55")
     if bedrock_api_key is not None:
         enabled_providers.append("bedrock")
+    if gemini_client is not None:
+        enabled_providers.append("gemini")
 
     def _record_needs_work(rec: dict) -> bool:
         return any(not _has_provider_result(rec, p) for p in enabled_providers)
@@ -491,6 +635,7 @@ async def run_dataset(
         n_claude_correct, n_claude_answered = _accuracy("claude")
         n_gpt55_correct, n_gpt55_answered = _accuracy("gpt55")
         n_bedrock_correct, n_bedrock_answered = _accuracy("bedrock")
+        n_gemini_correct, n_gemini_answered = _accuracy("gemini")
         ordered = _ordered_results()
         summary = [{k: v for k, v in r.items() if k != "raw_outputs"} for r in ordered]
         output_data = {
@@ -500,6 +645,7 @@ async def run_dataset(
                     "claude": claude_model if claude_client else None,
                     "gpt55": azure_deployment if azure_client else None,
                     "bedrock": BEDROCK_CLAUDE_MODEL if bedrock_api_key else None,
+                    "gemini": GEMINI_MODEL if gemini_client else None,
                 },
                 "gpt55_reasoning_effort": gpt55_reasoning_effort if azure_client else None,
                 "dataset": str(path),
@@ -520,6 +666,15 @@ async def run_dataset(
                     "n_correct": n_bedrock_correct,
                     "accuracy": round(100 * n_bedrock_correct / n_bedrock_answered, 2) if n_bedrock_answered else 0,
                 },
+                "gemini": {
+                    "n_answered": n_gemini_answered,
+                    "n_correct": n_gemini_correct,
+                    "accuracy": round(100 * n_gemini_correct / n_gemini_answered, 2) if n_gemini_answered else 0,
+                },
+                "infinity_total": sum(r.get("n_infinity", 0) for r in ordered),
+                "undefined_total": sum(r.get("n_undefined", 0) for r in ordered),
+                "problems_with_any_infinity": sum(1 for r in ordered if r.get("n_infinity", 0) > 0),
+                "problems_with_any_undefined": sum(1 for r in ordered if r.get("n_undefined", 0) > 0),
                 "samples_per_problem": n_samples,
                 "completed": len(ordered) == len(all_problems),
                 "elapsed_s": round(time.time() - t0, 1),
@@ -537,14 +692,38 @@ async def run_dataset(
         os.replace(tmp_full, full_path)
 
     sem_problems = asyncio.Semaphore(batch_size)
+    save_lock = asyncio.Lock()
+
+    async def _on_sample(pid, provider, answer, raw):
+        """Patch the partial record for this problem and save."""
+        async with save_lock:
+            rec = by_id.get(pid)
+            if rec is None:
+                # find the problem prompt/reference for the partial record
+                prob = next((p for p in all_problems if p["id"] == pid), None)
+                rec = {
+                    "id": pid,
+                    "prompt": prob["prompt"] if prob else "",
+                    "reference": prob["reference"] if prob else None,
+                    "raw_outputs": {},
+                }
+                by_id[pid] = rec
+            rec.setdefault("raw_outputs", {}).setdefault(provider, []).append(raw)
+            answers_field = f"{provider}_answers"
+            if rec.get(answers_field) is None:
+                rec[answers_field] = []
+            if answer:
+                rec[answers_field].append(answer)
+            save_progress()
 
     async def _run_one(p):
         async with sem_problems:
             return await evaluate_problem(
-                p, claude_client, azure_client, bedrock_api_key,
+                p, claude_client, azure_client, bedrock_api_key, gemini_client,
                 claude_model, azure_deployment, gpt55_reasoning_effort,
                 sems, n_samples,
                 existing_record=by_id.get(p["id"]),
+                on_sample=_on_sample,
             )
 
     tasks = [asyncio.create_task(_run_one(p)) for p in pending]
@@ -556,6 +735,7 @@ async def run_dataset(
         nc, na = _accuracy("claude")
         ng, ga = _accuracy("gpt55")
         nb, ba = _accuracy("bedrock")
+        ngm, gma = _accuracy("gemini")
         elapsed = time.time() - t0
         bits = []
         if claude_client:
@@ -564,11 +744,14 @@ async def run_dataset(
             bits.append(f"gpt55 {ng}/{ga}" + (f" ({100*ng/ga:.1f}%)" if ga else ""))
         if bedrock_api_key:
             bits.append(f"bedrock {nb}/{ba}" + (f" ({100*nb/ba:.1f}%)" if ba else ""))
+        if gemini_client:
+            bits.append(f"gemini {ngm}/{gma}" + (f" ({100*ngm/gma:.1f}%)" if gma else ""))
         print(f"  [{n_done}/{len(all_problems)}] " + ", ".join(bits) + f" -- {elapsed:.0f}s")
 
     nc, na = _accuracy("claude")
     ng, ga = _accuracy("gpt55")
     nb, ba = _accuracy("bedrock")
+    ngm, gma = _accuracy("gemini")
     print(f"  DONE  ({len(by_id)} problems)")
     if claude_client:
         print(f"    claude  : {nc}/{na} correct" + (f" ({100*nc/na:.1f}%)" if na else ""))
@@ -576,8 +759,54 @@ async def run_dataset(
         print(f"    gpt55   : {ng}/{ga} correct" + (f" ({100*ng/ga:.1f}%)" if ga else ""))
     if bedrock_api_key:
         print(f"    bedrock : {nb}/{ba} correct" + (f" ({100*nb/ba:.1f}%)" if ba else ""))
+    if gemini_client:
+        print(f"    gemini  : {ngm}/{gma} correct" + (f" ({100*ngm/gma:.1f}%)" if gma else ""))
     print(f"  Summary: {summary_path}")
     print(f"  Full   : {full_path}")
+
+
+# ── Fixed-dataset writer ──────────────────────────────────────────────────────
+def _write_fixed_dataset(datasets: list[str], out_dir: Path, output_path: str) -> None:
+    """After eval, write a JSONL with `reference` replaced by majority_vote per problem.
+    Skip problems with no consensus (majority_vote=None)."""
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    written = 0
+    dropped = 0
+    changed = 0
+    entries: list[dict] = []
+
+    for ds_path in datasets:
+        stem = Path(ds_path).stem
+        full_path = out_dir / f"{stem}_eval_full.json"
+        if not full_path.exists():
+            print(f"[fixed-dataset] skip {ds_path}: no eval results at {full_path}", file=sys.stderr)
+            continue
+        with open(full_path) as f:
+            records = json.load(f)
+        for r in records:
+            mv = r.get("majority_vote")
+            if mv is None:
+                dropped += 1
+                continue
+            ref = r.get("reference")
+            if ref is not None and not answers_match(str(mv), str(ref)):
+                changed += 1
+            entries.append({"id": r["id"], "prompt": r["prompt"], "reference": str(mv)})
+            written += 1
+
+    is_jsonl = out_path.suffix.lower() == ".jsonl"
+    with open(out_path, "w") as f:
+        if is_jsonl:
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        else:
+            json.dump(entries, f, indent=2, ensure_ascii=False)
+
+    print(f"\n[fixed-dataset] wrote {written} entries to {out_path}")
+    print(f"[fixed-dataset]   dropped (no consensus): {dropped}")
+    print(f"[fixed-dataset]   changed vs original ref: {changed}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -634,6 +863,14 @@ async def main():
         "--skip-bedrock", action="store_true",
         help="Disable the Claude (Bedrock) provider for this run",
     )
+    parser.add_argument(
+        "--skip-gemini", action="store_true",
+        help="Disable the Gemini provider for this run",
+    )
+    parser.add_argument(
+        "--write-fixed-dataset", default=None,
+        help="If set, after eval write a JSONL with `reference` replaced by the cross-model majority vote.",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -643,6 +880,7 @@ async def main():
     claude_client: anthropic.AsyncAnthropic | None = None
     azure_client: AsyncAzureOpenAI | None = None
     bedrock_api_key: str | None = None
+    gemini_client = None
 
     # Claude
     if args.skip_claude:
@@ -679,9 +917,25 @@ async def main():
     else:
         print("  [SKIP] Claude Bedrock -- AWS_BEDROCK_API_KEY not set")
 
-    if claude_client is None and azure_client is None and bedrock_api_key is None:
+    if args.skip_gemini:
+        print("  [SKIP] Gemini (--skip-gemini)")
+    elif genai is None:
+        print("  [SKIP] Gemini -- google-genai not installed (pip install google-genai)")
+    elif os.environ.get("GOOGLE_CLOUD_PROJECT"):
+        gemini_client = genai.Client(
+            vertexai=True,
+            project=os.environ["GOOGLE_CLOUD_PROJECT"],
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
+        )
+        print(f"  Gemini  : {GEMINI_MODEL} (Vertex AI, project={os.environ['GOOGLE_CLOUD_PROJECT']})")
+    else:
+        print("  [SKIP] Gemini -- GOOGLE_CLOUD_PROJECT not set")
+
+    if (claude_client is None and azure_client is None
+        and bedrock_api_key is None and gemini_client is None):
         print("\nERROR: no providers enabled. Set ANTHROPIC_API_KEY and/or "
-              "AZURE_AI_FOUNDRY_API_KEY_FRONTIER in .env, "
+              "AZURE_AI_FOUNDRY_API_KEY_FRONTIER and/or AWS_BEDROCK_API_KEY "
+              "and/or GOOGLE_CLOUD_PROJECT in .env, "
               "or remove the corresponding --skip-* flag.", file=sys.stderr)
         sys.exit(1)
 
@@ -689,6 +943,7 @@ async def main():
         "claude":  asyncio.Semaphore(MAX_CONCURRENT),
         "gpt55":   asyncio.Semaphore(MAX_CONCURRENT),
         "bedrock": asyncio.Semaphore(MAX_CONCURRENT_BEDROCK),
+        "gemini":  asyncio.Semaphore(MAX_CONCURRENT_GEMINI),
     }
 
     print(f"  Datasets        : {args.datasets}")
@@ -703,10 +958,13 @@ async def main():
             continue
         await run_dataset(
             path, out_dir,
-            claude_client, azure_client, bedrock_api_key,
+            claude_client, azure_client, bedrock_api_key, gemini_client,
             args.model, azure_deployment, args.gpt55_reasoning_effort,
             sems, args.samples, args.batch_size,
         )
+
+    if args.write_fixed_dataset:
+        _write_fixed_dataset(args.datasets, out_dir, args.write_fixed_dataset)
 
     print("\nAll datasets processed.")
 
