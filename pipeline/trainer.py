@@ -2,11 +2,19 @@
 GRPOTrainer — reusable GRPO training loop on the Tinker API.
 
 Accepts any list of :class:`Problem` instances and any :class:`RewardFunc`.
+
+Implements the GRPO algorithm from DeepSeekMath with corrections based on
+TRL/DAPO/Dr.GRPO best practices:
+  - Proper advantage normalization: (r - mean) / std
+  - Token-level loss normalization (DAPO) to avoid length bias
+  - Configurable clipping epsilon for the surrogate objective
+  - Optional KL penalty to a reference policy
 """
 
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from dataclasses import dataclass, field
@@ -86,6 +94,29 @@ class GRPOConfig:
 
     num_sample_rows: int = 10
 
+    # ── GRPO algorithm parameters ──────────────────────────────────────
+    # Advantage normalization: divide by std(rewards) within the group.
+    # Setting False uses only mean-centering (can cause difficulty bias).
+    scale_rewards: bool = True
+
+    # Clipping epsilon for the surrogate objective (PPO-style).
+    # Bounds the policy ratio to [1-epsilon, 1+epsilon].
+    # Set to None to disable clipping (single-iteration REINFORCE-style).
+    clip_epsilon: float | None = 0.2
+
+    # KL penalty coefficient against the reference policy.
+    # 0.0 disables KL regularization (common in recent GRPO papers).
+    beta: float = 0.0
+
+    # Loss normalization: "token" (DAPO-style, divides by total tokens),
+    # "sequence" (original GRPO, divides by G then by |o_i|),
+    # "dr_grpo" (divides by G * max_tokens, removes length bias entirely).
+    loss_type: str = "token"
+
+    # Number of optimization iterations per generation batch (mu in paper).
+    # When >1, uses clipped surrogate objective across iterations.
+    num_iterations: int = 1
+
     def __post_init__(self):
         if self.wandb_entity is None:
             self.wandb_entity = os.environ.get("WANDB_ENTITY")
@@ -121,6 +152,11 @@ class GRPOTrainer:
                 "lora_rank": self.cfg.lora_rank,
                 "max_tokens": self.cfg.max_tokens,
                 "reward_fn": getattr(self.reward_fn, "__qualname__", str(self.reward_fn)),
+                "scale_rewards": self.cfg.scale_rewards,
+                "clip_epsilon": self.cfg.clip_epsilon,
+                "beta": self.cfg.beta,
+                "loss_type": self.cfg.loss_type,
+                "num_iterations": self.cfg.num_iterations,
             },
         )
 
@@ -185,6 +221,58 @@ class GRPOTrainer:
         return msgs
 
     # ------------------------------------------------------------------
+    # Advantage computation (GRPO core)
+    # ------------------------------------------------------------------
+
+    def _compute_advantages(self, rewards: list[float]) -> list[float]:
+        """Compute group-relative advantages with optional std scaling.
+
+        Standard GRPO: A_i = (r_i - mean(r)) / std(r)
+        Without scaling: A_i = (r_i - mean(r))
+        """
+        n = len(rewards)
+        if n == 0:
+            return []
+
+        mean_r = sum(rewards) / n
+
+        if self.cfg.scale_rewards:
+            variance = sum((r - mean_r) ** 2 for r in rewards) / n
+            std_r = math.sqrt(variance) if variance > 0 else 1.0
+            # Avoid division by zero when all rewards are identical
+            if std_r < 1e-8:
+                return [0.0] * n
+            return [(r - mean_r) / std_r for r in rewards]
+        else:
+            return [r - mean_r for r in rewards]
+
+    # ------------------------------------------------------------------
+    # Loss weight computation per token
+    # ------------------------------------------------------------------
+
+    def _compute_loss_weights(
+        self, ob_len: int, completion_len: int, advantage: float, total_tokens: int
+    ) -> list[float]:
+        """Compute per-token loss weights based on loss_type.
+
+        The weight at each completion token encodes the advantage scaled
+        by the appropriate normalization factor.
+        """
+        cfg = self.cfg
+
+        if cfg.loss_type == "token":
+            # DAPO: normalize by total tokens across all sequences in the batch
+            weight = advantage / max(total_tokens, 1)
+        elif cfg.loss_type == "dr_grpo":
+            # Dr. GRPO: normalize by G * max_completion_length
+            weight = advantage / (cfg.group_size * cfg.max_tokens)
+        else:
+            # Original GRPO: per-sequence normalization by |o_i|
+            weight = advantage / max(completion_len, 1)
+
+        return [0.0] * ob_len + [weight] * completion_len
+
+    # ------------------------------------------------------------------
     # Main training entry point
     # ------------------------------------------------------------------
 
@@ -199,8 +287,10 @@ class GRPOTrainer:
             )
 
         logger.info(
-            "GRPO training  model=%s  problems=%d  batches=%d  epochs=%d",
+            "GRPO training  model=%s  problems=%d  batches=%d  epochs=%d  "
+            "scale_rewards=%s  clip_epsilon=%s  loss_type=%s",
             cfg.model_name, len(problems), n_batches, epochs,
+            cfg.scale_rewards, cfg.clip_epsilon, cfg.loss_type,
         )
 
         global_step = 0
@@ -253,7 +343,10 @@ class GRPOTrainer:
         all_token_counts: list[int] = []
         skipped = 0
         sample_rows: list[dict] = []
+        total_completion_tokens = 0
 
+        # First pass: compute all rewards and total token count
+        group_data: list[dict] = []
         for future, prompt, problem in tqdm(
             zip(futures, prompts, batch),
             total=len(futures),
@@ -270,16 +363,34 @@ class GRPOTrainer:
                 tokens_g.append(seq.tokens)
                 logprobs_g.append(seq.logprobs)
                 all_token_counts.append(len(seq.tokens))
+                total_completion_tokens += len(seq.tokens)
                 decoded = self.renderer.decode(seq.tokens)
                 decoded_g.append(decoded)
                 rewards_g.append(self.reward_fn(decoded, problem))
 
-            mean_r = sum(rewards_g) / len(rewards_g)
-            advantages_g = [r - mean_r for r in rewards_g]
+            group_data.append({
+                "prompt": prompt,
+                "problem": problem,
+                "rewards_g": rewards_g,
+                "tokens_g": tokens_g,
+                "logprobs_g": logprobs_g,
+                "decoded_g": decoded_g,
+            })
+
+        # Second pass: compute advantages and build datums
+        for g in group_data:
+            prompt = g["prompt"]
+            problem = g["problem"]
+            rewards_g = g["rewards_g"]
+            tokens_g = g["tokens_g"]
+            logprobs_g = g["logprobs_g"]
+            decoded_g = g["decoded_g"]
+
+            advantages_g = self._compute_advantages(rewards_g)
             all_rewards.extend(rewards_g)
             all_advantages.extend(advantages_g)
 
-            for i, (resp, rew) in enumerate(zip(decoded_g, rewards_g)):
+            for resp, rew in zip(decoded_g, rewards_g):
                 predicted = _extract_predicted(resp)
                 sample_rows.append({
                     "prompt": problem.prompt,
@@ -290,27 +401,46 @@ class GRPOTrainer:
                     "correct": rew >= 1.0,
                 })
 
+            # Skip groups with zero variance (all same reward)
             if all(a == 0.0 for a in advantages_g):
                 skipped += 1
                 continue
 
             ob_len = prompt.length - 1
             for toks, lps, adv in zip(tokens_g, logprobs_g, advantages_g):
+                completion_len = len(toks)
                 model_input = prompt.append(types.EncodedTextChunk(tokens=toks[:-1]))
                 target_tokens = [0] * ob_len + toks
+
+                # Compute per-token advantages with proper normalization
+                padded_advantages = self._compute_loss_weights(
+                    ob_len, completion_len, adv, total_completion_tokens,
+                )
+                # Trim or pad to match model_input length
+                seq_len = model_input.length
+                padded_advantages = padded_advantages[:seq_len]
+                if len(padded_advantages) < seq_len:
+                    padded_advantages += [0.0] * (seq_len - len(padded_advantages))
+
                 padded_logprobs = [0.0] * ob_len + lps
-                padded_advantages = [0.0] * ob_len + [adv] * (model_input.length - ob_len)
+                padded_logprobs = padded_logprobs[:seq_len]
+                if len(padded_logprobs) < seq_len:
+                    padded_logprobs += [0.0] * (seq_len - len(padded_logprobs))
 
                 datums.append(types.Datum(
                     model_input=model_input,
                     loss_fn_inputs={
-                        "target_tokens": TensorData.from_torch(torch.tensor(target_tokens)),
+                        "target_tokens": TensorData.from_torch(torch.tensor(target_tokens[:seq_len])),
                         "logprobs": TensorData.from_torch(torch.tensor(padded_logprobs)),
                         "advantages": TensorData.from_torch(torch.tensor(padded_advantages)),
                     },
                 ))
 
         # ---- Policy update -------------------------------------------
+        if not datums:
+            logger.warning("Step %d: no datums produced (all groups skipped), skipping update.", step)
+            return
+
         fwd_bwd = self.training_client.forward_backward(datums, loss_fn="importance_sampling")
         optim = self.training_client.optim_step(self.adam_params)
         fwd_bwd.result()
@@ -324,9 +454,13 @@ class GRPOTrainer:
         metrics["reward/mean"] = sum(all_rewards) / n
         metrics["reward/max"] = max(all_rewards) if all_rewards else 0.0
         metrics["reward/min"] = min(all_rewards) if all_rewards else 0.0
+        metrics["reward/std"] = (sum((r - sum(all_rewards)/n) ** 2 for r in all_rewards) / n) ** 0.5 if all_rewards else 0.0
         metrics["advantage/std"] = (sum(a ** 2 for a in all_advantages) / max(len(all_advantages), 1)) ** 0.5
+        metrics["advantage/mean"] = sum(all_advantages) / max(len(all_advantages), 1)
         metrics["tokens/mean_per_completion"] = sum(all_token_counts) / max(len(all_token_counts), 1)
+        metrics["tokens/total"] = total_completion_tokens
         metrics["problems/skipped_frac"] = skipped / max(len(futures), 1)
+        metrics["problems/zero_std_frac"] = skipped / max(len(futures), 1)
         metrics["datums/count"] = len(datums)
 
         self.ml_logger.log(

@@ -1,0 +1,56 @@
+# Configuration for continuing training from checkpoint 50
+# with newly resampled subproblems (second stage).
+#
+# Uses original DeepSeek GRPO settings (KL penalty, sequence normalization).
+#
+# Usage:
+#   python train_tinker_grpo.py --config=cookbook_grpo/configs/conics50_resume.yaml
+
+model_name: "openai/gpt-oss-120b"
+log_path: "./cookbook-grpo-run-stage2"
+
+# Load from step-50 checkpoint (update path after first run)
+load_checkpoint_path: null  # SET THIS to your step-50 checkpoint path
+
+# Lower learning rate for continued training
+learning_rate: 3.0e-5
+max_tokens: 16384
+lora_rank: 32
+temperature: 1.0
+
+# Additional 50 steps from checkpoint 50
+max_steps: 50
+
+save_every: 5
+eval_every: 10
+
+wandb_project: "ttt-cookbook-conics50-stage2"
+
+loss_fn: "importance_sampling"
+remove_constant_reward_groups: true
+
+# KL penalty against reference (base) model — original GRPO uses β=0.04
+kl_penalty_coef: 0.04
+kl_discount_factor: 0.0
+kl_reference_config:
+  base_model: "openai/gpt-oss-120b"
+
+dataset_builder:
+  data_path: "./conics-50.jsonl"  # Or path to resampled subproblems
+  batch_size: 25
+  group_size: 16
+  num_epochs: 50
+  prompt_suffix: " Put your final answer inside \\boxed{}."
+  system_prompt: |
+    You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
+
+    Show all important intermediate reasoning, derivations, and calculations. Explain why each step is valid and reference any relevant theorems or identities when appropriate. Avoid skipping logical steps or making large jumps in reasoning.
+
+    If the problem involves multiple cases or approaches, consider them systematically. Use clear mathematical notation and keep the solution organized.
+
+    After completing the reasoning, clearly state the final answer.
+  reward_correct: 1.0
+  reward_wrong: 0.01
+  reward_none: 0.0
+  shuffle: true
+  seed: 123

@@ -1,0 +1,57 @@
+# Configuration for reproducing the TTT-Discover conics-50 experiment
+# using the tinker-cookbook RL stack with ORIGINAL DeepSeek GRPO settings.
+#
+# Usage:
+#   python train_tinker_grpo.py --config=cookbook_grpo/configs/conics50.yaml
+#
+# This config matches the original DeepSeekMath GRPO paper (arXiv:2402.03300):
+#   - KL penalty β=0.04 against base model
+#   - Sequence-level loss normalization (1/|o_i|)
+#   - Std-normalized advantages: A_i = (r_i - mean) / std
+
+model_name: "openai/gpt-oss-120b"
+log_path: "./cookbook-grpo-run"
+
+# Training hyperparameters from the paper
+learning_rate: 1.0e-4
+max_tokens: 16384
+lora_rank: 32
+temperature: 1.0
+
+# Checkpointing
+save_every: 5
+eval_every: 10
+
+# W&B
+wandb_project: "ttt-cookbook-conics50"
+
+# Loss / algorithm
+loss_fn: "importance_sampling"
+remove_constant_reward_groups: true
+
+# KL penalty against reference (base) model — original GRPO uses β=0.04
+kl_penalty_coef: 0.04
+kl_discount_factor: 0.0
+kl_reference_config:
+  base_model: "openai/gpt-oss-120b"
+
+# Dataset builder settings
+dataset_builder:
+  data_path: "./conics-50.jsonl"
+  batch_size: 25
+  group_size: 16
+  num_epochs: 50
+  prompt_suffix: " Put your final answer inside \\boxed{}."
+  system_prompt: |
+    You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
+
+    Show all important intermediate reasoning, derivations, and calculations. Explain why each step is valid and reference any relevant theorems or identities when appropriate. Avoid skipping logical steps or making large jumps in reasoning.
+
+    If the problem involves multiple cases or approaches, consider them systematically. Use clear mathematical notation and keep the solution organized.
+
+    After completing the reasoning, clearly state the final answer.
+  reward_correct: 1.0
+  reward_wrong: 0.01
+  reward_none: 0.0
+  shuffle: true
+  seed: 42

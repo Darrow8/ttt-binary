@@ -36,3 +36,9 @@ data/
 *.json
 *.jsonl
 *.log
+
+# Training run artifacts / output
+subproblems-run/
+*-run/
+*.html
+*.diff
