@@ -5,9 +5,12 @@ from __future__ import annotations
 from cookbook_grpo.parser import extract_boxed_answer, answers_match
 
 
-# Default reward values matching the paper
+# Binary reward: in GRPO's relative advantage framework, only the ordering within
+# a group matters. A 0.01 "format bonus" for wrong-but-boxed answers is functionally
+# inert (produces negligible advantage differences and zero-variance groups are
+# skipped anyway). Simple binary rewards are equivalent and cleaner.
 REWARD_CORRECT = 1.0
-REWARD_WRONG_ANSWER = 0.01
+REWARD_WRONG_ANSWER = 0.0
 REWARD_NO_ANSWER = 0.0
 
 

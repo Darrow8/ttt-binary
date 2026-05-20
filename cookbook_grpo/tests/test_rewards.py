@@ -16,7 +16,7 @@ class TestComputeReward:
 
     def test_wrong_boxed_answer(self):
         response = "I think it's \\boxed{42}."
-        assert compute_reward(response, "866") == 0.01
+        assert compute_reward(response, "866") == 0.0
 
     def test_no_boxed_answer(self):
         response = "I'm not sure, maybe 866."

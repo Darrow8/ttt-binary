@@ -51,7 +51,7 @@ If the problem involves multiple cases or approaches, consider them systematical
 After completing the reasoning, clearly state the final answer."""
 
 dataset_builder = SubproblemDatasetBuilder(
-    data_path="./conics-50.jsonl",
+    data_path="./conics-reproduce-50.jsonl",
     batch_size=25,
     group_size=16,
     num_epochs=50,
@@ -77,7 +77,7 @@ config = train.Config(
     save_every=5,
     eval_every=10,
     temperature=1.0,
-    wandb_project="conics-50-16k-tokens",
+    wandb_project="conics-50-reproduce2",
     loss_fn="importance_sampling",
     remove_constant_reward_groups=True,
     kl_penalty_coef=0.04,

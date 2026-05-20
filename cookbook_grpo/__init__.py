@@ -7,6 +7,7 @@ from cookbook_grpo.env import SubproblemEnv
 from cookbook_grpo.grpo_overrides import (
     grpo_compute_advantages,
     apply_sequence_normalization,
+    grpo_incorporate_kl_penalty,
     patch_grpo_advantages,
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     "SubproblemEnv",
     "grpo_compute_advantages",
     "apply_sequence_normalization",
+    "grpo_incorporate_kl_penalty",
     "patch_grpo_advantages",
 ]

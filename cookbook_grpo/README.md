@@ -134,8 +134,9 @@ Key hyperparameters matching the paper:
 | max_tokens | 16384 | Max completion length |
 | save_every | 5 | Checkpoint interval |
 | loss_fn | importance_sampling | GRPO loss |
+| loss_fn_config.clip_epsilon | 0.2 | PPO-style ratio clipping |
 | reward: correct | 1.0 | Exact match |
-| reward: wrong | 0.01 | Boxed but incorrect |
+| reward: wrong | 0.0 | Boxed but incorrect |
 | reward: none | 0.0 | No boxed answer |
 
 For the second-stage experiment (continued training from step 50):
@@ -168,3 +169,32 @@ Key differences that this rewrite addresses:
 
 To compare runs: both log to W&B. Compare reward curves, solve rates, and
 checkpoint-level target evaluations side by side.
+
+## Known Limitations & Design Notes
+
+### `std(correction=0)` in advantage computation
+
+The `grpo_compute_advantages` function uses population std (Bessel's correction=0)
+to match the original DeepSeekMath paper. PyTorch's default is `correction=1` (sample std),
+which would inflate advantages for small group sizes. If changing `group_size`, be aware
+that this choice has a larger effect for small groups.
+
+### No curriculum / difficulty adaptation
+
+The `SubproblemDataset` cycles through the same problems for `num_epochs` without
+mechanism to drop saturated problems (where all rollouts get the same reward) or
+increase difficulty over time. As training progresses and the model improves,
+an increasing fraction of problems produce zero-variance groups (all correct),
+yielding zero gradient.
+
+Mitigation approaches:
+- Use `conics50_resume.yaml` pattern: manually resample harder problems at stage boundaries
+- Implement a custom `RLDataset` that removes problems once solve rate exceeds a threshold
+- Use the `eval_every` checkpoints to monitor saturation and trigger resampling
+
+### Monkey-patching fragility
+
+The `grpo_overrides.py` module patches `tinker_cookbook` internals. The patch includes
+runtime assertions that verify the replacement took effect, so it will fail fast if
+the cookbook changes its import structure. If upgrading `tinker_cookbook`, re-verify
+that `patch_grpo_advantages()` still works by running the test suite.

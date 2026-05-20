@@ -52,14 +52,13 @@ class TestEvalAccuracy:
     def test_reward_distribution(self):
         responses = [
             "\\boxed{866}",     # 1.0
-            "\\boxed{42}",      # 0.01
+            "\\boxed{42}",      # 0.0 (wrong answer)
             "no boxed",         # 0.0
             "\\boxed{866}",     # 1.0
         ]
         reference = "866"
         rewards = [compute_reward(r, reference) for r in responses]
 
-        assert rewards == [1.0, 0.01, 0.0, 1.0]
+        assert rewards == [1.0, 0.0, 0.0, 1.0]
         assert sum(1 for r in rewards if r == 1.0) == 2
-        assert sum(1 for r in rewards if r == 0.01) == 1
-        assert sum(1 for r in rewards if r == 0.0) == 1
+        assert sum(1 for r in rewards if r == 0.0) == 2

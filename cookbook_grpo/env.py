@@ -22,7 +22,7 @@ from cookbook_grpo.rewards import compute_reward, REWARD_CORRECT, REWARD_WRONG_A
 class SubproblemEnv(ProblemEnv):
     """Environment for a single TTT-Discover subproblem.
 
-    Uses the three-tier reward: 1.0 (correct), 0.01 (wrong boxed), 0.0 (no boxed).
+    Uses binary reward: 1.0 (correct) or 0.0 (wrong/no answer).
     """
 
     def __init__(

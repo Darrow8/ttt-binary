@@ -43,15 +43,18 @@ def normalize_answer(s: str) -> str:
     """Normalize an answer string for exact comparison.
 
     Removes commas, spaces, trailing periods. Converts float-valued integers
-    to int strings (e.g. "3264.0000" -> "3264").
+    to int strings (e.g. "3264.0000" -> "3264"). Uses Decimal to avoid
+    float precision loss on large integers (e.g. 2^53 + 1).
     """
+    from decimal import Decimal, InvalidOperation
+
     s = s.replace(",", "").replace(" ", "").strip().rstrip(".")
     try:
-        num = float(s)
-        if num == int(num):
-            return str(int(num))
-        return str(num)
-    except (ValueError, OverflowError):
+        d = Decimal(s)
+        if d == d.to_integral_value():
+            return str(int(d.to_integral_value()))
+        return str(d.normalize())
+    except InvalidOperation:
         pass
     return s
 

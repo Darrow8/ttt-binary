@@ -27,6 +27,8 @@ eval_every: 10
 wandb_project: "ttt-cookbook-conics50-stage2"
 
 loss_fn: "importance_sampling"
+loss_fn_config:
+  clip_epsilon: 0.2  # PPO-style importance ratio clipping [1-eps, 1+eps]
 remove_constant_reward_groups: true
 
 # KL penalty against reference (base) model — original GRPO uses β=0.04
@@ -50,7 +52,7 @@ dataset_builder:
 
     After completing the reasoning, clearly state the final answer.
   reward_correct: 1.0
-  reward_wrong: 0.01
+  reward_wrong: 0.0
   reward_none: 0.0
   shuffle: true
   seed: 123

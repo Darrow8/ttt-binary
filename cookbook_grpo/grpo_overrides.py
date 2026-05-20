@@ -4,6 +4,7 @@ The original GRPO (DeepSeekMath, arXiv:2402.03300) differs from the cookbook def
   1. Advantages are std-normalized: A_i = (r_i - mean) / std  (cookbook only mean-centers)
   2. Loss uses sequence-level normalization: divide by |o_i| per trajectory
      (cookbook applies a flat scalar to all action tokens without length division)
+  3. KL penalty must also be sequence-normalized to avoid asymmetric length bias
 
 This module provides:
   - `grpo_compute_advantages`: drop-in replacement for cookbook's `compute_advantages`
@@ -73,10 +74,54 @@ def grpo_assemble_training_data(
     return data_D, metadata_D
 
 
+async def grpo_incorporate_kl_penalty(
+    data_D: list[tinker.Datum],
+    base_sampling_client: tinker.SamplingClient,
+    kl_penalty_coef: float,
+    kl_discount_factor: float,
+) -> dict[str, float]:
+    """Wrapper around cookbook's incorporate_kl_penalty that applies 1/|o_i| normalization.
+
+    The cookbook adds KL penalty terms directly to advantages. When sequence
+    normalization is active, the policy gradient advantages are already divided
+    by |o_i|, but the KL terms are not. This wrapper applies the same 1/|o_i|
+    normalization to the KL contribution to keep the loss balanced regardless
+    of sequence length.
+    """
+    from tinker_cookbook.rl.metrics import incorporate_kl_penalty as _orig_kl
+
+    # Snapshot pre-KL advantages
+    pre_kl_advantages = [
+        datum.loss_fn_inputs["advantages"].to_torch().clone() for datum in data_D
+    ]
+
+    # Run the original KL penalty incorporation
+    metrics = await _orig_kl(data_D, base_sampling_client, kl_penalty_coef, kl_discount_factor)
+
+    # The KL delta is (post_advantages - pre_advantages). Normalize it by |o_i|.
+    for i, datum in enumerate(data_D):
+        post_advantages = datum.loss_fn_inputs["advantages"].to_torch()
+        kl_delta = post_advantages - pre_kl_advantages[i]
+        mask = datum.loss_fn_inputs["mask"].to_torch()
+        action_token_count = mask.sum()
+        if action_token_count > 0:
+            normalized_kl_delta = kl_delta / action_token_count
+        else:
+            normalized_kl_delta = kl_delta
+        final_advantages = pre_kl_advantages[i] + normalized_kl_delta
+        datum.loss_fn_inputs["advantages"] = tinker.TensorData.from_torch(final_advantages)
+
+    return metrics
+
+
 def patch_grpo_advantages():
     """Monkey-patch the cookbook to use original GRPO advantage computation and normalization.
 
     Call this before invoking `train.main()`.
+
+    Patches both the source module (data_processing) and any module that imports
+    the functions by name (train). Includes a runtime verification that the patch
+    took effect to guard against future refactors adding new import sites.
     """
     import tinker_cookbook.rl.data_processing as dp
     import tinker_cookbook.rl.train as train_module
@@ -86,3 +131,22 @@ def patch_grpo_advantages():
 
     dp.assemble_training_data = grpo_assemble_training_data
     train_module.assemble_training_data = grpo_assemble_training_data
+
+    # Patch KL penalty to apply sequence normalization to the KL terms
+    import tinker_cookbook.rl.metrics as metrics_module
+    train_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
+    metrics_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
+
+    # Verify the patch took effect at all known call sites
+    assert train_module.compute_advantages is grpo_compute_advantages, (
+        "Patch failed: train_module.compute_advantages was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert train_module.assemble_training_data is grpo_assemble_training_data, (
+        "Patch failed: train_module.assemble_training_data was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert train_module.incorporate_kl_penalty is grpo_incorporate_kl_penalty, (
+        "Patch failed: train_module.incorporate_kl_penalty was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
