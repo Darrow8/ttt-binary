@@ -34,10 +34,14 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 ### Training
 
 ```bash
-# Basic GRPO training (configure in the script first)
-python grpo_train.py
+# Preferred: GRPO training via cookbook_grpo pipeline (supports YAML config + CLI overrides)
+python train_tinker_grpo.py --config configs/conics50.yaml
 
-# Train on subproblems dataset
+# Or with CLI overrides directly:
+python train_tinker_grpo.py --dataset_builder.data_path=./conics-50.jsonl --learning_rate=1e-4
+
+# Legacy scripts (hardcoded config, less flexible):
+python grpo_train.py
 python grpo_subproblems.py
 
 # Resume from checkpoint
@@ -137,8 +141,9 @@ Extraction utilities:
 
 ### Key Training Scripts
 
-- `grpo_train.py`: Entry point template for standard GRPO training
-- `grpo_subproblems.py`: Train on subproblem datasets (e.g., `conics-50.jsonl`)
+- **`train_tinker_grpo.py`**: Preferred entrypoint for cookbook_grpo pipeline training. Supports YAML configs (`--config`) and CLI overrides via `chz`. Uses correct DeepSeek GRPO hyperparameters (clip_epsilon=0.2, kl_beta=0.04).
+- `grpo_train.py`: Entry point template for standard GRPO training (legacy pipeline)
+- `grpo_subproblems.py`: Quick-iteration script with hardcoded config (legacy, use `train_tinker_grpo.py` instead)
 - `grpo_subproblems_resume.py`: Resume subproblem training from checkpoint
 - `grpo_ckpt50.py`: Train on checkpoint 50 specifically
 - `grpo_retrosynthesis.py`: GRPO for chemistry/SMILES problems

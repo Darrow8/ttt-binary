@@ -42,3 +42,13 @@ subproblems-run/
 *-run/
 *.html
 *.diff
+
+# Checkpoints and model artifacts
+checkpoints/
+*.ckpt
+*.safetensors
+*.bin
+
+# Cursor / agent artifacts
+.cursor/
+agent-transcripts/
