@@ -21,6 +21,9 @@ import torch
 from tinker_cookbook.rl.data_processing import (
     assemble_training_data as _orig_assemble,
 )
+from tinker_cookbook.rl.metrics import (
+    incorporate_kl_penalty as _orig_incorporate_kl_penalty,
+)
 from tinker_cookbook.rl.types import TrajectoryGroup
 
 import tinker
@@ -88,15 +91,15 @@ async def grpo_incorporate_kl_penalty(
     normalization to the KL contribution to keep the loss balanced regardless
     of sequence length.
     """
-    from tinker_cookbook.rl.metrics import incorporate_kl_penalty as _orig_kl
-
     # Snapshot pre-KL advantages
     pre_kl_advantages = [
         datum.loss_fn_inputs["advantages"].to_torch().clone() for datum in data_D
     ]
 
-    # Run the original KL penalty incorporation
-    metrics = await _orig_kl(data_D, base_sampling_client, kl_penalty_coef, kl_discount_factor)
+    # Run the original KL penalty incorporation (captured at import time, before the patch)
+    metrics = await _orig_incorporate_kl_penalty(
+        data_D, base_sampling_client, kl_penalty_coef, kl_discount_factor
+    )
 
     # The KL delta is (post_advantages - pre_advantages). Normalize it by |o_i|.
     for i, datum in enumerate(data_D):
