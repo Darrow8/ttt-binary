@@ -1,0 +1,516 @@
+{
+  "metadata": {
+    "timestamp": "2026-04-30T02:48:57.212136+00:00",
+    "model": "claude-opus-4-7",
+    "dataset": "problems/conics-verifier-filter.json",
+    "n_problems": 50,
+    "n_total": 50,
+    "n_correct": 34,
+    "accuracy": 68.0,
+    "samples_per_problem": 1,
+    "completed": true,
+    "elapsed_s": 969.4
+  },
+  "results": [
+    {
+      "id": 1,
+      "prompt": "Let \\( \\mathbf P^5 \\) be the projective space over \\(\\mathbb C\\) with homogeneous coordinates \\([a_0:\\dots :a_5]\\).  \nFor a generic symmetric \\(3\\times3\\) matrix \\(A\\) with entries \\((a_0,\\dots ,a_5)\\) the quadratic form \\(q_A(x,y,z)=\\begin{pmatrix}x&y&z\\end{pmatrix}A\\begin{pmatrix}x\\\\y\\\\z\\end{pmatrix}\\) defines a smooth plane conic.\n\nFor each \\(i=1,\\dots ,5\\) fix a generic smooth conic \\(C_i\\).  \nLet \\(Q_i\\subset\\mathbf P^5\\) be the set of all conics that are tangent to \\(C_i\\).  \nIt is known that each \\(Q_i\\) is a quadric hypersurface in \\(\\mathbf P^5\\).\n\nConsider the intersection\n\\[\nX = Q_1\\cap Q_2\\cap Q_3\\cap Q_4\\cap Q_5\\subset \\mathbf P^5 .\n\\]\n\nAssuming the five quadrics are in general position (so that the intersection is zero‑dimensional and reduced), compute the exact number of points of \\(X\\) over \\(\\mathbb C\\).  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 3,
+      "prompt": "Consider the polynomial  \n\n\\[\nf(x)=x^{4}-2\\in\\mathbb Z[x].\n\\]\n\nFor a prime \\(p\\neq2\\) let  \n\n\\[\nr(p)=\\#\\{\\,a\\in\\mathbb F_{p}\\mid a^{4}\\equiv 2\\pmod p\\,\\}\n\\]\n\nbe the number of solutions of \\(f(x)\\equiv0\\pmod p\\) in the field \\(\\mathbb F_{p}\\).\n\nDefine  \n\n\\[\nA=\\lim_{X\\to\\infty}\\frac{1}{\\pi(X)}\\sum_{\\substack{p\\le X\\\\ p\\text{ prime },\\,p\\neq2}} r(p),\n\\]\n\nwhere \\(\\pi(X)\\) is the number of primes \\(\\le X\\).\n\nCompute \\(A\\) and give the answer rounded to four decimal places (e.g. **1.5000**).  \n(You may use the fact that the Galois group of \\(x^{4}-2\\) over \\(\\mathbb Q\\) is the dihedral group \\(D_{4}\\) acting in the natural way on its four complex roots.)",
+      "reference": "1",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 4,
+      "prompt": "Let \\(\\mathbb{P}^{5}\\) be the projective space parametrising plane conics in \\(\\mathbf{P}^{2}\\):\na point \\([a_{00}:a_{01}:a_{02}:a_{11}:a_{12}:a_{22}]\\) corresponds to the homogeneous\nquadratic form  \n\n\\[\nQ(x,y,z)=a_{00}x^{2}+2a_{01}xy+2a_{02}xz\n          +a_{11}y^{2}+2a_{12}yz+a_{22}z^{2}.\n\\]\n\nFix a smooth conic \\(C_{0}\\subset\\mathbf{P}^{2}\\) defined by a non‑degenerate\nquadratic form \\(Q_{0}\\).  \n\nDefine  \n\n\\[\nT \\;=\\;\\{\\, [a]\\in\\mathbb{P}^{5}\\mid \\exists\\,P\\in\\mathbf{P}^{2}\n        \\text{ such that } Q(P)=Q_{0}(P)=0\n        \\text{ and the two gradients }\\nabla Q(P),\\nabla Q_{0}(P)\n        \\text{ are linearly dependent}\\,\\}.\n\\]\n\nIn other words, \\(T\\) is the set of conics that are tangent to the fixed\nconic \\(C_{0}\\) at *some* point of the plane.  \n\nShow that \\(T\\) is a hypersurface in \\(\\mathbb{P}^{5}\\) and determine its degree.\nGive the degree rounded to four decimal places.",
+      "reference": "6",
+      "claude_answers": [
+        "6.0000"
+      ],
+      "claude_best_answer": "6.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 5,
+      "prompt": "Let  \n\n\\[\nG(x,y,z)=x^{2}+y^{2}+z^{2}\n\\]\n\nbe a fixed smooth conic in \\(\\mathbf P^{2}\\) over an algebraically closed field of characteristic \\(0\\).\nA general conic is  \n\n\\[\nF(x,y,z)=a_{1}x^{2}+a_{2}y^{2}+a_{3}z^{2}+a_{4}xy+a_{5}xz+a_{6}yz,\n\\]\n\nwhere the coefficients \\((a_{1},\\dots ,a_{6})\\) are regarded as homogeneous coordinates on \\(\\mathbf P^{5}\\).\n\nThe condition that \\(F\\) and \\(G\\) are tangent (i.e. they intersect with a point of multiplicity at least 2) can be expressed as the vanishing of a single homogeneous polynomial  \n\n\\[\nD(a_{1},\\dots ,a_{6})\\in k[a_{1},\\dots ,a_{6}].\n\\]\n\nWhat is the total degree of \\(D\\)?\nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "6",
+      "claude_answers": [
+        "6.0000"
+      ],
+      "claude_best_answer": "6.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 6,
+      "prompt": "Let \\( \\mathbb P^5 \\) be the projective space that parametrises all plane conics in \\( \\mathbf P^2 \\) (each point corresponds to the coefficients of a homogeneous quadratic form, up to scaling).  \nFor a smooth conic \\(C\\subset\\mathbf P^2\\) the subset\n\n\\[\nT_C=\\{\\,D\\in\\mathbb P^5 \\mid D \\text{ is tangent to } C\\,\\}\n\\]\n\nis a hypersurface of degree 2 in \\( \\mathbb P^5 \\).\n\nAssume \\(C_1,\\dots ,C_5\\) are five smooth conics in general position.  \nHow many (complex) smooth conics are simultaneously tangent to **all** five of them?\nGive the answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 8,
+      "prompt": "Let \\(k\\) be a number field, and for each prime \\(p\\) let \\(\\mathbf F_{p}\\) denote its residue field.\n\nConsider the following projective varieties over \\(k\\):\n\n* \\(X\\subset \\mathbb P^{4}_{k}\\) is the smooth complete intersection defined by the two quadratic equations  \n\n\\[\n\\begin{cases}\nX_{0}^{2}+X_{1}^{2}+X_{2}^{2}+X_{3}^{2}+X_{4}^{2}=0,\\\\[2pt]\nX_{0}X_{1}+X_{2}X_{3}+X_{4}^{2}=0 .\n\\end{cases}\n\\]\n\n* \\(Y=\\mathbb P^{2}_{k}\\) with homogeneous coordinates \\([U:V:W]\\).\n\nDefine the morphism \\(\\pi\\colon X\\to Y\\) by projection onto the first three coordinates:\n\\[\n\\pi\\bigl([X_{0}:X_{1}:X_{2}:X_{3}:X_{4}]\\bigr)=[X_{0}:X_{1}:X_{2}].\n\\]\n\nIt is known that \\(\\pi\\) is a finite map of degree \\(d\\).\n\nFor each prime \\(p\\) of good reduction (i.e. the reductions of \\(X\\) and \\(\\pi\\) are smooth and finite), let \\(\\#X(\\mathbf F_{p})\\) and \\(\\#Y(\\mathbf F_{p})\\) denote the numbers of \\(\\mathbf F_{p}\\)-rational points.\n\nCompute  \n\n\\[\nL=\\lim_{p\\to\\infty}\\frac{\\#X(\\mathbf F_{p})}{\\#Y(\\mathbf F_{p})}.\n\\]\n\nGive the value of \\(L\\) rounded to four decimal places.  \n(If the answer is an integer, write it with four decimal digits, e.g. `4.0000`.)",
+      "reference": "4",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 10,
+      "prompt": "Let \\(\\mathbf P^{5}\\) be the projective space that parametrises plane conics (up to scaling).  \nFor a fixed smooth conic \\(C\\subset\\mathbf P^{2}\\) the set of all conics tangent to \\(C\\) is a quadric hypersurface \\(Q_{C}\\subset\\mathbf P^{5}\\).\n\nAssume \\(C_{1},\\dots ,C_{5}\\subset\\mathbf P^{2}\\) are five *generic* smooth conics, so that the quadrics \\(Q_{C_{1}},\\dots ,Q_{C_{5}}\\) intersect transversely.\n\nHow many points are there in the intersection  \n\n\\[\nQ_{C_{1}}\\cap Q_{C_{2}}\\cap Q_{C_{3}}\\cap Q_{C_{4}}\\cap Q_{C_{5}}\\subset \\mathbf P^{5}\\ ?\n\\]\n\nGive your answer as a decimal number (write the integer with “.0000” if you wish).",
+      "reference": "32",
+      "claude_answers": [
+        "32.0000"
+      ],
+      "claude_best_answer": "32.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 12,
+      "prompt": "Let \\(\\mathbb P^5\\) be the projective space whose points correspond to plane conics\n\\(C\\subset \\mathbf P^2\\) (i.e. to non‑zero quadratic homogeneous forms up to scaling).\nFor a fixed smooth conic \\(Q\\subset\\mathbf P^2\\) define  \n\n\\[\nT_Q=\\{\\,C\\in\\mathbb P^5 \\mid C\\text{ is tangent to }Q\\,\\}.\n\\]\n\n1. Show that \\(T_Q\\) is a quadric hypersurface in \\(\\mathbb P^5\\).\n\nNow let \\(Q_1,\\dots ,Q_5\\) be five **generic** smooth conics in \\(\\mathbf P^2\\) and set  \n\n\\[\n\\mathcal S = T_{Q_1}\\cap T_{Q_2}\\cap T_{Q_3}\\cap T_{Q_4}\\cap T_{Q_5}\\subset\\mathbb P^5 .\n\\]\n\n2. Prove that the intersection \\(\\mathcal S\\) is zero‑dimensional and consists of reduced points.\n\n3. Compute the cardinality \\(\\#\\mathcal S\\).\n\nFinally, define  \n\n\\[\nL=\\frac{\\#\\mathcal S}{1}.\n\\]\n\nGive the value of \\(\\displaystyle\\left\\lfloor 100L\\right\\rfloor\\).",
+      "reference": "3200",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 13,
+      "prompt": "Let \\(P^{5}\\) be the projective space that parametrises all plane conics in \\(\\mathbf P^{2}\\)\n(over an algebraically closed field of characteristic 0).\nFor a fixed line \\(\\ell\\subset\\mathbf P^{2}\\) the subset\n\n\\[\nQ_{\\ell}= \\{\\,C\\in P^{5}\\mid C\\text{ is tangent to }\\ell\\,\\}\n\\]\n\nis a hypersurface of degree 2 in \\(P^{5}\\).\n\nNow let \\(\\ell_{1},\\ell_{2},\\ell_{3},\\ell_{4}\\) be four *general* lines in the plane,\nand let \\(p\\in\\mathbf P^{2}\\) be a point that does not lie on any \\(\\ell_{i}\\).\n\nHow many (geometrically distinct) smooth conics are tangent to each of the\nfour lines \\(\\ell_{1},\\dots ,\\ell_{4}\\) **and** pass through the point \\(p\\)?\n(Count conics with multiplicity; give the answer as a decimal number rounded\nto four decimal places.)",
+      "reference": "16",
+      "claude_answers": [
+        "2.0000"
+      ],
+      "claude_best_answer": "2.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 14,
+      "prompt": "Let  \n\n\\[\nU = \\mathbb A^{2}_{(u,v)} = \\operatorname{Spec}\\,\\mathbf Z[u,v] .\n\\]\n\nDefine a subscheme \\(Z\\subset U\\times\\mathbb A^{2}_{(x,y)}\\) by the two\npolynomial equations  \n\n\\[\n\\begin{cases}\nx^{2} + y + u = 0,\\\\[4pt]\nx + y^{3} + v = 0 .\n\\end{cases}\n\\]\n\nLet  \n\n\\[\n\\pi : Z \\longrightarrow U ,\\qquad (u,v,x,y)\\mapsto (u,v)\n\\]\n\nbe the projection onto the first two coordinates.  \nFor a prime number \\(p\\) write \\(U(\\mathbb F_{p})=\n\\mathbb F_{p}^{2}\\) and, for each \\((a,b)\\in U(\\mathbb F_{p})\\), let  \n\n\\[\nN_{p}(a,b)=\\#\\{(x,y)\\in\\mathbb F_{p}^{2}\\mid\nx^{2}+y+a=0,\\; x+y^{3}+b=0\\}.\n\\]\n\nSet  \n\n\\[\nL = \\lim_{p\\to\\infty}\\frac{1}{\\#U(\\mathbb F_{p})}\n        \\sum_{(a,b)\\in U(\\mathbb F_{p})} N_{p}(a,b).\n\\]\n\n(You may use the Lang–Weil theorem for smooth finite‑étale morphisms,\nand you may assume the two equations intersect transversely for\ngeneric \\((u,v)\\).)\n\nCompute \\(\\displaystyle \\left\\lfloor 100\\,L \\right\\rfloor\\).  \nGive the answer rounded to the nearest integer.",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 16,
+      "prompt": "In the projective space \\(\\mathbf P^{5}\\) whose points parametrize plane conics, fix a smooth conic \\(C\\).  \nThe set of conics tangent to \\(C\\) is a quadric hypersurface \\(Q_{C}\\subset\\mathbf P^{5}\\).\n\nLet \\(C_{1},C_{2},C_{3},C_{4},C_{5}\\) be five smooth conics in general position, and let  \n\n\\[\nX=Q_{C_{1}}\\cap Q_{C_{2}}\\cap Q_{C_{3}}\\cap Q_{C_{4}}\\cap Q_{C_{5}}\n\\subset\\mathbf P^{5}.\n\\]\n\nHow many points does \\(X\\) contain?  Give your answer as a decimal number rounded to four decimal places.  \n\n(Each point of \\(X\\) corresponds to a smooth conic tangent to all five given conics.)",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 18,
+      "prompt": "Let \\( \\mathbf{P}^{3} \\) have homogeneous coordinates \\([x_{0}:x_{1}:x_{2}:x_{3}]\\) over \\(\\mathbb{C}\\).\nConsider the line  \n\n\\[\nL=\\{x_{0}=x_{1}=0\\}\\subset\\mathbf{P}^{3}.\n\\]\n\nLet \\(Q_{1},Q_{2},Q_{3}\\) be three *general* quadric hypersurfaces in \\(\\mathbf{P}^{3}\\) that all contain the line \\(L\\) (i.e. each \\(Q_{i}\\) is defined by a homogeneous degree‑2 polynomial that vanishes on \\(L\\)).  \n\nThe scheme‑theoretic intersection \\(Z = Q_{1}\\cap Q_{2}\\cap Q_{3}\\) consists of the line \\(L\\) together with a finite set of isolated points (possibly with multiplicities).  \n\nCompute the total number of these isolated points, **counted with multiplicity**.  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "4",
+      "claude_answers": [
+        "4.0000"
+      ],
+      "claude_best_answer": "4.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 19,
+      "prompt": "Let \\(V=\\mathbf P^{5}\\) be the projective space of plane conics, i.e. the space of homogeneous degree‑2 polynomials  \n\n\\[\nQ(x_{0},x_{1},x_{2})=a_{00}x_{0}^{2}+a_{11}x_{1}^{2}+a_{22}x_{2}^{2}+a_{01}x_{0}x_{1}+a_{02}x_{0}x_{2}+a_{12}x_{1}x_{2},\n\\]\n\nwith coefficients \\([a_{00}:a_{11}:a_{22}:a_{01}:a_{02}:a_{12}]\\) giving a point of \\(V\\).\n\nFix a smooth cubic curve  \n\n\\[\nC:\\;F(x_{0},x_{1},x_{2})=0,\n\\qquad \nF\\in H^{0}\\bigl(\\mathbf P^{2},\\mathcal O_{\\mathbf P^{2}}(3)\\bigr)\n\\]\n\nwith arbitrary (but generic) coefficients.\n\nDefine  \n\n\\[\nT_{C}:=\\bigl\\{\\,Q\\in V \\mid \\text{the conic }Q=0\\text{ is tangent to }C\\,\\bigr\\}.\n\\]\n\nA conic \\(Q\\) is tangent to \\(C\\) iff there exists a point\n\\(p\\in\\mathbf P^{2}\\) such that  \n\n\\[\nF(p)=0,\\qquad Q(p)=0,\\qquad\n\\nabla F(p)\\text{ and }\\nabla Q(p)\\text{ are linearly dependent}.\n\\]\n\nEliminate the point \\(p\\) from these equations to obtain a single homogeneous\npolynomial \\(R(a_{00},\\dots ,a_{12})\\) in the coefficients of \\(Q\\); \\(T_{C}\\) is\nthe hypersurface \\(\\{R=0\\}\\subset V\\).\n\n**Question.**  What is the degree of the hypersurface \\(T_{C}\\) in \\(\\mathbf P^{5}\\)?\nGive your answer as an integer.\n\n(If the answer is not an integer, output the nearest integer after rounding to the\nnearest whole number – in this problem the answer will be an integer.)",
+      "reference": "12",
+      "claude_answers": [
+        "12"
+      ],
+      "claude_best_answer": "12",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 20,
+      "prompt": "Let $f(t)=t^{5}-t-1\\in\\mathbb Z[t]$.  It is known that $f$ is irreducible over $\\mathbb Q$ and that its Galois group over $\\mathbb Q$ is the full symmetric group $S_{5}$, acting transitively on the five roots $\\alpha_{1},\\dots,\\alpha_{5}$.\n\nFor a prime $p$ at which $f$ remains separable (i.e. $p\\neq 2,5$), consider the affine curve\n\\[\nX_{p}:\\; y^{5}=f(x)\n\\qquad\\text{over }\\mathbb F_{p}.\n\\]\nLet \n\\[\n\\pi_{p}:X_{p}\\longrightarrow\\mathbb A^{1}_{\\mathbb F_{p}},\\qquad (x,y)\\mapsto x\n\\]\nbe the projection onto the $x$–coordinate.  For each $x\\in\\mathbb F_{p}$ the fibre $\\pi_{p}^{-1}(x)$ is either empty or consists of the five distinct $y$‑values $y=\\zeta\\alpha_{i}$ where $\\zeta$ runs over the 5‑th roots of unity in $\\overline{\\mathbb F}_{p}$.\n\nDefine\n\\[\nA_{p}= \\frac{1}{p}\\sum_{x\\in\\mathbb F_{p}} \\#\\pi_{p}^{-1}(x),\n\\]\nthe average size of a fibre of $\\pi_{p}$ over $\\mathbb F_{p}$.\n\nCompute the limit\n\\[\nL=\\lim_{p\\to\\infty}A_{p},\n\\]\nand give the answer rounded to four decimal places.",
+      "reference": "1",
+      "claude_answers": [
+        "1.0000"
+      ],
+      "claude_best_answer": "1.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 21,
+      "prompt": "Work over the complex numbers \\(\\mathbb C\\).  \nLet \\(C_{1},C_{2},C_{3},C_{4},C_{5}\\subset\\mathbb P^{2}_{\\mathbb C}\\) be five smooth conics in general position.  \n\nA (possibly singular) plane conic is the zero set of a homogeneous quadratic polynomial in three variables; thus the space of all conics is \\(\\mathbb P^{5}_{\\mathbb C}\\).\n\nFor a fixed smooth conic \\(C\\), the set  \n\n\\[\n\\Sigma_{C}:=\\{\\,D\\in\\mathbb P^{5}\\mid D \\text{ is tangent to } C\\,\\}\n\\]\n\nis a hypersurface of degree \\(6\\) in \\(\\mathbb P^{5}\\).\n\nLet  \n\n\\[\nZ:=\\Sigma_{C_{1}}\\cap\\Sigma_{C_{2}}\\cap\\Sigma_{C_{3}}\\cap\\Sigma_{C_{4}}\\cap\\Sigma_{C_{5}}\n\\subset\\mathbb P^{5}\n\\]\n\nbe the intersection of the five hypersurfaces.\n\nHow many (counted with multiplicity) points does \\(Z\\) consist of?  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 22,
+      "prompt": "Let \\(\\mathbb{P}^{5}\\) be the projective space whose points correspond to (projective) plane conics in \\(\\mathbb{P}^{2}\\) (i.e., homogeneous quadratic forms up to non‑zero scalar).\n\nFix five **general** smooth conics \\(C_{1},\\dots ,C_{5}\\subset\\mathbb{P}^{2}\\).\nFor each \\(i\\) let  \n\n\\[\nH_{i}=\\{\\,Q\\in\\mathbb{P}^{5}\\mid Q\\text{ is tangent to }C_{i}\\,\\}.\n\\]\n\n(It is known that each \\(H_{i}\\) is a quadric hypersurface in \\(\\mathbb{P}^{5}\\).)\n\nConsider the scheme  \n\n\\[\nS = H_{1}\\cap H_{2}\\cap H_{3}\\cap H_{4}\\cap H_{5}\\subset\\mathbb{P}^{5}\n\\]\n\nand restrict to its smooth points, i.e. to smooth conics that satisfy the five tangency conditions.\n\nDetermine the number of points of \\(S\\) (which is finite for general \\(C_{i}\\)).  \nGive your answer as a decimal number rounded to **four decimal places**.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 23,
+      "prompt": "A plane conic is given by a homogeneous quadratic polynomial in three variables, so the space of all (projective) conics is \\(\\mathbf P^{5}\\).  For a fixed smooth conic \\(C_{0}\\) the subset of \\(\\mathbf P^{5}\\) consisting of conics tangent to \\(C_{0}\\) is a quadric hypersurface.\n\nLet \\(C_{1},C_{2},C_{3},C_{4},C_{5}\\) be five smooth conics in general position.  \nHow many smooth conics are simultaneously tangent to **all five** of them?\nGive your answer as a decimal number (e.g. `32.0000`).",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 24,
+      "prompt": "Let \\(K=\\mathbb{Q}(\\sqrt[4]{2},i)\\) be the splitting field of the polynomial \\(x^{4}-2\\).  \nThe Galois group \\(\\operatorname{Gal}(K/\\mathbb{Q})\\) is the dihedral group \\(D_{4}\\) of order 8, acting on the four roots \\(\\{\\alpha,\\;i\\alpha,\\; -\\alpha,\\; -i\\alpha\\}\\) where \\(\\alpha=\\sqrt[4]{2}\\).\n\nFor a rational prime \\(p\\) unramified in \\(K\\), let \\(\\mathrm{Frob}_{p}\\) denote the Frobenius conjugacy class in \\(D_{4}\\).  \nDefine a prime \\(p\\) to be **good** if the action of \\(\\mathrm{Frob}_{p}\\) on the set of the four roots fixes **exactly two** of them.\n\nAssuming the Chebotarev density theorem, compute the natural density of good primes.  \nExpress your answer as a decimal rounded to four decimal places.",
+      "reference": "0.25",
+      "claude_answers": [
+        "0.2500"
+      ],
+      "claude_best_answer": "0.2500",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 27,
+      "prompt": "Let \\(X\\) be a smooth geometrically irreducible curve over the finite field \\(\\mathbb{F}_{q}\\).\nSuppose \\(Y\\to X\\) is a finite Galois étale cover whose geometric Galois group is the\ndihedral group \\(D_{4}\\) of order \\(8\\).\nThe action of \\(D_{4}\\) on the eight geometric points of a generic fibre splits\ninto two orbits, each of size \\(4\\); on each orbit the action is the natural\naction of \\(D_{4}\\) on the vertices of a square.\n\nDefine  \n\n\\[\nA(q)=\\frac{1}{\\# X(\\mathbb{F}_{q})}\\sum_{x\\in X(\\mathbb{F}_{q})}\\#\\bigl(Y_{x}(\\mathbb{F}_{q})\\bigr),\n\\]\n\nthe average size of a fibre over \\(\\mathbb{F}_{q}\\)-points of \\(X\\).\n\nCompute  \n\n\\[\n\\lim_{q\\to\\infty} A(q)\n\\]\n\nand give the answer rounded to **four decimal places**.",
+      "reference": "2",
+      "claude_answers": [
+        "2.0000"
+      ],
+      "claude_best_answer": "2.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 30,
+      "prompt": "Let  \n\n\\[\n\\begin{aligned}\nQ_{1}&=X_{0}^{2}+X_{1}^{2}+X_{2}^{2}+X_{3}^{2}=0,\\\\\nQ_{2}&=X_{0}^{2}+2X_{1}^{2}+3X_{2}^{2}+4X_{3}^{2}=0,\\\\\nC   &=X_{0}X_{1}=0,\n\\end{aligned}\n\\]\n\nbe three hypersurfaces in the projective space \\(\\mathbf P^{3}_{\\mathbb C}\\) with homogeneous coordinates \\([X_{0}:X_{1}:X_{2}:X_{3}]\\).\nDenote by \\(Z\\) the scheme‑theoretic intersection \\(Q_{1}\\cap Q_{2}\\cap C\\).\n\nBoth quadrics \\(Q_{1},Q_{2}\\) contain the line  \n\n\\[\nL=\\{X_{0}=X_{1}=0\\}\\subset \\mathbf P^{3},\n\\]\n\nand the cubic surface \\(C\\) also contains \\(L\\).  Consequently \\(L\\) is an **excess component** of the intersection.\n\nCompute the number of *isolated* (i.e. 0‑dimensional) points of \\(Z\\) counted with multiplicity.  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "8",
+      "claude_answers": [
+        "7.0000"
+      ],
+      "claude_best_answer": "7.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 31,
+      "prompt": "Let \\(\\mathbb P^5\\) be the projective space of plane conics (homogeneous quadratic forms in three variables, up to scaling).  \nFix a smooth plane cubic curve \\(C\\subset\\mathbb P^2\\) defined over \\(\\mathbb C\\) by a homogeneous polynomial \\(F(x,y,z)\\) of degree 3.\n\nDefine  \n\n\\[\nT_C=\\bigl\\{\\,Q\\in\\mathbb P^5 \\mid \\text{the conic }Q=0\\text{ is tangent to }C\\,\\bigr\\}.\n\\]\n\nShow that \\(T_C\\) is an irreducible hypersurface in \\(\\mathbb P^5\\) and compute its degree.  \nGive your answer as an integer.\n\n*(Round the final answer to the nearest integer if a non‑integer appears.)*",
+      "reference": "12",
+      "claude_answers": [
+        "12"
+      ],
+      "claude_best_answer": "12",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 32,
+      "prompt": "Consider the dihedral group \\(D_{4}\\) (the symmetries of a square) acting on the set  \n\n\\[\nS=\\{1,2,3,4,5\\}\n\\]\n\nas follows:\n\n* the rotations act on the first four elements \\(\\{1,2,3,4\\}\\) in the natural cyclic order of the square and fix the element \\(5\\);\n* each of the four reflections also fixes the element \\(5\\) and reflects the square in one of its four symmetry axes.\n\nThus \\(D_{4}\\) is realized as a subgroup of the symmetric group \\(S_{5}\\) of order \\(8\\).\n\nLet \\(\\operatorname{Fix}(g)\\) denote the number of points of \\(S\\) that are fixed by a group element \\(g\\in D_{4}\\).\n\nCompute the average value of \\(\\operatorname{Fix}(g)\\) when \\(g\\) ranges uniformly over all elements of \\(D_{4}\\).  \nGive the answer as a decimal number rounded to four decimal places.",
+      "reference": "2",
+      "claude_answers": [
+        "2.0000"
+      ],
+      "claude_best_answer": "2.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 35,
+      "prompt": "Let \\(V=\\mathbf P^{5}_{\\mathbb C}\\) be the projective space of homogeneous quadratic forms\n\\(Q(x_0,x_1,x_2)=\\sum_{0\\le i\\le j\\le 2}a_{ij}x_i x_j\\);\nthe coordinates \\([a_{00}:a_{01}:a_{02}:a_{11}:a_{12}:a_{22}]\\) give a point of \\(V\\).\n\nFix five smooth plane conics  \n\n\\[\nC_{k}\\;:\\;Q_{k}(x_0,x_1,x_2)=0\\qquad (k=1,\\dots ,5)\n\\]\n\nwhose coefficient vectors are *generic* (in particular the five conics are in\ngeneral position).  \nFor a variable conic \\(C\\) with coefficient vector \\([a]\\in V\\) define\n\n\\[\nT_{k}=\\{[a]\\in V\\mid C\\text{ is tangent to }C_{k}\\}.\n\\]\n\nIt is known that each \\(T_{k}\\) is a quadric hypersurface of \\(V\\).\n\n**Question.**  How many points does the zero‑dimensional scheme  \n\n\\[\nT_{1}\\cap T_{2}\\cap T_{3}\\cap T_{4}\\cap T_{5}\\subset V\n\\]\n\nhave (counted with multiplicity) for a generic choice of the five conics?\nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 39,
+      "prompt": "In the projective space \\(\\mathbf P^{5}\\) that parametrises all plane conics\n(up to scaling), the condition that a conic be tangent to a given smooth\nconic \\(C\\subset\\mathbf P^{2}\\) is a hypersurface.  It is known that this\nhypersurface has degree \\(6\\).\n\nAssuming the five given smooth conics \\(C_{1},\\dots ,C_{5}\\subset\\mathbf P^{2}\\)\nare general so that the corresponding five degree‑\\(6\\) hypersurfaces meet\nproperly in \\(\\mathbf P^{5}\\), determine the total number (counted with\nmultiplicity) of (possibly singular) plane conics that are tangent to **all**\nfive of the \\(C_{i}\\).\n\nGive your answer as an integer.",
+      "reference": "7776",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 40,
+      "prompt": "Plane conics are represented by homogeneous quadratic equations  \n\\[\nQ(x,y,z)=a_{00}x^{2}+a_{11}y^{2}+a_{22}z^{2}+2a_{01}xy+2a_{02}xz+2a_{12}yz=0,\n\\]\nso the space of (projective) conics is the projective space \\(\\mathbb{P}^{5}\\) with coordinates \\([a_{00}:a_{11}:a_{22}:a_{01}:a_{02}:a_{12}]\\).\n\nFix a smooth conic \\(C_{0}\\) given by the equation \\(Q_{0}(x,y,z)=0\\) with coefficients \\((b_{ij})\\).  \nDefine \\(T\\subset\\mathbb{P}^{5}\\) to be the set of conics \\(Q\\) that are tangent to \\(C_{0}\\) somewhere in \\(\\mathbb{P}^{2}\\).\n\nDetermine the degree of the algebraic hypersurface \\(T\\) (i.e., the degree of the defining homogeneous polynomial of \\(T\\) in the coordinates of \\(\\mathbb{P}^{5}\\)).   Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "6",
+      "claude_answers": [
+        "6.0000"
+      ],
+      "claude_best_answer": "6.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 44,
+      "prompt": "Let \\(X\\) be a smooth, geometrically irreducible variety defined over\n\\(\\mathbb Q\\).  There exists a finite étale morphism  \n\n\\[\n\\pi : Y \\longrightarrow X\n\\]\n\nwith the following description over an algebraic closure \\(\\overline{\\mathbb Q}\\):\n\n* \\(Y\\) is the disjoint union of two connected components,\n  \\(Y = X \\,\\sqcup\\, Z\\).\n* The restriction \\(\\pi|_{X}: X \\to X\\) is the identity map (a degree‑1\n  trivial cover).\n* The restriction \\(\\pi|_{Z}: Z \\to X\\) is a connected Galois cover of degree\n  \\(4\\).  Its geometric Galois group is the dihedral group \\(D_{4}\\) of order\n  \\(8\\), acting **transitively** on the four sheets of the cover.\n\nFor each prime \\(p\\) of good reduction, write \\(X(\\mathbb F_{p})\\) for the set\nof \\(\\mathbb F_{p}\\)-points of the reduction of \\(X\\), and similarly\n\\(Y(\\mathbb F_{p})\\).  Define  \n\n\\[\nL \\;=\\; \\lim_{p\\to\\infty}\n        \\frac{1}{\\# X(\\mathbb F_{p})}\n        \\sum_{x\\in X(\\mathbb F_{p})}\n        \\#\\bigl(\\pi^{-1}(x)(\\mathbb F_{p})\\bigr).\n\\]\n\nCompute \\(L\\).  Output the result as a decimal number rounded to four\ndecimal places.",
+      "reference": "2",
+      "claude_answers": [
+        "2.0000"
+      ],
+      "claude_best_answer": "2.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 45,
+      "prompt": "Let \\(\\mathbb P^{5}\\) be the projective space of homogeneous quadratic forms in three variables\n\\((x:y:z)\\); a point of \\(\\mathbb P^{5}\\) corresponds to a plane conic.\nFix five *general* smooth conics \\(C_{1},\\dots ,C_{5}\\) in the plane and, for each \\(i\\), let\n\\(Q_{i}\\subset\\mathbb P^{5}\\) be the hypersurface consisting of all conics tangent to \\(C_{i}\\).\n\nA conic tangent to all five \\(C_{i}\\) corresponds to a point of the\nintersection \\(Q_{1}\\cap Q_{2}\\cap Q_{3}\\cap Q_{4}\\cap Q_{5}\\).\n\n**Problem.**  \nAssuming the five hypersurfaces meet transversely, compute the number of points in the intersection\n\\(Q_{1}\\cap Q_{2}\\cap Q_{3}\\cap Q_{4}\\cap Q_{5}\\).  Give your answer as a decimal number rounded to four decimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 48,
+      "prompt": "Let \\(\\mathbb P^{5}\\) be the projective space that parametrises plane conics (coefficients of a homogeneous quadratic polynomial in three variables, up to scaling).  \nFor a fixed smooth conic \\(C\\) the set  \n\n\\[\nT_{C}=\\{\\,Q\\in\\mathbb P^{5}\\mid Q \\text{ is tangent to } C\\,\\}\n\\]\n\nis a quadric hypersurface of \\(\\mathbb P^{5}\\).\n\nNow choose five smooth conics \\(C_{1},\\dots ,C_{5}\\) in general position, so that the corresponding five quadrics \\(T_{C_{1}},\\dots ,T_{C_{5}}\\) intersect transversely.\n\nHow many points does the intersection  \n\n\\[\nT_{C_{1}}\\;\\cap\\;T_{C_{2}}\\;\\cap\\;T_{C_{3}}\\;\\cap\\;T_{C_{4}}\\;\\cap\\;T_{C_{5}}\n\\]\n\ncontain?  Give your answer as a decimal number rounded to **four** decimal places.  \n(Note: each point corresponds to a smooth conic that is tangent to all five given conics.)",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 51,
+      "prompt": "In the projective space \\(\\mathbf P^{5}\\) that parametrises plane conics, the condition that a conic passes through a fixed point is a linear equation, and the condition that a conic is tangent to a fixed line is a quadric equation.\n\nLet \\(P_{1},P_{2}\\) be two distinct points in the plane and let \\(L_{1},L_{2},L_{3}\\) be three distinct lines, all in general position (no point lies on any of the lines).\n\nHow many smooth conics satisfy **all** of the following five conditions simultaneously?\n\n1. Pass through \\(P_{1}\\);\n2. Pass through \\(P_{2}\\);\n3. Tangent to \\(L_{1}\\);\n4. Tangent to \\(L_{2}\\);\n5. Tangent to \\(L_{3}\\).\n\nGive your answer as a decimal number with four digits after the decimal point (e.g. “8.0000’’).",
+      "reference": "8",
+      "claude_answers": [
+        "4.0000"
+      ],
+      "claude_best_answer": "4.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 54,
+      "prompt": "Let \\(U\\subset\\mathbf P^{5}\\) be the open subset parametrising smooth plane conics.  \nFor a smooth conic \\(C\\subset\\mathbf P^{2}\\) denote by  \n\n\\[\nT_{C}=\\{\\,Q\\in U\\mid Q\\text{ is tangent to }C\\,\\}\n\\]\n\nthe set of smooth conics tangent to \\(C\\).  It is known that \\(T_{C}\\) is a quadric hypersurface of \\(\\mathbf P^{5}\\).\n\nChoose five smooth conics \\(C_{1},\\dots ,C_{5}\\) in general position.\nLet  \n\n\\[\nX = T_{C_{1}}\\cap T_{C_{2}}\\cap T_{C_{3}}\\cap T_{C_{4}}\\cap T_{C_{5}}\n\\subset \\mathbf P^{5}.\n\\]\n\nAssuming the intersection is transverse, compute the number of points of \\(X\\).  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 55,
+      "prompt": "Let \\(P=\\mathbf P^{5}\\) be the projective space that parametrises plane conics\n(in homogeneous coordinates a conic is given by a quadratic form\n\\(Q(x)=0\\)).  For a fixed smooth conic \\(C_{0}\\subset\\mathbf P^{2}\\) the set  \n\n\\[\nT_{C_{0}}=\\{\\,Q\\in P\\mid\\text{the conic defined by }Q\n\\text{ is tangent to }C_{0}\\,\\}\n\\]\n\nis a quadric hypersurface in \\(P\\).\n\nNow choose five smooth conics \\(C_{1},\\dots ,C_{5}\\) in general position.\nLet  \n\n\\[\nX = T_{C_{1}}\\cap T_{C_{2}}\\cap T_{C_{3}}\\cap T_{C_{4}}\\cap T_{C_{5}}\n\\subset P .\n\\]\n\n\\(X\\) is a zero–dimensional scheme whose points correspond to smooth conics\nsimultaneously tangent to the five given conics.\n\nDetermine the number of such smooth conics.  Give your answer rounded to four\ndecimal places.",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 56,
+      "prompt": "Consider the polynomial  \n\n\\[\nf(x)=x^{4}-2\\in\\mathbb Q[x].\n\\]\n\nIts splitting field over \\(\\mathbb Q\\) has Galois group isomorphic to the dihedral group \\(D_{4}\\) (order 8), acting naturally on the four complex roots of \\(f\\).\n\nFor a prime \\(p\\) at which \\(f\\) is separable modulo \\(p\\), let  \n\n\\[\nN(p)=\\#\\{\\,a\\in\\mathbb F_{p}\\mid a^{4}\\equiv2\\pmod p\\,\\}\n\\]\n\nbe the number of solutions of \\(f(x)\\equiv0\\pmod p\\) in \\(\\mathbb F_{p}\\).\n\nUsing Chebotarev’s density theorem, compute the natural density of the set of primes \\(p\\) for which \\(N(p)=2\\).  \nGive the answer rounded to four decimal places.",
+      "reference": "0.25",
+      "claude_answers": [
+        "0.2500"
+      ],
+      "claude_best_answer": "0.2500",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 57,
+      "prompt": "Let \\(V = \\mathbb{P}\\bigl(H^{0}(\\mathbb{P}^{2},\\mathcal{O}_{\\mathbb{P}^{2}}(2))\\bigr)\\cong \\mathbf{P}^{5}\\) be the projective space parametrising plane conics.  \nFix a smooth conic \\(C_{0}\\subset\\mathbf{P}^{2}\\) defined by a homogeneous quadratic form \\(Q_{0}(x,y,z)=0\\).\n\nDefine  \n\n\\[\nT_{C_{0}}=\\{\\,C\\in V \\mid C \\text{ is tangent to } C_{0}\\,\\}.\n\\]\n\nShow that \\(T_{C_{0}}\\) is a hypersurface in \\(V\\) and determine its degree.  \nGive your answer as a decimal number rounded to four decimal places.",
+      "reference": "6",
+      "claude_answers": [
+        "6.0000"
+      ],
+      "claude_best_answer": "6.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 60,
+      "prompt": "Let \\(Q_{1},Q_{2},Q_{3},Q_{4}\\subset\\mathbf{P}^{3}_{\\mathbb{C}}\\) be four general smooth quadric surfaces.  \nA line \\(\\ell\\subset\\mathbf{P}^{3}\\) is *tangent* to a quadric \\(Q\\) if \\(\\ell\\) meets \\(Q\\) at a point with multiplicity \\(2\\).\n\nDenote by \\(\\mathcal{T}\\subset G(1,3)\\) the divisor of lines tangent to a fixed smooth quadric.  \nIt is known that \\([\\mathcal{T}] = 2\\sigma_{1}+\\sigma_{2}\\) in the Chow ring of the Grassmannian, where \\(\\sigma_{1}\\) and \\(\\sigma_{2}\\) are the standard Schubert classes of codimensions 1 and 2, respectively.\n\nHow many complex projective lines are simultaneously tangent to all four quadrics \\(Q_{1},\\dots ,Q_{4}\\)?\nGive your answer as a decimal number rounded to four decimal places.  \n(That is, if the answer is the integer \\(N\\), output “\\(N.0000\\)”.)",
+      "reference": "32",
+      "claude_answers": [
+        "32.0000"
+      ],
+      "claude_best_answer": "32.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 62,
+      "prompt": "Let \\(Q_0(x,y,z)=x^{2}+y^{2}+z^{2}\\) be the homogeneous quadratic form defining a smooth conic\n\\(C_0\\subset\\mathbf P^{2}\\).  A variable conic is defined by a quadratic form  \n\n\\[\nQ(x,y,z)=a x^{2}+b y^{2}+c z^{2}+d xy+e xz+f yz ,\n\\qquad (a:b:c:d:e:f)\\in\\mathbf P^{5}.\n\\]\n\nA conic \\(C\\) given by \\(Q=0\\) is tangent to \\(C_0\\) iff there exists a point\n\\([x:y:z]\\in\\mathbf P^{2}\\) such that  \n\n\\[\nQ_0(x,y,z)=0,\\qquad Q(x,y,z)=0,\\qquad \n\\operatorname{rank}\\begin{pmatrix}\n\\partial Q_0/\\partial x & \\partial Q_0/\\partial y & \\partial Q_0/\\partial z\\\\[2pt]\n\\partial Q/\\partial x     & \\partial Q/\\partial y     & \\partial Q/\\partial z\n\\end{pmatrix}\\le 1 .\n\\]\n\nEliminate the variables \\(x,y,z\\) to obtain a single homogeneous polynomial\n\\(F(a,b,c,d,e,f)\\) in the six coefficients of \\(Q\\).  Compute the degree of the\nhypersurface \\(\\{F=0\\}\\subset\\mathbf P^{5}\\) and give the answer as an integer.\n\n(You may use the fact that the resultant of two homogeneous quadrics in three\nvariables is a homogeneous polynomial of degree 2 in the coefficients of each\nquadric.)",
+      "reference": "6",
+      "claude_answers": [
+        "6"
+      ],
+      "claude_best_answer": "6",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 64,
+      "prompt": "**Problem 1.**  \nLet \\(\\mathbb P^{5}\\) be the projective space that parametrises all plane conics (including singular ones).  \nFor a fixed smooth conic \\(C\\) the subset of \\(\\mathbb P^{5}\\) consisting of all conics tangent to \\(C\\) is a hypersurface of degree \\(6\\).  \nGiven five *general* smooth conics \\(C_{1},\\dots ,C_{5}\\) in the plane, consider the intersection\n\n\\[\nH=C_{1}^{\\text{tang}}\\;\\cap\\;C_{2}^{\\text{tang}}\\;\\cap\\;C_{3}^{\\text{tang}}\\;\\cap\\;C_{4}^{\\text{tang}}\\;\\cap\\;C_{5}^{\\text{tang}}\n\\subset \\mathbb P^{5},\n\\]\n\nwhere each \\(C_{i}^{\\text{tang}}\\) is the degree‑\\(6\\) hypersurface of conics tangent to \\(C_{i}\\).\n\nHow many (possibly singular) conics lie in \\(H\\)?  Give the answer as a decimal number with four fractional digits (e.g. write “1234.0000”).",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 65,
+      "prompt": "Let  \n\n\\[\n\\mathbb P^{5} = \\operatorname{Proj}\\bigl(\\mathbb Q[a_{0},a_{1},a_{2},a_{3},a_{4},a_{5}]\\bigr)\n\\]\n\nparametrise all homogeneous quadratic forms  \n\n\\[\nQ(x,y,z)=a_{0}x^{2}+a_{1}y^{2}+a_{2}z^{2}+a_{3}xy+a_{4}xz+a_{5}yz .\n\\]\n\nFor a fixed smooth conic \\(C\\subset\\mathbb P^{2}\\) the set of conics tangent to \\(C\\) is the zero‑locus of a single homogeneous quadratic polynomial in the coefficients \\((a_{0},\\dots ,a_{5})\\); denote this quadric hypersurface by \\(T_{C}\\subset\\mathbb P^{5}\\).\n\nChoose five *generic* smooth conics \\(C_{1},\\dots ,C_{5}\\) (so that the five quadrics \\(T_{C_{i}}\\) intersect transversely).  \nLet  \n\n\\[\nX = T_{C_{1}}\\cap T_{C_{2}}\\cap T_{C_{3}}\\cap T_{C_{4}}\\cap T_{C_{5}}\\subset\\mathbb P^{5}.\n\\]\n\n\\(X\\) is a zero‑dimensional scheme.  \nCompute the number of geometric points of \\(X\\) (i.e. its degree).  \nGive your answer as a decimal number rounded to four places.",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 66,
+      "prompt": "Let \\(f(x)=x^{4}-2\\in\\mathbf Q[x]\\) and let \\(K\\) be its splitting field over\n\\(\\mathbf Q\\).  The Galois group \\(\\operatorname{Gal}(K/\\mathbf Q)\\) is\nisomorphic to the dihedral group \\(D_{4}\\) of order 8, acting on the four roots\n\\(\\{\\alpha_{1},\\alpha_{2},\\alpha_{3},\\alpha_{4}\\}\\) of \\(f\\).\n\nFor a rational prime \\(p\\) where \\(f\\) is separable modulo \\(p\\), let\n\\(\\sigma_{p}\\in\\operatorname{Gal}(K/\\mathbf Q)\\) denote the Frobenius element.\nDefine  \n\n\\[\n\\mathcal{P}=\\{\\,p\\text{ prime} \\mid f \\text{ has at least one root in }\n\\mathbf F_{p}\\,\\}.\n\\]\n\nThe natural (Dirichlet) density of \\(\\mathcal{P}\\) equals the proportion of\nelements of \\(\\operatorname{Gal}(K/\\mathbf Q)\\) that fix at least one root.\n\nCompute this density as a decimal rounded to four decimal places.",
+      "reference": "0.375",
+      "claude_answers": [
+        "0.3750"
+      ],
+      "claude_best_answer": "0.3750",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 68,
+      "prompt": "Let  \n\n\\[\nU \\subset \\mathbb A^{5}_{\\mathbb Z}\n\\]\n\nbe the open subscheme defined by the discriminant of the monic\npolynomial  \n\n\\[\nf_T(t)=t^{5}+a_{4}t^{4}+a_{3}t^{3}+a_{2}t^{2}+a_{1}t+a_{0}\n\\qquad (a_{i}\\in \\mathbb Z)\n\\]\n\nbeing non‑zero (i.e. \\(f_T\\) has five distinct roots over an algebraic closure).\nConsider the variety  \n\n\\[\nY=\\left\\{\\, (a_{0},\\dots ,a_{4},\\sigma)\\;\\middle|\\;\n\\sigma\\text{ is a permutation of the five roots of }f_T \\,\\right\\}\n\\]\n\nand let  \n\n\\[\n\\pi : Y\\longrightarrow U\n\\]\n\nbe the projection that forgets the permutation \\(\\sigma\\).  \nThus \\(\\pi^{-1}(x)\\) consists of the \\(5!\\) possible orderings of the\nfive distinct roots of the polynomial corresponding to \\(x\\).\n\nDefine  \n\n\\[\nL=\\lim_{p\\to\\infty}\\frac{1}{\\#U(\\mathbb F_{p})}\n          \\sum_{x\\in U(\\mathbb F_{p})}\\#\\pi^{-1}(x).\n\\]\n\nCompute the value of \\(L\\).  \nGive your answer as a decimal number (e.g. write `120.0`).",
+      "reference": "120",
+      "claude_answers": [
+        "1.0"
+      ],
+      "claude_best_answer": "1.0",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 70,
+      "prompt": "Let \\(\\mathbf P^{5}\\) have homogeneous coordinates \\([x_{0}:x_{1}:x_{2}:x_{3}:x_{4}:x_{5}]\\).\nConsider the following five quadratic hypersurfaces\n\n\\[\n\\begin{aligned}\nQ_{1}&=x_{0}^{2}+x_{1}^{2}+x_{2}^{2}+x_{3}^{2}+x_{4}^{2}+x_{5}^{2},\\\\\nQ_{2}&=x_{0}^{2}+2x_{1}^{2}+3x_{2}^{2}+4x_{3}^{2}+5x_{4}^{2}+6x_{5}^{2},\\\\\nQ_{3}&=2x_{0}^{2}+3x_{1}^{2}+5x_{2}^{2}+7x_{3}^{2}+11x_{4}^{2}+13x_{5}^{2},\\\\\nQ_{4}&=3x_{0}^{2}+5x_{1}^{2}+7x_{2}^{2}+11x_{3}^{2}+13x_{4}^{2}+17x_{5}^{2},\\\\\nQ_{5}&=5x_{0}^{2}+7x_{1}^{2}+11x_{2}^{2}+13x_{3}^{2}+17x_{4}^{2}+19x_{5}^{2}.\n\\end{aligned}\n\\]\n\nLet \\(H\\subset\\mathbf P^{5}\\) be the hyperplane defined by \\(x_{0}=0\\).\n\nAssuming the five quadrics intersect \\(H\\) transversely (so that the common\nzero‑set is a finite set of reduced points), determine the number of complex\nprojective points that satisfy **all six** equations\n\\(Q_{1}=Q_{2}=Q_{3}=Q_{4}=Q_{5}=0\\) and \\(x_{0}=0\\).\n\nGive the answer as an integer (write it with two decimal places, e.g. `32.00`).",
+      "reference": "8",
+      "claude_answers": [
+        "32.00"
+      ],
+      "claude_best_answer": "32.00",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 71,
+      "prompt": "Consider a finite étale covering \\(\\pi : Y \\to X\\) of algebraic varieties defined over \\(\\mathbb Q\\) such that\n\n* the geometric fibre of \\(\\pi\\) consists of exactly four points,\n* the monodromy (Galois) group of the covering is the dihedral group  \n  \\(D_{4}\\) of order 8, acting on the four points as the natural symmetry\n  group of a square (i.e., the identity fixes all four points, each\n  reflection fixes two opposite vertices, and the rotations other than the\n  identity fix none).\n\nAssume that for sufficiently large primes \\(p\\) the Frobenius elements are\nequidistributed in \\(D_{4}\\).  \nDefine\n\n\\[\nL \\;=\\; \\lim_{p\\to\\infty}\\;\n        \\frac{1}{\\# X(\\mathbb F_{p})}\n        \\sum_{x\\in X(\\mathbb F_{p})}\\#\\pi^{-1}(x).\n\\]\n\nCompute \\(L\\) and give the result as a decimal number rounded to four\ndecimal places.",
+      "reference": "1",
+      "claude_answers": [
+        "1.5000"
+      ],
+      "claude_best_answer": "1.5000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 73,
+      "prompt": "In the projective space \\(\\mathbf P^{5}\\) with homogeneous coordinates \\([x_0:x_1:x_2:x_3:x_4:x_5]\\) consider the five quadrics  \n\n\\[\n\\begin{aligned}\nQ_1 &: \\; x_0^{\\,2}+x_1^{\\,2}+x_2^{\\,2}+x_3^{\\,2}+x_4^{\\,2}+x_5^{\\,2}=0,\\\\\nQ_2 &: \\; x_0^{\\,2}+2x_1^{\\,2}+3x_2^{\\,2}+4x_3^{\\,2}+5x_4^{\\,2}+6x_5^{\\,2}=0,\\\\\nQ_3 &: \\; 2x_0^{\\,2}+3x_1^{\\,2}+5x_2^{\\,2}+7x_3^{\\,2}+11x_4^{\\,2}+13x_5^{\\,2}=0,\\\\\nQ_4 &: \\; 3x_0^{\\,2}+5x_1^{\\,2}+7x_2^{\\,2}+11x_3^{\\,2}+13x_4^{\\,2}+17x_5^{\\,2}=0,\\\\\nQ_5 &: \\; 5x_0^{\\,2}+7x_1^{\\,2}+11x_2^{\\,2}+13x_3^{\\,2}+17x_4^{\\,2}+19x_5^{\\,2}=0 .\n\\end{aligned}\n\\]\n\nAssume that these five quadrics intersect transversely (i.e. the gradient vectors of the\ndefining equations are linearly independent at every common point).  \nHow many points does the intersection  \n\n\\[\nQ_1\\cap Q_2\\cap Q_3\\cap Q_4\\cap Q_5\\;\\subset\\;\\mathbf P^{5}\n\\]\n\nconsist of?  Give the answer as an integer.",
+      "reference": "32",
+      "claude_answers": [
+        "32"
+      ],
+      "claude_best_answer": "32",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 78,
+      "prompt": "In the projective plane \\(\\mathbf P^{2}\\) let a *conic* be the zero locus of a\nnon‑zero homogeneous quadratic polynomial (singular or smooth).  \nFix five general conics \\(C_{1},\\dots ,C_{5}\\).  \n\nA conic \\(D\\) (possibly singular) is said to be **tangent** to \\(C_{i}\\) if\nat every point of intersection the intersection multiplicity of \\(D\\) and\n\\(C_{i}\\) is at least 2.\n\nDetermine the total number of (possibly singular) conics that are tangent to\nall five given general conics, counted with multiplicity.  \n\nThen compute \\(\\displaystyle \\bigl\\lfloor 100\\,N\\bigr\\rfloor\\), where \\(N\\) is\nthat number.  Give the final answer as an integer.",
+      "reference": "326400",
+      "claude_answers": [
+        "326400"
+      ],
+      "claude_best_answer": "326400",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 80,
+      "prompt": "Let \\(\\mathbb P^{5}=\\operatorname{Proj}\\,k[x_{0},x_{1},x_{2},x_{3},x_{4},x_{5}]\\) be the projective space over an algebraically closed field \\(k\\) of characteristic 0.\n\nFor a fixed smooth conic \\(C\\subset\\mathbf P^{2}\\) the set of all conics tangent to \\(C\\) is a quadric hypersurface \\(Q_{C}\\subset\\mathbb P^{5}\\).  \nNow choose five smooth conics \\(C_{1},\\dots ,C_{5}\\) in general position, and let  \n\n\\[\nX = Q_{C_{1}}\\cap Q_{C_{2}}\\cap Q_{C_{3}}\\cap Q_{C_{4}}\\cap Q_{C_{5}}\\;\\subset\\;\\mathbb P^{5}.\n\\]\n\nAssuming the intersection is zero‑dimensional and reduced, compute the number of points of \\(X\\) (counted with multiplicity).  \nGive your answer as an integer.",
+      "reference": "32",
+      "claude_answers": [
+        "3264"
+      ],
+      "claude_best_answer": "3264",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 84,
+      "prompt": "Let \\(\\mathbb P^{5}\\) be the projective space whose points parametrize plane conics\n(up to scale).  \nFor a fixed smooth conic \\(C\\subset\\mathbb P^{2}\\) the set \n\\[\nT_{C}=\\{\\,\\text{conics tangent to }C\\,\\}\n\\]\nis a quadric hypersurface in \\(\\mathbb P^{5}\\); denote its divisor class by \\(2H\\) (where \\(H\\) is the hyperplane class).\n\nTake five *general* smooth conics \\(C_{1},\\dots ,C_{5}\\) in the plane, and let  \n\\[\nX = T_{C_{1}}\\cap T_{C_{2}}\\cap T_{C_{3}}\\cap T_{C_{4}}\\cap T_{C_{5}}\n\\;\\subset\\; \\mathbb P^{5}.\n\\]\n\nAssume the intersection is 0‑dimensional and consists only of smooth conics (no\nsingular conics appear).  \n\nHow many points does \\(X\\) contain?  \n\nGive the answer as a decimal number with four digits after the decimal point.",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 90,
+      "prompt": "Let \\(\\mathbb P^{5}\\) parametrize all (possibly singular) plane conics in \\(\\mathbf P^{2}\\).  \nFix a smooth conic \\(C_{0}\\subset\\mathbf P^{2}\\).  The set  \n\n\\[\nT_{C_{0}}=\\{\\,C\\in\\mathbb P^{5}\\mid C\\text{ is tangent to }C_{0}\\,\\}\n\\]\n\nis a hypersurface in \\(\\mathbb P^{5}\\).\n\nAssume \\(C_{1},\\dots ,C_{5}\\) are five *generic* smooth conics, and let  \n\n\\[\nX \\;=\\; T_{C_{1}}\\cap T_{C_{2}}\\cap T_{C_{3}}\\cap T_{C_{4}}\\cap T_{C_{5}}\n\\subset \\mathbb P^{5}.\n\\]\n\nHow many points does \\(X\\) contain (counted with multiplicity) over an algebraically closed field of characteristic \\(0\\)?\nGive your answer as a decimal number with four digits after the decimal point.  \n(For example, write “32.0000”.)",
+      "reference": "3264",
+      "claude_answers": [
+        "3264.0000"
+      ],
+      "claude_best_answer": "3264.0000",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 92,
+      "prompt": "Let \\(K\\) be the splitting field over \\(\\mathbb{Q}\\) of the polynomial \\(f(x)=x^{4}-2\\).  \nThe Galois group \\(\\mathrm{Gal}(K/\\mathbb{Q})\\) is the dihedral group \\(D_{4}\\) of order 8; it acts on the four complex roots \\(\\{\\alpha_1,\\alpha_2,\\alpha_3,\\alpha_4\\}\\) of \\(f\\) in the natural way (the vertices of a square).\n\nFor a rational prime \\(p\\) (different from 2), denote by \\(\\left(\\frac{2}{p}\\right)\\) the Legendre symbol.\nA prime \\(p\\) satisfies the congruence  \n\n\\[\nx^{4}\\equiv 2 \\pmod p\n\\]\n\niff the Frobenius element at \\(p\\) (viewed as a permutation of the four roots) **fixes at least one root**.\n\nUsing the Chebotarev Density Theorem, compute the natural density of primes \\(p\\) (odd, \\(p\\neq2\\)) for which the above congruence is solvable.  \nGive your answer as a decimal rounded to four decimal places.",
+      "reference": "0.375",
+      "claude_answers": [
+        "0.3750"
+      ],
+      "claude_best_answer": "0.3750",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 93,
+      "prompt": "In \\(\\mathbf P^{4}\\) with homogeneous coordinates \\([x_{0}:x_{1}:x_{2}:x_{3}:x_{4}]\\) let  \n\n* \\(Q_{1},Q_{2},Q_{3}\\) be three **general** quadratic hypersurfaces that all contain the line  \n  \\(\\ell=\\{x_{0}=x_{1}=x_{2}=0\\}\\);\n* \\(C\\) be a **general** cubic hypersurface that does **not** contain \\(\\ell\\).\n\nConsider the zero‑dimensional scheme  \n\n\\[\nX = Q_{1}\\cap Q_{2}\\cap Q_{3}\\cap C\\subset\\mathbf P^{4}.\n\\]\n\nLet \\(r\\) be the number of **isolated** (i.e. zero‑dimensional) points of \\(X\\) counted with multiplicity, after removing the one‑dimensional component \\(\\ell\\) that appears in the intersection of the three quadrics.  \n\nCompute \\(r\\) and give the answer as a decimal number with one decimal place (e.g. “21.0”).",
+      "reference": "21",
+      "claude_answers": [
+        "21.0"
+      ],
+      "claude_best_answer": "21.0",
+      "claude_agrees_with_reference": true
+    },
+    {
+      "id": 96,
+      "prompt": "Let  \n\n\\[\n\\mathbb P^{5}= \\operatorname{Proj}\\bigl(\\mathbf{F}_{p}[a_{0},a_{1},\\dots ,a_{5}]\\bigr)\n\\]\n\nbe the projective space of homogeneous quadratic forms in three variables\n(up to scale).  \nFor a fixed smooth conic \\(C\\) in \\(\\mathbf P^{2}\\) the set of conics tangent to\n\\(C\\) corresponds to a quadric hypersurface \\(Q_{C}\\subset\\mathbb P^{5}\\).\n\nChoose five *generic* smooth conics \\(C_{1},\\dots ,C_{5}\\) over\n\\(\\mathbf{F}_{p}\\) and let  \n\n\\[\nX = Q_{C_{1}}\\cap Q_{C_{2}}\\cap Q_{C_{3}}\\cap Q_{C_{4}}\\cap Q_{C_{5}}\n\\subset\\mathbb P^{5}.\n\\]\n\n\\(X\\) is a zero‑dimensional scheme.  Denote by \\(\\#X\\) the number of its\ngeometric points (counted without multiplicity).\n\nCompute \\(\\#X\\).  Give your answer as a decimal number (e.g. “32.0”).",
+      "reference": "32",
+      "claude_answers": [
+        "3264.0"
+      ],
+      "claude_best_answer": "3264.0",
+      "claude_agrees_with_reference": false
+    },
+    {
+      "id": 101,
+      "prompt": "Let  \n\n\\[\nf(X)=X^{4}-2\\in\\mathbb{Q}[X].\n\\]\n\nIts splitting field over \\(\\mathbb{Q}\\) has Galois group \\(G\\simeq D_{4}\\) (the dihedral group of order 8) acting on the four complex roots of \\(f\\).\n\nFor each odd prime \\(p\\neq 2\\) let  \n\n\\[\nr(p)=\\#\\{\\,a\\in\\mathbb F_{p}\\mid a^{4}\\equiv 2\\pmod p\\,\\},\n\\]\n\nthe number of solutions of the congruence \\(X^{4}\\equiv2\\pmod p\\).\n\nDefine  \n\n\\[\nL=\\lim_{X\\to\\infty}\\frac{1}{\\pi(X)}\\sum_{\\substack{p\\le X\\\\ p\\text{ prime}}} r(p),\n\\]\n\nwhere \\(\\pi(X)\\) is the number of primes \\(\\le X\\) (the limit exists by the Chebotarev density theorem).\n\nCompute \\(L\\) and then give \\(\\displaystyle\\bigl\\lfloor 100\\,L \\bigr\\rfloor\\).\n\nEnter the integer \\(\\bigl\\lfloor 100\\,L \\bigr\\rfloor\\).",
+      "reference": "100",
+      "claude_answers": [
+        "100"
+      ],
+      "claude_best_answer": "100",
+      "claude_agrees_with_reference": true
+    }
+  ]
+}
