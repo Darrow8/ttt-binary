@@ -12,7 +12,9 @@ This module provides:
   - `apply_sequence_normalization`: post-processes datums to divide each datum's
     advantages by its action token count (mask sum)
   - `strip_env_all_prefix`: rewrites compute_trajectory_metrics output to drop the
-    `env/all/` prefix so reward/by_group/etc. land in their own W&B sections
+    `env/all/` prefix, add reward/min/max/mean, and extract per-rollout sample rows
+  - `_samples_table_log_metrics`: MultiplexLogger.log_metrics replacement that
+    converts the extracted sample rows into a `samples_{step}` wandb.Table
   - `patch_grpo_advantages`: applies the monkey-patches at import time
 """
 
@@ -122,23 +124,99 @@ async def grpo_incorporate_kl_penalty(
     return metrics
 
 
+# Sentinel key used to pass per-rollout rows from compute_trajectory_metrics
+# through the metrics dict to the W&B logger, where they're converted into a
+# `wandb.Table` keyed `samples_{step}`. The key starts with `_` so callers
+# treating the metrics dict as scalars won't accidentally try to log it.
+_SAMPLE_ROWS_KEY = "_samples_rows"
+
+
 def strip_env_all_prefix(
     trajectory_groups_P: list[TrajectoryGroup],
     taglist_P: list[list[str]],
-) -> dict[str, float]:
-    """Match the old pipeline/logging.py format: log reward/by_group/etc. at top level.
+) -> dict:
+    """Match the old pipeline/logging.py format: reward/* at top level, plus samples table.
 
     Cookbook's compute_trajectory_metrics nests every aggregate metric under
-    `env/all/...`, which dumps reward curves into the W&B `env` panel group
-    instead of giving them their own section. This wrapper strips that prefix
-    while leaving per-tag `env/<tag>/...` metrics alone (they remain useful for
-    breakdowns when tags are non-trivial).
+    `env/all/...` and only emits `reward/total` (the mean). This wrapper:
+      1. Strips the `env/all/` prefix so reward/by_group/etc. land in their
+         own W&B sections (per-tag `env/<tag>/...` keys are left alone).
+      2. Adds `reward/min`, `reward/max`, `reward/mean` to mirror the old
+         pipeline/logging.py output.
+      3. Extracts per-rollout (prompt, response, expected, predicted, reward,
+         correct) rows from each transition's `logs` dict and stashes them
+         under a sentinel key for the W&B logger to convert into a Table.
     """
     raw = _orig_compute_trajectory_metrics(trajectory_groups_P, taglist_P)
-    return {
+    out: dict = {
         (k[len("env/all/"):] if k.startswith("env/all/") else k): v
         for k, v in raw.items()
     }
+
+    # reward/min, reward/max, reward/mean
+    all_rewards: list[float] = [
+        r for tg in trajectory_groups_P for r in tg.get_total_rewards()
+    ]
+    if all_rewards:
+        out["reward/min"] = min(all_rewards)
+        out["reward/max"] = max(all_rewards)
+        out["reward/mean"] = sum(all_rewards) / len(all_rewards)
+
+    # Per-rollout rows for the samples_{step} W&B Table. Pull the fields that
+    # SubproblemEnv.step stashes in StepResult.logs.
+    sample_rows: list[dict] = []
+    for tg in trajectory_groups_P:
+        for traj in tg.trajectories_G:
+            for transition in traj.transitions:
+                logs = transition.logs or {}
+                if "sample_prompt" not in logs:
+                    continue
+                sample_rows.append(
+                    {
+                        "prompt": logs.get("sample_prompt", ""),
+                        "response": logs.get("sample_response", ""),
+                        "expected": logs.get("sample_expected", ""),
+                        "predicted": logs.get("sample_predicted", ""),
+                        "reward": logs.get("sample_reward", 0.0),
+                        "correct": bool(logs.get("sample_correct", False)),
+                    }
+                )
+    if sample_rows:
+        out[_SAMPLE_ROWS_KEY] = sample_rows
+
+    return out
+
+
+def _samples_table_log_metrics(self, metrics: dict, step: int | None = None) -> None:
+    """Replacement for MultiplexLogger.log_metrics that handles the samples table.
+
+    Pops the _SAMPLE_ROWS_KEY entry (if present), builds a `wandb.Table`, and
+    only attaches it when forwarding to a WandbLogger child. Other child
+    loggers (JSON, pretty-print) see a clean dict with the sentinel removed.
+    """
+    from tinker_cookbook.utils.ml_log import WandbLogger
+
+    sample_rows = metrics.pop(_SAMPLE_ROWS_KEY, None)
+
+    for child in self.loggers:
+        if sample_rows and isinstance(child, WandbLogger):
+            try:
+                import wandb
+                table = wandb.Table(
+                    columns=["prompt", "response", "expected", "predicted", "reward", "correct"],
+                    data=[
+                        [r["prompt"], r["response"], r["expected"], r["predicted"], r["reward"], r["correct"]]
+                        for r in sample_rows
+                    ],
+                )
+                key = f"samples_{step}" if step is not None else "samples"
+                child.log_metrics({**metrics, key: table}, step)
+                continue
+            except Exception:
+                # If wandb.Table construction fails for any reason, fall through
+                # and log the scalars only so we don't crash training.
+                pass
+        child.log_metrics(metrics, step)
 
 
 def patch_grpo_advantages():
@@ -164,10 +242,17 @@ def patch_grpo_advantages():
     train_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
     metrics_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
 
-    # Strip env/all/ prefix so reward metrics get their own W&B section
+    # Strip env/all/ prefix so reward metrics get their own W&B section, and
+    # emit reward/min, reward/max, reward/mean + per-rollout sample rows.
     import tinker_cookbook.rl.metric_util as metric_util
     metric_util.compute_trajectory_metrics = strip_env_all_prefix
     train_module.compute_trajectory_metrics = strip_env_all_prefix
+
+    # Patch MultiplexLogger so the sample rows attached by strip_env_all_prefix
+    # are turned into a `samples_{step}` wandb.Table only on the WandbLogger
+    # child (other loggers see a cleaned dict without the sentinel).
+    import tinker_cookbook.utils.ml_log as ml_log
+    ml_log.MultiplexLogger.log_metrics = _samples_table_log_metrics
 
     # Verify the patch took effect at all known call sites
     assert train_module.compute_advantages is grpo_compute_advantages, (
@@ -184,5 +269,9 @@ def patch_grpo_advantages():
     )
     assert train_module.compute_trajectory_metrics is strip_env_all_prefix, (
         "Patch failed: train_module.compute_trajectory_metrics was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert ml_log.MultiplexLogger.log_metrics is _samples_table_log_metrics, (
+        "Patch failed: MultiplexLogger.log_metrics was not replaced. "
         "tinker_cookbook may have changed its import structure."
     )

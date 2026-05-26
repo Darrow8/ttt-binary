@@ -103,6 +103,14 @@ class SubproblemEnv(ProblemEnv):
                 "correct": float(correct),
                 "format": float(has_boxed),
             },
+            logs={
+                "sample_prompt": self.problem,
+                "sample_response": content,
+                "sample_expected": self.answer,
+                "sample_predicted": predicted if predicted is not None else "",
+                "sample_correct": correct,
+                "sample_reward": reward,
+            },
         )
 
 
