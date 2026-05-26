@@ -18,6 +18,9 @@ This module provides:
   - `_terse_pretty_print_log_metrics`: PrettyPrintLogger.log_metrics replacement
     that emits a single `step=N reward=X.XXX time=X.Xs` INFO line per step
     instead of the cookbook's full Rich metrics table
+  - `_silent_print_group`: no-op replacement for train.print_group, which by
+    default dumps full prompts/responses/advantages for two trajectory groups
+    per step into the console log
   - `patch_grpo_advantages`: applies the monkey-patches at import time
 """
 
@@ -190,6 +193,18 @@ def strip_env_all_prefix(
     return out
 
 
+def _silent_print_group(*_args, **_kwargs) -> None:
+    """Replacement for tinker_cookbook.rl.train.print_group: do nothing.
+
+    The cookbook's print_group decodes and logs the prompt/response/advantages
+    for the first two trajectory groups every step, which floods the W&B
+    "Logs" tab with full rollout transcripts. We keep that detail in the
+    `samples_{step}` wandb.Table and the rollout JSONLs on disk; the console
+    log stays clean.
+    """
+    return None
+
+
 def _terse_pretty_print_log_metrics(self, metrics: dict, step: int | None = None) -> None:
     """Replacement for PrettyPrintLogger.log_metrics: emit a single INFO line.
 
@@ -290,6 +305,11 @@ def patch_grpo_advantages():
     # Wandb/JsonLogger children still get the full metrics dict.
     ml_log.PrettyPrintLogger.log_metrics = _terse_pretty_print_log_metrics
 
+    # Silence the per-step rollout dump (decoded prompts/responses/advantages
+    # for the first two trajectory groups). The samples_{step} W&B Table and
+    # the rollout JSONLs keep the full rollout content elsewhere.
+    train_module.print_group = _silent_print_group
+
     # Verify the patch took effect at all known call sites
     assert train_module.compute_advantages is grpo_compute_advantages, (
         "Patch failed: train_module.compute_advantages was not replaced. "
@@ -313,5 +333,9 @@ def patch_grpo_advantages():
     )
     assert ml_log.PrettyPrintLogger.log_metrics is _terse_pretty_print_log_metrics, (
         "Patch failed: PrettyPrintLogger.log_metrics was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert train_module.print_group is _silent_print_group, (
+        "Patch failed: train_module.print_group was not replaced. "
         "tinker_cookbook may have changed its import structure."
     )
