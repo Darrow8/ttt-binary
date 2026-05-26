@@ -15,6 +15,9 @@ This module provides:
     `env/all/` prefix, add reward/min/max/mean, and extract per-rollout sample rows
   - `_samples_table_log_metrics`: MultiplexLogger.log_metrics replacement that
     converts the extracted sample rows into a `samples_{step}` wandb.Table
+  - `_terse_pretty_print_log_metrics`: PrettyPrintLogger.log_metrics replacement
+    that emits a single `step=N reward=X.XXX time=X.Xs` INFO line per step
+    instead of the cookbook's full Rich metrics table
   - `patch_grpo_advantages`: applies the monkey-patches at import time
 """
 
@@ -187,6 +190,34 @@ def strip_env_all_prefix(
     return out
 
 
+def _terse_pretty_print_log_metrics(self, metrics: dict, step: int | None = None) -> None:
+    """Replacement for PrettyPrintLogger.log_metrics: emit a single INFO line.
+
+    The cookbook's default prints a Rich `Metric | Value` table covering every
+    key in the metrics dict (one row each for by_group/*, total_episodes,
+    env_metrics/*, etc.), which floods stdout/the W&B "Logs" tab. The old
+    pipeline/logging.py logged only `step=N reward=X.XXX time=X.Xs` per step,
+    which is what we want here. All metrics still flow through the WandbLogger
+    / JsonLogger children unchanged.
+    """
+    import logging as _logging
+    import time as _time
+
+    now = _time.monotonic()
+    last = getattr(self, "_last_t", None)
+    elapsed = (now - last) if last is not None else 0.0
+    self._last_t = now
+
+    reward = metrics.get("reward/mean", metrics.get("reward/total", 0.0))
+    try:
+        reward_val = float(reward)
+    except (TypeError, ValueError):
+        reward_val = 0.0
+    _logging.getLogger("tinker_cookbook.utils.ml_log").info(
+        "step=%s  reward=%.3f  time=%.1fs", step, reward_val, elapsed
+    )
+
+
 def _samples_table_log_metrics(self, metrics: dict, step: int | None = None) -> None:
     """Replacement for MultiplexLogger.log_metrics that handles the samples table.
 
@@ -254,6 +285,11 @@ def patch_grpo_advantages():
     import tinker_cookbook.utils.ml_log as ml_log
     ml_log.MultiplexLogger.log_metrics = _samples_table_log_metrics
 
+    # Replace PrettyPrintLogger's rich-table console output with a terse
+    # `step=N reward=X.XXX time=X.Xs` one-liner, matching old pipeline/logging.py.
+    # Wandb/JsonLogger children still get the full metrics dict.
+    ml_log.PrettyPrintLogger.log_metrics = _terse_pretty_print_log_metrics
+
     # Verify the patch took effect at all known call sites
     assert train_module.compute_advantages is grpo_compute_advantages, (
         "Patch failed: train_module.compute_advantages was not replaced. "
@@ -273,5 +309,9 @@ def patch_grpo_advantages():
     )
     assert ml_log.MultiplexLogger.log_metrics is _samples_table_log_metrics, (
         "Patch failed: MultiplexLogger.log_metrics was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert ml_log.PrettyPrintLogger.log_metrics is _terse_pretty_print_log_metrics, (
+        "Patch failed: PrettyPrintLogger.log_metrics was not replaced. "
         "tinker_cookbook may have changed its import structure."
     )
