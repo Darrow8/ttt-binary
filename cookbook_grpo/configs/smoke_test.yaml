@@ -1,0 +1,50 @@
+# Smoke test: minimal 1-step run to verify wandb logging format.
+#
+# batch_size = full dataset and num_epochs=1 means exactly one training step.
+# group_size and max_tokens are reduced from production to keep the Tinker
+# bill small. KL penalty is disabled so no reference model is loaded.
+#
+# Usage:
+#   python train_tinker_grpo.py --config=cookbook_grpo/configs/smoke_test.yaml
+
+model_name: "openai/gpt-oss-120b"
+log_path: "./cookbook-grpo-smoke"
+
+learning_rate: 3.0e-4
+max_tokens: 512
+lora_rank: 32
+temperature: 0.7
+
+save_every: 0
+eval_every: 0
+
+wandb_project: "ttt-cookbook-conics50"
+wandb_name: "smoke-test-logging-format"
+
+loss_fn: "ppo"
+loss_fn_config:
+  clip_low_threshold: 0.8
+  clip_high_threshold: 1.2
+remove_constant_reward_groups: true
+
+# No KL penalty -> no reference model load.
+kl_penalty_coef: 0.0
+kl_discount_factor: 0.0
+
+dataset_builder:
+  data_path: "./subproblem-datasets/conics-reproduce-50.jsonl"
+  batch_size: 50
+  group_size: 4
+  num_epochs: 1
+  prompt_suffix: " Put your final answer inside \\boxed{}."
+  system_prompt: |
+    You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
+
+    Show all important intermediate reasoning, derivations, and calculations.
+
+    After completing the reasoning, clearly state the final answer.
+  reward_correct: 1.0
+  reward_wrong: 0.0
+  reward_none: 0.0
+  shuffle: true
+  seed: 42
