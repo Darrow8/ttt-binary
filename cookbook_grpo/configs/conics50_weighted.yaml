@@ -1,0 +1,60 @@
+# Frequency-weighted variant of conics50.yaml.
+# Identical hyperparameters, but reward_correct is multiplied per-problem by the
+# class-balanced inverse-frequency weight of its reference answer. Designed to
+# prevent the "always emit 32 or 3264" reward-hacking shortcut we observed in
+# the unweighted run: those two answers cover 52% of the 50-problem dataset.
+#
+# Weight formula: weight[ans] = N / (K * count[ans])
+#   - K = 18 unique answers, N = 50 records
+#   - "32" appears 18× → weight ≈ 0.154
+#   - "7776" appears  1× → weight ≈ 2.78
+# Expected reward for "always 32" strategy drops from 0.36 → 0.055.
+# Expected reward for genuinely solving stays ≈ 1.0.
+#
+# Usage:
+#   python train_tinker_grpo.py --config=cookbook_grpo/configs/conics50_weighted.yaml
+
+model_name: "openai/gpt-oss-120b"
+log_path: "./cookbook-grpo-weighted"
+
+learning_rate: 3.0e-4
+max_tokens: 16384
+lora_rank: 32
+temperature: 0.7
+
+save_every: 5
+eval_every: 10
+
+wandb_project: "ttt-cookbook-conics50-weighted"
+
+loss_fn: "ppo"
+loss_fn_config:
+  clip_low_threshold: 0.8
+  clip_high_threshold: 1.2
+remove_constant_reward_groups: true
+
+kl_penalty_coef: 0.01
+kl_discount_factor: 0.0
+kl_reference_config:
+  base_model: "openai/gpt-oss-120b"
+
+dataset_builder:
+  data_path: "./conics-50.jsonl"
+  batch_size: 25
+  group_size: 16
+  num_epochs: 50
+  prompt_suffix: " Put your final answer inside \\boxed{}."
+  system_prompt: |
+    You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
+
+    Show all important intermediate reasoning, derivations, and calculations. Explain why each step is valid and reference any relevant theorems or identities when appropriate. Avoid skipping logical steps or making large jumps in reasoning.
+
+    If the problem involves multiple cases or approaches, consider them systematically. Use clear mathematical notation and keep the solution organized.
+
+    After completing the reasoning, clearly state the final answer.
+  reward_correct: 1.0
+  reward_wrong: 0.0
+  reward_none: 0.0
+  shuffle: true
+  seed: 42
+  weight_by_inverse_frequency: true

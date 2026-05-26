@@ -57,6 +57,7 @@ def config_from_yaml(yaml_path: str) -> train.Config:
         shuffle=ds_cfg.get("shuffle", True),
         seed=ds_cfg.get("seed", 42),
         eval_data_path=ds_cfg.get("eval_data_path"),
+        weight_by_inverse_frequency=ds_cfg.get("weight_by_inverse_frequency", False),
     )
 
     cfg["dataset_builder"] = builder

@@ -51,6 +51,8 @@ def normalize_answer(s: str) -> str:
     s = s.replace(",", "").replace(" ", "").strip().rstrip(".")
     try:
         d = Decimal(s)
+        if not d.is_finite():
+            return s
         if d == d.to_integral_value():
             return str(int(d.to_integral_value()))
         return str(d.normalize())

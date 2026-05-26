@@ -29,6 +29,7 @@ class SubproblemRecord:
     id: str | None = None
     agreement_rate: float | None = None
     metadata: dict[str, Any] | None = None
+    reward_weight: float = 1.0  # Multiplier on reward_correct; set by inverse-frequency weighting
 
 
 def load_subproblems(path: str | Path) -> list[SubproblemRecord]:
@@ -128,7 +129,7 @@ class SubproblemDataset(RLDataset):
                 group_size=self.group_size,
                 convo_prefix=self.convo_prefix,
                 prompt_suffix=self.prompt_suffix,
-                reward_correct=self.reward_correct,
+                reward_correct=self.reward_correct * rec.reward_weight,
                 reward_wrong=self.reward_wrong,
                 reward_none=self.reward_none,
             )
@@ -160,6 +161,12 @@ class SubproblemDatasetBuilder(RLDatasetBuilder):
     # Optional eval path — if provided, builds a test dataset from a separate file
     eval_data_path: str | None = None
 
+    # If True, multiply reward_correct per-problem by the class-balanced inverse-frequency
+    # weight of its reference answer. Discourages reward-hacking by always emitting the
+    # most common answer in the dataset (e.g. "32" appears 18/50 times in conics-reproduce-50).
+    # Formula: weight[ans] = N / (K * count[ans]) where N = total records, K = unique answers.
+    weight_by_inverse_frequency: bool = False
+
     async def __call__(self) -> tuple[SubproblemDataset, SubproblemDataset | None]:
         renderer_name = self.renderer_name or model_info.get_recommended_renderer_name(
             self.model_name
@@ -172,6 +179,24 @@ class SubproblemDatasetBuilder(RLDatasetBuilder):
             convo_prefix = [{"role": "system", "content": self.system_prompt}]
 
         records = load_subproblems(self.data_path)
+
+        if self.weight_by_inverse_frequency:
+            from collections import Counter
+            answer_counts = Counter(rec.answer for rec in records)
+            n_records = len(records)
+            n_classes = len(answer_counts)
+            for rec in records:
+                rec.reward_weight = n_records / (n_classes * answer_counts[rec.answer])
+            import logging
+            logging.getLogger(__name__).info(
+                "Frequency-weighted rewards enabled: %d unique answers across %d records. "
+                "Most-common='%s' (%d×, weight=%.3f), least-common='%s' (%d×, weight=%.3f).",
+                n_classes, n_records,
+                answer_counts.most_common(1)[0][0], answer_counts.most_common(1)[0][1],
+                n_records / (n_classes * answer_counts.most_common(1)[0][1]),
+                answer_counts.most_common()[-1][0], answer_counts.most_common()[-1][1],
+                n_records / (n_classes * answer_counts.most_common()[-1][1]),
+            )
 
         train_dataset = SubproblemDataset(
             records=records,
