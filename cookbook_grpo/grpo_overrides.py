@@ -11,7 +11,9 @@ This module provides:
     that adds std normalization
   - `apply_sequence_normalization`: post-processes datums to divide each datum's
     advantages by its action token count (mask sum)
-  - `patch_grpo_advantages`: applies the monkey-patch at import time
+  - `strip_env_all_prefix`: rewrites compute_trajectory_metrics output to drop the
+    `env/all/` prefix so reward/by_group/etc. land in their own W&B sections
+  - `patch_grpo_advantages`: applies the monkey-patches at import time
 """
 
 from __future__ import annotations
@@ -20,6 +22,9 @@ import torch
 
 from tinker_cookbook.rl.data_processing import (
     assemble_training_data as _orig_assemble,
+)
+from tinker_cookbook.rl.metric_util import (
+    compute_trajectory_metrics as _orig_compute_trajectory_metrics,
 )
 from tinker_cookbook.rl.metrics import (
     incorporate_kl_penalty as _orig_incorporate_kl_penalty,
@@ -117,6 +122,25 @@ async def grpo_incorporate_kl_penalty(
     return metrics
 
 
+def strip_env_all_prefix(
+    trajectory_groups_P: list[TrajectoryGroup],
+    taglist_P: list[list[str]],
+) -> dict[str, float]:
+    """Match the old pipeline/logging.py format: log reward/by_group/etc. at top level.
+
+    Cookbook's compute_trajectory_metrics nests every aggregate metric under
+    `env/all/...`, which dumps reward curves into the W&B `env` panel group
+    instead of giving them their own section. This wrapper strips that prefix
+    while leaving per-tag `env/<tag>/...` metrics alone (they remain useful for
+    breakdowns when tags are non-trivial).
+    """
+    raw = _orig_compute_trajectory_metrics(trajectory_groups_P, taglist_P)
+    return {
+        (k[len("env/all/"):] if k.startswith("env/all/") else k): v
+        for k, v in raw.items()
+    }
+
+
 def patch_grpo_advantages():
     """Monkey-patch the cookbook to use original GRPO advantage computation and normalization.
 
@@ -140,6 +164,11 @@ def patch_grpo_advantages():
     train_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
     metrics_module.incorporate_kl_penalty = grpo_incorporate_kl_penalty
 
+    # Strip env/all/ prefix so reward metrics get their own W&B section
+    import tinker_cookbook.rl.metric_util as metric_util
+    metric_util.compute_trajectory_metrics = strip_env_all_prefix
+    train_module.compute_trajectory_metrics = strip_env_all_prefix
+
     # Verify the patch took effect at all known call sites
     assert train_module.compute_advantages is grpo_compute_advantages, (
         "Patch failed: train_module.compute_advantages was not replaced. "
@@ -151,5 +180,9 @@ def patch_grpo_advantages():
     )
     assert train_module.incorporate_kl_penalty is grpo_incorporate_kl_penalty, (
         "Patch failed: train_module.incorporate_kl_penalty was not replaced. "
+        "tinker_cookbook may have changed its import structure."
+    )
+    assert train_module.compute_trajectory_metrics is strip_env_all_prefix, (
+        "Patch failed: train_module.compute_trajectory_metrics was not replaced. "
         "tinker_cookbook may have changed its import structure."
     )
