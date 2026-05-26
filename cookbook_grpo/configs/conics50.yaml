@@ -26,9 +26,16 @@ eval_every: 10
 wandb_project: "ttt-cookbook-conics50"
 
 # Loss / algorithm
-loss_fn: "importance_sampling"
+
+# Use PPO loss for actual clipping. Tinker's importance_sampling loss accepts
+# no kwargs (the server raises 'ImportanceSamplingLoss() takes no arguments'
+# if loss_fn_config is non-empty). PPO clip thresholds default to 0.8/1.2 per
+# https://tinker-docs.thinkingmachines.ai/tinker/losses/ppo/ ; we set them
+# explicitly to match the prior clip_epsilon=0.2 intent.
+loss_fn: "ppo"
 loss_fn_config:
-  clip_epsilon: 0.2  # PPO-style importance ratio clipping [1-eps, 1+eps]
+  clip_low_threshold: 0.8
+  clip_high_threshold: 1.2
 remove_constant_reward_groups: true
 
 # KL penalty against reference (base) model — original GRPO uses β=0.04
