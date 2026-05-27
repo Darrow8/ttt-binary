@@ -22,7 +22,7 @@ from tinker_cookbook import cli_utils, model_info
 from tinker_cookbook.rl import train
 
 from cookbook_grpo.dataset import SubproblemDatasetBuilder
-from cookbook_grpo.grpo_overrides import patch_grpo_advantages
+from cookbook_grpo.grpo_overrides import patch_grpo_advantages, patch_sparse_logging
 
 patch_grpo_advantages()
 
@@ -37,6 +37,9 @@ def config_from_yaml(yaml_path: str) -> train.Config:
     for key in ("learning_rate", "temperature", "kl_penalty_coef", "kl_discount_factor"):
         if key in cfg and isinstance(cfg[key], str):
             cfg[key] = float(cfg[key])
+
+    # Extract our custom logging keys before passing to Config
+    log_samples_every = cfg.pop("log_samples_every", 0)
 
     ds_cfg = cfg.pop("dataset_builder", {})
     model_name = cfg.get("model_name", "openai/gpt-oss-120b")
@@ -70,6 +73,9 @@ def config_from_yaml(yaml_path: str) -> train.Config:
             base_model=kl_ref_dict.get("base_model", model_name),
             load_checkpoint_path=kl_ref_dict.get("load_checkpoint_path"),
         )
+
+    # Apply sparse logging patch based on config
+    patch_sparse_logging(log_samples_every=log_samples_every)
 
     blueprint = chz.Blueprint(train.Config).apply(cfg)
     return blueprint.make()

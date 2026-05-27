@@ -22,6 +22,8 @@ This module provides:
     default dumps full prompts/responses/advantages for two trajectory groups
     per step into the console log
   - `patch_grpo_advantages`: applies the monkey-patches at import time
+  - `patch_sparse_logging`: reduces disk bloat by only writing HTML/JSONL
+    rollout logs every N steps instead of every iteration
 """
 
 from __future__ import annotations
@@ -339,3 +341,59 @@ def patch_grpo_advantages():
         "Patch failed: train_module.print_group was not replaced. "
         "tinker_cookbook may have changed its import structure."
     )
+
+
+def patch_sparse_logging(log_samples_every: int = 0):
+    """Reduce disk bloat by writing HTML/JSONL rollout logs only every N steps.
+
+    The upstream cookbook creates an iteration_NNNNNN/ directory *every* training
+    step with ~4.5MB of HTML + JSON logtree data. Over a 60-step run that's
+    ~270MB of mostly-redundant debug visualization. This patch makes the logtree
+    scope and rollout JSONL export conditional on step cadence:
+
+      log_samples_every=0  -> disable all per-iteration disk artifacts (default)
+      log_samples_every=10 -> write artifacts at steps 0, 10, 20, ...
+
+    Scalar metrics (metrics.jsonl, W&B) and the samples W&B Table are unaffected
+    — they always log every step regardless of this setting.
+    """
+    import tinker_cookbook.rl.train as train_module
+
+    _orig_get_logtree_scope = train_module._get_logtree_scope
+    _orig_maybe_export = train_module._maybe_export_rollout_summary_jsonl
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _sparse_logtree_scope(
+        output_dir, num_groups_to_log, f_name, scope_name, iteration, store=None
+    ):
+        should_log = (
+            log_samples_every > 0
+            and iteration % log_samples_every == 0
+        )
+        if should_log:
+            with _orig_get_logtree_scope(
+                output_dir, num_groups_to_log, f_name, scope_name, iteration, store
+            ):
+                yield
+        else:
+            yield
+
+    def _sparse_maybe_export(*, config, base_name, split, iteration, groups_P, store):
+        should_log = (
+            log_samples_every > 0
+            and iteration % log_samples_every == 0
+        )
+        if should_log:
+            _orig_maybe_export(
+                config=config,
+                base_name=base_name,
+                split=split,
+                iteration=iteration,
+                groups_P=groups_P,
+                store=store,
+            )
+
+    train_module._get_logtree_scope = _sparse_logtree_scope
+    train_module._maybe_export_rollout_summary_jsonl = _sparse_maybe_export

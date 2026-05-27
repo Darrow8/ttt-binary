@@ -10,27 +10,26 @@
 #   - Std-normalized advantages: A_i = (r_i - mean) / std
 
 model_name: "openai/gpt-oss-120b"
-log_path: "./cookbook-grpo-run"
+log_path: "./cookbook-grpo-conics100"
 
 # Training hyperparameters from the paper
-learning_rate: 3.0e-4
+learning_rate: 5.0e-5
 max_tokens: 16384
 lora_rank: 32
-temperature: 0.7
+temperature: 1.0
 
 # Checkpointing
 save_every: 5
 eval_every: 10
 
 # Logging: disable per-iteration HTML/JSON disk artifacts (bloats ~4.5MB/step).
-# Scalar metrics still go to metrics.jsonl + W&B every step.
-# log_samples_every=10 writes rollout HTML only at steps 0, 10, 20, ... for spot-checking.
+# log_samples_every=10 writes rollout HTML only at steps 0, 10, 20, ...
 num_groups_to_log: 4
 rollout_json_export: false
 log_samples_every: 10
 
 # W&B
-wandb_project: "ttt-cookbook-conics50"
+wandb_project: "ttt-cookbook-conics100"
 
 # Loss / algorithm
 
@@ -46,17 +45,17 @@ loss_fn_config:
 remove_constant_reward_groups: true
 
 # KL penalty against reference (base) model — original GRPO uses β=0.04
-kl_penalty_coef: 0.01
+kl_penalty_coef: 0.04
 kl_discount_factor: 0.0
 kl_reference_config:
   base_model: "openai/gpt-oss-120b"
 
 # Dataset builder settings
 dataset_builder:
-  data_path: "./conics-50.jsonl"
+  data_path: "./subproblem-datasets/conics-reproduce-100.json"
   batch_size: 25
   group_size: 16
-  num_epochs: 50
+  num_epochs: 15
   prompt_suffix: " Put your final answer inside \\boxed{}."
   system_prompt: |
     You are a careful and rigorous math student working through an advanced mathematics problem. Your goal is to solve the problem step by step.
@@ -68,6 +67,6 @@ dataset_builder:
     After completing the reasoning, clearly state the final answer.
   reward_correct: 1.0
   reward_wrong: 0.0
-  reward_none: 0.0
+  reward_none: -0.5
   shuffle: true
   seed: 42

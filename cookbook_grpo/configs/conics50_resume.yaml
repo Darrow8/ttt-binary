@@ -24,6 +24,12 @@ max_steps: 50
 save_every: 5
 eval_every: 10
 
+# Logging: disable per-iteration HTML/JSON disk artifacts.
+# log_samples_every=10 writes rollout HTML only at steps 0, 10, 20, ...
+num_groups_to_log: 4
+rollout_json_export: false
+log_samples_every: 10
+
 wandb_project: "ttt-cookbook-conics50-stage2"
 
 loss_fn: "importance_sampling"

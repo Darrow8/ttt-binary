@@ -33,9 +33,9 @@ class SubproblemRecord:
 
 
 def load_subproblems(path: str | Path) -> list[SubproblemRecord]:
-    """Load subproblems from a JSONL file.
+    """Load subproblems from a JSONL or JSON array file.
 
-    Each line must have at minimum "prompt" and "reference" fields
+    Each record must have at minimum "prompt" and "reference" fields
     (or "problem" and "answer" as alternatives).
 
     Raises ValueError with line number for malformed rows.
@@ -44,38 +44,56 @@ def load_subproblems(path: str | Path) -> list[SubproblemRecord]:
     records: list[SubproblemRecord] = []
 
     with open(path) as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"Malformed JSON at {path}:{line_num}: {e}"
-                ) from e
+        content = f.read().strip()
 
-            problem = row.get("prompt") or row.get("problem")
-            answer = row.get("reference") or row.get("answer")
+    # Detect JSON array vs JSONL
+    if content.startswith("["):
+        try:
+            rows = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Malformed JSON array at {path}: {e}") from e
+        for line_num, row in enumerate(rows, 1):
+            _append_record(records, row, path, line_num)
+        return records
 
-            if not problem:
-                raise ValueError(
-                    f"Missing 'prompt' or 'problem' field at {path}:{line_num}"
-                )
-            if not answer:
-                raise ValueError(
-                    f"Missing 'reference' or 'answer' field at {path}:{line_num}"
-                )
-
-            records.append(SubproblemRecord(
-                problem=problem,
-                answer=str(answer),
-                id=row.get("id"),
-                agreement_rate=row.get("agreement_rate"),
-                metadata=row.get("metadata"),
-            ))
+    for line_num, line in enumerate(content.splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Malformed JSON at {path}:{line_num}: {e}"
+            ) from e
+        _append_record(records, row, path, line_num)
 
     return records
+
+
+def _append_record(
+    records: list[SubproblemRecord], row: dict, path: Path, line_num: int
+) -> None:
+    """Validate and append a single record dict to the records list."""
+    problem = row.get("prompt") or row.get("problem")
+    answer = row.get("reference") or row.get("answer")
+
+    if not problem:
+        raise ValueError(
+            f"Missing 'prompt' or 'problem' field at {path}:{line_num}"
+        )
+    if not answer:
+        raise ValueError(
+            f"Missing 'reference' or 'answer' field at {path}:{line_num}"
+        )
+
+    records.append(SubproblemRecord(
+        problem=problem,
+        answer=str(answer),
+        id=row.get("id"),
+        agreement_rate=row.get("agreement_rate"),
+        metadata=row.get("metadata"),
+    ))
 
 
 class SubproblemDataset(RLDataset):
