@@ -153,8 +153,8 @@ class GRPOTrainer:
         self.service = tinker.ServiceClient()
 
         if self.cfg.resume_from:
-            logger.info("Resuming from checkpoint: %s", self.cfg.resume_from)
-            self.training_client = self.service.create_training_client_from_state(
+            logger.info("Resuming from checkpoint (with optimizer state): %s", self.cfg.resume_from)
+            self.training_client = self.service.create_training_client_from_state_with_optimizer(
                 path=self.cfg.resume_from,
             )
         else:
